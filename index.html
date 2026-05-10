@@ -720,6 +720,144 @@ const GAMES = [
   ],
 
   youtubeUrl: "https://www.youtube.com/watch?v=6qy0ROzEWco"
+},
+
+   // ── GAME: CLUE ───────────────────────────────────────────────────
+{
+  name: "CLUE",
+  category: "Suy luận",
+  emoji: "🕵️",
+  players: "3-6",
+  time: "30-60 phút",
+  difficulty: "Trung bình",
+  color: "#6b3fa0",
+  heroBg: "https://images.ctfassets.net/r3qu44etwf9a/5k3r2O7k9lKzQ9A7nQv8mK/9fbc7f8a1b6a3c0f7d3a6a0f0d2f8f5e/clue-board-game-hero.jpg",
+
+  objective: "Clue là trò chơi suy luận phá án nổi tiếng, nơi người chơi phải tìm ra 3 bí mật của vụ án mạng: Ai là hung thủ, hung khí gây án là gì và vụ án xảy ra ở căn phòng nào. Người chiến thắng là người đầu tiên đưa ra kết luận chính xác về cả 3 yếu tố.",
+
+  setup: [
+    "Chuẩn bị 3 nhóm thẻ gồm: Nhân vật, Hung khí và Căn phòng.",
+    "Rút ngẫu nhiên 1 thẻ từ mỗi nhóm rồi đặt bí mật vào phong bì án mạng. Đây chính là lời giải cuối cùng.",
+    "Xào toàn bộ các thẻ còn lại và chia đều cho người chơi.",
+    "Mỗi người nhận 1 bảng ghi chú để đánh dấu các thông tin đã biết.",
+    "Mỗi người chọn 1 nhân vật và đặt quân cờ vào vị trí bắt đầu tương ứng trên bản đồ.",
+    "Các hung khí được đặt ngẫu nhiên trong các căn phòng trên bàn chơi.",
+    "Nếu chơi 3-4 người: sử dụng toàn bộ vai trò cơ bản. Nếu chơi đủ 5-6 người, tất cả nhân vật sẽ xuất hiện giúp game hỗn loạn và khó đoán hơn."
+  ],
+
+  turn: [
+    "Trong lượt chơi, người chơi gieo xúc xắc để di chuyển qua các hành lang và tiến vào những căn phòng trong biệt thự. Khi vào được một căn phòng, người chơi có thể đưa ra suy luận về vụ án bằng cách chỉ định 1 nghi phạm và 1 hung khí trong chính căn phòng hiện tại.",
+    
+    "Ví dụ: Người chơi bước vào Phòng Bếp và nói Tôi nghi ngờ Đại tá Mustard đã dùng Dao trong Phòng Bếp. Lúc này quân Đại tá Mustard và vũ khí Dao sẽ được di chuyển vào căn phòng đó.",
+    
+    "Sau khi một lời suy luận được đưa ra, người chơi bên trái phải bí mật cho xem 1 lá bài liên quan nếu họ sở hữu ít nhất 1 trong các lá được nhắc tới. Nếu không có, lượt kiểm tra tiếp tục sang người kế tiếp cho tới khi có người chứng minh được suy luận đó sai.",
+    
+    "Ví dụ: Nếu người chơi nghi ngờ Giáo sư Plum dùng Dây thừng tại Phòng Khách và người bên cạnh có lá Dây thừng, họ sẽ bí mật cho xem lá đó. Điều này giúp người suy luận biết rằng Dây thừng không nằm trong phong bì án mạng.",
+    
+    "Người chơi cần liên tục ghi chú các thông tin đã xem để loại trừ dần nghi phạm, hung khí và địa điểm. Đây là phần quan trọng nhất của game vì mọi dữ kiện đều phải được suy luận từ logic và trí nhớ.",
+    
+    "Bất kỳ lúc nào trong lượt của mình, nếu tin rằng đã tìm ra đáp án cuối cùng, người chơi có thể đưa ra cáo buộc chính thức. Người đó sẽ bí mật mở phong bì án mạng để kiểm tra.",
+    
+    "Nếu cáo buộc chính xác cả 3 yếu tố gồm Hung thủ, Hung khí và Căn phòng, người chơi chiến thắng ngay lập tức.",
+    
+    "Nếu cáo buộc sai, người chơi bị loại khỏi việc chiến thắng nhưng vẫn phải tiếp tục cho người khác xem bài khi bị hỏi. Điều này khiến việc đoán liều rất rủi ro."
+  ],
+
+  win: "Người đầu tiên đưa ra cáo buộc chính xác về Hung thủ, Hung khí và Căn phòng trong phong bì án mạng sẽ chiến thắng.",
+
+  tips: [
+    "Luôn ghi chú cẩn thận vì chỉ cần quên 1 thông tin nhỏ cũng có thể làm hỏng toàn bộ suy luận.",
+    "Ưu tiên di chuyển vào các phòng mà bạn chưa kiểm tra.",
+    "Quan sát phản ứng của người khác khi một nghi phạm hoặc hung khí được nhắc đến.",
+    "Đôi khi nên đưa ra suy luận giả để đánh lạc hướng đối thủ.",
+    "Đừng vội cáo buộc cuối cùng nếu chưa thật sự chắc chắn."
+  ],
+
+  images: [
+    {
+      url: "https://i.ytimg.com/vi/KEXdWfsKZ1k/maxresdefault.jpg",
+      caption: "Bản đồ biệt thự trong Clue"
+    },
+    {
+      url: "https://cf.geekdo-images.com/original/img/clue-cards-example.jpg",
+      caption: "Ví dụ các thẻ nghi phạm, hung khí và căn phòng"
+    },
+    {
+      url: "https://i.ytimg.com/vi/cvF0pWc5Taw/maxresdefault.jpg",
+      caption: "Người chơi ghi chú để suy luận hung thủ"
+    }
+  ],
+
+  youtubeUrl: "https://www.youtube.com/watch?v=OuM0P8SZQF4"
+},
+
+   // ── GAME: ĐUA RÙA ───────────────────────────────────────────────────
+{
+  name: "ĐUA RÙA",
+  category: "Gia đình",
+  emoji: "🐢",
+  players: "2-5",
+  time: "15-25 phút",
+  difficulty: "Dễ",
+  color: "#3ca55c",
+  heroBg: "https://cf.geekdo-images.com/original/img/turtle-race-banner.jpg",
+
+  objective: "Đua Rùa là trò chơi gia đình vui nhộn và đầy bất ngờ, nơi mỗi người chơi bí mật điều khiển một chú rùa với mục tiêu đưa rùa của mình về đích đầu tiên. Điều thú vị là người chơi không chỉ di chuyển rùa của bản thân mà còn có thể điều khiển tất cả các rùa khác trên đường đua.",
+
+  setup: [
+    "Đặt bàn đua ở giữa bàn chơi và xếp tất cả rùa tại ô xuất phát.",
+    "Mỗi người chơi bí mật rút hoặc chọn 1 màu rùa đại diện cho mình. Không được tiết lộ màu rùa cho người khác.",
+    "Mỗi người chơi nhận số lá bài di chuyển bằng nhau.",
+    "Nếu chơi 2-3 người: dùng ít màu rùa hơn để tăng khả năng suy luận.",
+    "Nếu chơi 4-5 người: sử dụng đủ các màu rùa để cuộc đua hỗn loạn và khó đoán hơn.",
+    "Xào bộ bài di chuyển và chia bài cho người chơi.",
+    "Người nhỏ tuổi nhất hoặc người thích rùa nhất sẽ đi trước."
+  ],
+
+  turn: [
+    "Trong lượt chơi, người chơi chọn 1 lá bài trên tay và thực hiện hành động ghi trên lá bài đó. Các lá bài thường cho phép di chuyển 1 chú rùa tiến lên hoặc lùi lại một số ô nhất định.",
+    
+    "Điểm đặc biệt của Đua Rùa là các chú rùa có thể chồng lên nhau. Nếu một chú rùa ở dưới cùng di chuyển, toàn bộ chồng rùa nằm phía trên sẽ được kéo đi cùng.",
+    
+    "Ví dụ: Rùa đỏ đang nằm dưới rùa xanh và rùa vàng. Khi rùa đỏ tiến lên 2 ô, cả rùa xanh và rùa vàng cũng di chuyển theo vì đang đứng trên lưng rùa đỏ.",
+    
+    "Người chơi có thể sử dụng bài để hỗ trợ rùa của mình hoặc cố tình giúp rùa khác nhằm đánh lạc hướng đối thủ. Điều này khiến việc đoán màu rùa của nhau trở nên rất khó.",
+    
+    "Ví dụ: Người chơi liên tục đẩy rùa xanh lên đầu đoàn đua khiến mọi người nghĩ đó là rùa của họ, nhưng thực tế họ đang bí mật điều khiển rùa vàng đang bám ngay phía sau.",
+    
+    "Một số phiên bản có thêm lá bài đặc biệt như di chuyển bất kỳ rùa nào, đổi vị trí hoặc khiến rùa đi lùi để tạo thêm hỗn loạn.",
+    
+    "Sau khi thực hiện hành động, người chơi rút thêm bài để giữ đủ số lượng bài trên tay rồi chuyển lượt cho người tiếp theo.",
+    
+    "Trò chơi tiếp tục cho tới khi có ít nhất 1 chú rùa cán đích. Nếu nhiều rùa cùng về đích do đang chồng lên nhau, rùa nằm dưới cùng sẽ được tính là về trước."
+  ],
+
+  win: "Người chơi chiến thắng nếu chú rùa bí mật của mình về đích đầu tiên. Nếu nhiều rùa cùng tới đích, thứ tự được tính từ dưới lên trên của chồng rùa.",
+
+  tips: [
+    "Đừng quá lộ việc liên tục hỗ trợ rùa của mình.",
+    "Tận dụng cơ chế chồng rùa để kéo nhiều rùa đi cùng.",
+    "Đôi khi giúp rùa đối thủ dẫn đầu sẽ khiến mọi người nghi ngờ sai.",
+    "Giữ lại các lá bài mạnh cho thời điểm gần đích.",
+    "Quan sát xem người khác thường hỗ trợ màu nào để suy luận bí mật của họ."
+  ],
+
+  images: [
+    {
+      url: "https://i.ytimg.com/vi/turtle-race-boardgame-maxresdefault.jpg",
+      caption: "Các chú rùa chồng lên nhau trong cuộc đua"
+    },
+    {
+      url: "https://cf.geekdo-images.com/original/img/turtle-race-gameplay.jpg",
+      caption: "Ví dụ bàn chơi Đua Rùa"
+    },
+    {
+      url: "https://i.ytimg.com/vi/turtle-race-cards.jpg",
+      caption: "Các lá bài di chuyển trong game"
+    }
+  ],
+
+  youtubeUrl: "https://www.youtube.com/watch?v=V7Xq1k6g0mM"
 }
 
   // ═══════════════════════════════════════════════════════════════
