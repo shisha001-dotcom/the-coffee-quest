@@ -652,7 +652,105 @@ const GAMES = [
        { url: "https://i.ytimg.com/vi/wA3LdhgA8BE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCjbNGUF-qNuMUaXwLR8Xxn5QzCYA", caption: "Mô tả ảnh" }
     ],
     youtubeUrl: "https://www.youtube.com/watch?v=I3_BejHOXkA"
-  }
+  },
+
+   // ── GAME: WEREWOLF ───────────────────────────────────────────────────
+{
+  name: "WEREWOLF",
+  category: "Party Game",
+  emoji: "🐺",
+  players: "6-20",
+  time: "20-45 phút",
+  difficulty: "Trung bình",
+  color: "#7a1f1f",
+  heroBg: "https://cdn.shopify.com/s/files/1/0559/3053/5686/files/werewolf-party-game.jpg",
+  objective: "Werewolf là trò chơi suy luận và nhập vai nổi tiếng, nơi người chơi được chia thành 2 phe chính: Dân làng và Ma sói. Mục tiêu của Dân làng là tìm ra và treo cổ toàn bộ Ma sói trước khi bị tiêu diệt. Mục tiêu của Ma sói là bí mật giết hết dân làng để chiếm quyền kiểm soát ngôi làng.",
+  
+  setup: [
+    "Chuẩn bị bộ vai trò phù hợp với số lượng người chơi. Một ván cơ bản thường gồm: Ma sói, Tiên tri, Bảo vệ và Dân làng.",
+    "Mỗi người chơi nhận ngẫu nhiên 1 lá vai trò và giữ bí mật tuyệt đối.",
+    "Chọn 1 người làm Quản trò để điều khiển trò chơi. Quản trò không tham gia chơi.",
+    "Tất cả người chơi ngồi thành vòng tròn để dễ quan sát biểu cảm và thảo luận.",
+    "Quản trò thông báo bắt đầu đêm đầu tiên và yêu cầu mọi người nhắm mắt."
+  ],
+
+  turn: [
+    "Trò chơi diễn ra luân phiên giữa Ban đêm và Ban ngày.",
+    
+    "BAN ĐÊM:",
+    
+    "Tất cả người chơi nhắm mắt.",
+    
+    "Quản trò gọi từng vai trò thức dậy theo thứ tự.",
+    
+    "Ma sói thức dậy đầu tiên và bí mật chọn 1 người để giết.",
+    
+    "Ví dụ: Có 2 Ma sói là A và B. Cả hai mở mắt, ra dấu chọn người chơi C làm nạn nhân.",
+    
+    "Sau khi Ma sói ngủ lại, Tiên tri được gọi dậy.",
+    
+    "Tiên tri có thể soi 1 người để biết người đó có phải Ma sói hay không.",
+    
+    "Ví dụ: Tiên tri chọn người D. Quản trò gật đầu nếu D là Ma sói hoặc lắc đầu nếu không phải.",
+    
+    "Nếu có Bảo vệ, Bảo vệ sẽ chọn 1 người để bảo vệ trong đêm.",
+    
+    "Nếu người được bảo vệ bị Ma sói tấn công thì sẽ sống sót.",
+    
+    "Sau khi tất cả vai trò hoàn thành hành động, Quản trò thông báo trời sáng.",
+    
+    "BAN NGÀY:",
+    
+    "Quản trò công bố ai đã chết trong đêm trước.",
+    
+    "Người chết bị loại khỏi trò chơi và không được nói thêm.",
+    
+    "Tất cả người chơi còn sống bắt đầu thảo luận để tìm Ma sói.",
+    
+    "Người chơi có thể tranh luận, đưa bằng chứng, suy luận hoặc đánh lạc hướng.",
+    
+    "Ví dụ: Người chơi E nói rằng F rất đáng nghi vì F luôn im lặng và tránh trả lời câu hỏi.",
+    
+    "Sau thời gian thảo luận, mọi người tiến hành bỏ phiếu treo cổ 1 người.",
+    
+    "Người có nhiều phiếu nhất sẽ bị loại và lật vai trò cho mọi người xem.",
+    
+    "Nếu người bị treo là Ma sói, Dân làng tiến gần hơn đến chiến thắng.",
+    
+    "Sau khi xử tử xong, trò chơi quay lại Ban đêm và tiếp tục vòng mới."
+  ],
+
+  win: "Phe Dân làng thắng khi tất cả Ma sói bị loại. Phe Ma sói thắng khi số lượng Ma sói bằng hoặc nhiều hơn số người dân còn sống.",
+
+  tips: [
+    "Đừng nói quá nhiều hoặc quá ít vì cả hai đều dễ khiến người khác nghi ngờ.",
+    
+    "Nếu là Ma sói, hãy hành động giống dân làng và tham gia tranh luận tự nhiên.",
+    
+    "Tiên tri nên tiết lộ thông tin đúng thời điểm, tránh bị Ma sói tiêu diệt sớm.",
+    
+    "Quan sát biểu cảm, tốc độ phản ứng và cách trả lời của người chơi khác.",
+    
+    "Khi bỏ phiếu, hãy chú ý ai đang cố bảo vệ người bị nghi là Ma sói."
+  ],
+
+  images: [
+    {
+      url: "https://cdn.shopify.com/s/files/1/0559/3053/5686/files/werewolf-night-phase.jpg",
+      caption: "Ban đêm: Ma sói bí mật chọn nạn nhân"
+    },
+    {
+      url: "https://cf.geekdo-images.com/5x5zX1wJt-E7QxkD7zQ7Tw__imagepage/img.jpg",
+      caption: "Ban ngày: Người chơi tranh luận và tìm Ma sói"
+    },
+    {
+      url: "https://i.ytimg.com/vi/9CkqA7W2M5A/maxresdefault.jpg",
+      caption: "Ví dụ các lá vai trò trong Werewolf"
+    }
+  ],
+
+  youtubeUrl: "https://www.youtube.com/watch?v=6qy0ROzEWco"
+}
 
   // ═══════════════════════════════════════════════════════════════
   //  THÊM GAME MỚI — COPY BLOCK NÀY, DÁN TRƯỚC DẤU ] CUỐI MẢNG
