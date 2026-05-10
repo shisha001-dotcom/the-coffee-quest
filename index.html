@@ -664,74 +664,48 @@ const GAMES = [
   difficulty: "Trung bình",
   color: "#7a1f1f",
   heroBg: "https://cdn.shopify.com/s/files/1/0559/3053/5686/files/werewolf-party-game.jpg",
-  objective: "Werewolf là trò chơi suy luận và nhập vai nổi tiếng, nơi người chơi được chia thành 2 phe chính: Dân làng và Ma sói. Mục tiêu của Dân làng là tìm ra và treo cổ toàn bộ Ma sói trước khi bị tiêu diệt. Mục tiêu của Ma sói là bí mật giết hết dân làng để chiếm quyền kiểm soát ngôi làng.",
+  
+  objective: "Werewolf là trò chơi suy luận và nhập vai nổi tiếng, nơi người chơi được chia thành 2 phe chính: Dân làng và Ma sói. Mục tiêu của Dân làng là tìm ra và loại bỏ toàn bộ Ma sói trước khi bị tiêu diệt. Mục tiêu của Ma sói là bí mật giết hết dân làng để chiếm quyền kiểm soát ngôi làng.",
   
   setup: [
-    "Chuẩn bị bộ vai trò phù hợp với số lượng người chơi. Một ván cơ bản thường gồm: Ma sói, Tiên tri, Bảo vệ và Dân làng.",
+    "6-8 người chơi: Khuyên dùng 2 Ma sói, 1 Tiên tri, 1 Bảo vệ, còn lại là Dân làng.",
+    "9-12 người chơi: Khuyên dùng 3 Ma sói, 1 Tiên tri, 1 Bảo vệ, 1 Phù thủy, còn lại là Dân làng.",
+    "13-16 người chơi: Có thể thêm Thợ săn, Cupid hoặc Già làng để tăng độ hấp dẫn.",
+    "17-20 người chơi: Có thể bổ sung thêm nhiều vai trò đặc biệt như Cô bé, Kẻ phản bội hoặc Sói trắng.",
     "Mỗi người chơi nhận ngẫu nhiên 1 lá vai trò và giữ bí mật tuyệt đối.",
-    "Chọn 1 người làm Quản trò để điều khiển trò chơi. Quản trò không tham gia chơi.",
+    "Chọn 1 người làm Quản trò để điều khiển trò chơi. Quản trò không tham gia vào bất kỳ phe nào.",
     "Tất cả người chơi ngồi thành vòng tròn để dễ quan sát biểu cảm và thảo luận.",
-    "Quản trò thông báo bắt đầu đêm đầu tiên và yêu cầu mọi người nhắm mắt."
+    "Quản trò yêu cầu mọi người nhắm mắt để bắt đầu đêm đầu tiên."
   ],
 
   turn: [
-    "Trò chơi diễn ra luân phiên giữa Ban đêm và Ban ngày.",
+    "Trò chơi diễn ra theo vòng lặp gồm Ban đêm và Ban ngày. Trong Ban đêm, tất cả người chơi nhắm mắt và Quản trò lần lượt gọi từng vai trò thức dậy để thực hiện kỹ năng bí mật. Ma sói sẽ chọn 1 người để giết. Sau đó các vai trò đặc biệt như Tiên tri, Bảo vệ hoặc Phù thủy sẽ lần lượt hành động rồi tiếp tục đi ngủ.",
     
-    "BAN ĐÊM:",
+    "Khi trời sáng, Quản trò thông báo ai đã chết trong đêm. Người bị loại không được tiếp tục tham gia thảo luận. Những người còn sống bắt đầu tranh luận, suy luận và buộc tội lẫn nhau để tìm ra Ma sói đang ẩn nấp.",
     
-    "Tất cả người chơi nhắm mắt.",
+    "Sau thời gian thảo luận, tất cả người chơi tiến hành bỏ phiếu treo cổ 1 người bị nghi ngờ nhiều nhất. Người có nhiều phiếu nhất sẽ bị loại và công khai vai trò. Nếu người đó là Ma sói thì phe Dân làng có lợi thế lớn hơn.",
     
-    "Quản trò gọi từng vai trò thức dậy theo thứ tự.",
+    "Ví dụ: Trong đêm, Ma sói chọn người A để giết nhưng Bảo vệ đã bảo vệ A nên không ai chết. Sáng hôm sau, cả làng nghi ngờ người B vì liên tục đổ tội vô lý cho người khác. Sau khi bỏ phiếu, B bị treo cổ và lật ra đúng là Ma sói.",
     
-    "Ma sói thức dậy đầu tiên và bí mật chọn 1 người để giết.",
+    "Tiên tri là vai trò có khả năng soi 1 người mỗi đêm để biết họ có phải Ma sói hay không. Đây là nguồn thông tin rất quan trọng nhưng dễ bị Ma sói nhắm tới nếu lộ thân phận.",
     
-    "Ví dụ: Có 2 Ma sói là A và B. Cả hai mở mắt, ra dấu chọn người chơi C làm nạn nhân.",
+    "Bảo vệ có thể chọn 1 người để bảo vệ mỗi đêm khỏi đòn tấn công của Ma sói. Một số luật mở rộng không cho phép bảo vệ cùng 1 người liên tiếp nhiều đêm.",
     
-    "Sau khi Ma sói ngủ lại, Tiên tri được gọi dậy.",
+    "Phù thủy sở hữu 2 bình thuốc gồm 1 thuốc cứu và 1 thuốc độc. Thuốc cứu có thể hồi sinh người bị Ma sói giết trong đêm, còn thuốc độc có thể tiêu diệt bất kỳ ai mà Phù thủy nghi ngờ.",
     
-    "Tiên tri có thể soi 1 người để biết người đó có phải Ma sói hay không.",
+    "Thợ săn khi chết sẽ được quyền kéo theo 1 người khác chết cùng. Đây là vai trò rất nguy hiểm khiến Ma sói phải dè chừng.",
     
-    "Ví dụ: Tiên tri chọn người D. Quản trò gật đầu nếu D là Ma sói hoặc lắc đầu nếu không phải.",
-    
-    "Nếu có Bảo vệ, Bảo vệ sẽ chọn 1 người để bảo vệ trong đêm.",
-    
-    "Nếu người được bảo vệ bị Ma sói tấn công thì sẽ sống sót.",
-    
-    "Sau khi tất cả vai trò hoàn thành hành động, Quản trò thông báo trời sáng.",
-    
-    "BAN NGÀY:",
-    
-    "Quản trò công bố ai đã chết trong đêm trước.",
-    
-    "Người chết bị loại khỏi trò chơi và không được nói thêm.",
-    
-    "Tất cả người chơi còn sống bắt đầu thảo luận để tìm Ma sói.",
-    
-    "Người chơi có thể tranh luận, đưa bằng chứng, suy luận hoặc đánh lạc hướng.",
-    
-    "Ví dụ: Người chơi E nói rằng F rất đáng nghi vì F luôn im lặng và tránh trả lời câu hỏi.",
-    
-    "Sau thời gian thảo luận, mọi người tiến hành bỏ phiếu treo cổ 1 người.",
-    
-    "Người có nhiều phiếu nhất sẽ bị loại và lật vai trò cho mọi người xem.",
-    
-    "Nếu người bị treo là Ma sói, Dân làng tiến gần hơn đến chiến thắng.",
-    
-    "Sau khi xử tử xong, trò chơi quay lại Ban đêm và tiếp tục vòng mới."
+    "Cupid có thể ghép 2 người thành cặp đôi. Nếu một người chết thì người còn lại cũng sẽ chết theo vì đau buồn. Điều này tạo ra nhiều tình huống bất ngờ và hài hước."
   ],
 
-  win: "Phe Dân làng thắng khi tất cả Ma sói bị loại. Phe Ma sói thắng khi số lượng Ma sói bằng hoặc nhiều hơn số người dân còn sống.",
+  win: "Phe Dân làng thắng khi toàn bộ Ma sói bị loại bỏ. Phe Ma sói thắng khi số lượng Ma sói bằng hoặc nhiều hơn số dân còn sống.",
 
   tips: [
-    "Đừng nói quá nhiều hoặc quá ít vì cả hai đều dễ khiến người khác nghi ngờ.",
-    
-    "Nếu là Ma sói, hãy hành động giống dân làng và tham gia tranh luận tự nhiên.",
-    
-    "Tiên tri nên tiết lộ thông tin đúng thời điểm, tránh bị Ma sói tiêu diệt sớm.",
-    
-    "Quan sát biểu cảm, tốc độ phản ứng và cách trả lời của người chơi khác.",
-    
-    "Khi bỏ phiếu, hãy chú ý ai đang cố bảo vệ người bị nghi là Ma sói."
+    "Quan sát biểu cảm và cách phản ứng của người chơi khi bị nghi ngờ.",
+    "Nếu là Ma sói, hãy tham gia tranh luận tự nhiên để tránh bị phát hiện.",
+    "Tiên tri nên tiết lộ thông tin đúng thời điểm thay vì lộ thân phận quá sớm.",
+    "Đừng bỏ phiếu theo cảm tính, hãy chú ý logic và hành động của từng người.",
+    "Ma sói thường cố thao túng cuộc trò chuyện để hướng nghi ngờ sang người vô tội."
   ],
 
   images: [
@@ -740,12 +714,8 @@ const GAMES = [
       caption: "Ban đêm: Ma sói bí mật chọn nạn nhân"
     },
     {
-      url: "https://cf.geekdo-images.com/5x5zX1wJt-E7QxkD7zQ7Tw__imagepage/img.jpg",
-      caption: "Ban ngày: Người chơi tranh luận và tìm Ma sói"
-    },
-    {
       url: "https://i.ytimg.com/vi/9CkqA7W2M5A/maxresdefault.jpg",
-      caption: "Ví dụ các lá vai trò trong Werewolf"
+      caption: "Các vai trò phổ biến trong Werewolf"
     }
   ],
 
