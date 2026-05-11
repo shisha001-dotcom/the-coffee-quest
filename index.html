@@ -1075,5 +1075,386 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLb(); });
 renderGrid();
 handleHash();
 </script>
+
+<!-- ══════════════════════════════════════════════
+     CHAT ONLINE REALTIME
+     DÁN TOÀN BỘ PHẦN NÀY TRƯỚC </body>
+══════════════════════════════════════════════ -->
+
+<style>
+/* ═════════ CHAT BUTTON ═════════ */
+#chat-toggle{
+  position:fixed;
+  bottom:22px;
+  right:22px;
+  width:64px;
+  height:64px;
+  border:none;
+  border-radius:50%;
+  background:#e63946;
+  color:#fff;
+  font-size:28px;
+  cursor:pointer;
+  z-index:99999;
+  box-shadow:0 10px 25px rgba(0,0,0,.25);
+  transition:transform .2s, box-shadow .2s;
+}
+#chat-toggle:hover{
+  transform:scale(1.08);
+  box-shadow:0 14px 30px rgba(0,0,0,.35);
+}
+
+/* ═════════ CHAT WINDOW ═════════ */
+#chat-window{
+  position:fixed;
+  bottom:100px;
+  right:22px;
+  width:360px;
+  height:520px;
+  background:#fff;
+  border-radius:22px;
+  overflow:hidden;
+  display:none;
+  flex-direction:column;
+  z-index:99999;
+  border:2px solid #e0d8cc;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
+  animation:chatFade .25s ease;
+}
+
+#chat-window.open{
+  display:flex;
+}
+
+@keyframes chatFade{
+  from{
+    opacity:0;
+    transform:translateY(20px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+/* HEADER */
+.chat-header{
+  background:#1a1a1a;
+  color:#fff;
+  padding:16px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.chat-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.chat-title h3{
+  font-size:1rem;
+  font-weight:800;
+}
+
+.online-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:#2ecc71;
+}
+
+#chat-close{
+  background:none;
+  border:none;
+  color:#fff;
+  font-size:22px;
+  cursor:pointer;
+  opacity:.7;
+}
+#chat-close:hover{
+  opacity:1;
+}
+
+/* ONLINE */
+.chat-online{
+  background:#faf6ef;
+  border-bottom:1px solid #e0d8cc;
+  padding:8px 14px;
+  font-size:.8rem;
+  color:#666;
+  font-weight:700;
+}
+
+/* MESSAGES */
+#chat-messages{
+  flex:1;
+  overflow-y:auto;
+  padding:14px;
+  background:#f5f0e8;
+}
+
+.chat-msg{
+  margin-bottom:12px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.chat-user{
+  font-size:.72rem;
+  font-weight:800;
+  color:#888;
+  padding-left:4px;
+}
+
+.chat-bubble{
+  background:#fff;
+  border-radius:14px;
+  padding:10px 14px;
+  font-size:.9rem;
+  line-height:1.5;
+  color:#333;
+  border:1px solid #e0d8cc;
+  word-break:break-word;
+}
+
+/* INPUT */
+.chat-input-wrap{
+  border-top:1px solid #e0d8cc;
+  background:#fff;
+  padding:12px;
+  display:flex;
+  gap:10px;
+}
+
+#chat-input{
+  flex:1;
+  border:2px solid #e0d8cc;
+  border-radius:12px;
+  padding:12px;
+  font-size:.92rem;
+  outline:none;
+}
+
+#chat-input:focus{
+  border-color:#e63946;
+}
+
+#chat-send{
+  border:none;
+  background:#e63946;
+  color:#fff;
+  border-radius:12px;
+  padding:0 18px;
+  cursor:pointer;
+  font-weight:800;
+}
+
+#chat-send:hover{
+  opacity:.9;
+}
+
+@media(max-width:600px){
+  #chat-window{
+    width:calc(100vw - 24px);
+    right:12px;
+    bottom:84px;
+    height:70vh;
+  }
+
+  #chat-toggle{
+    right:14px;
+    bottom:14px;
+  }
+}
+</style>
+
+<!-- CHAT BUTTON -->
+<button id="chat-toggle">💬</button>
+
+<!-- CHAT WINDOW -->
+<div id="chat-window">
+
+  <div class="chat-header">
+    <div class="chat-title">
+      <div class="online-dot"></div>
+      <h3>Boardgame Community</h3>
+    </div>
+
+    <button id="chat-close">✕</button>
+  </div>
+
+  <div class="chat-online">
+    👥 Online: <span id="online-count">0</span>
+  </div>
+
+  <div id="chat-messages"></div>
+
+  <div class="chat-input-wrap">
+    <input
+      type="text"
+      id="chat-input"
+      placeholder="Nhập tin nhắn..."
+      maxlength="300"
+    />
+
+    <button id="chat-send">Gửi</button>
+  </div>
+
+</div>
+
+<script type="module">
+
+/* ═════════ FIREBASE ═════════ */
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+  getDatabase,
+  ref,
+  push,
+  onChildAdded,
+  set,
+  remove,
+  onValue,
+  onDisconnect
+}
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+/* ═════════ THAY BẰNG FIREBASE CONFIG CỦA BẠN ═════════ */
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  databaseURL: "YOUR_DATABASE_URL",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+/* ═════════ INIT ═════════ */
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* ═════════ USERNAME ═════════ */
+
+let username = localStorage.getItem("tcq_username");
+
+if(!username){
+
+  username = prompt("Tên của bạn?");
+
+  if(!username || username.trim()===""){
+    username = "Khách_" + Math.floor(Math.random()*9999);
+  }
+
+  localStorage.setItem("tcq_username", username);
+}
+
+/* ═════════ CHAT UI ═════════ */
+
+const toggleBtn = document.getElementById("chat-toggle");
+const chatWindow = document.getElementById("chat-window");
+const closeBtn = document.getElementById("chat-close");
+
+toggleBtn.onclick = ()=>{
+  chatWindow.classList.toggle("open");
+};
+
+closeBtn.onclick = ()=>{
+  chatWindow.classList.remove("open");
+};
+
+/* ═════════ ONLINE USERS ═════════ */
+
+const userId = Date.now() + "_" + Math.random().toString(36).slice(2);
+
+const onlineRef = ref(db, "onlineUsers/" + userId);
+
+set(onlineRef,{
+  name: username,
+  online: true
+});
+
+onDisconnect(onlineRef).remove();
+
+onValue(ref(db,"onlineUsers"), snapshot=>{
+
+  const data = snapshot.val();
+
+  const count = data ? Object.keys(data).length : 0;
+
+  document.getElementById("online-count").textContent = count;
+});
+
+/* ═════════ SEND MESSAGE ═════════ */
+
+const msgRef = ref(db, "communityChat");
+
+function sendMessage(){
+
+  const input = document.getElementById("chat-input");
+
+  const text = input.value.trim();
+
+  if(!text) return;
+
+  push(msgRef,{
+    user: username,
+    text,
+    time: Date.now()
+  });
+
+  input.value = "";
+}
+
+document.getElementById("chat-send")
+.addEventListener("click", sendMessage);
+
+document.getElementById("chat-input")
+.addEventListener("keydown", e=>{
+  if(e.key==="Enter"){
+    sendMessage();
+  }
+});
+
+/* ═════════ RECEIVE MESSAGE ═════════ */
+
+onChildAdded(msgRef, snapshot=>{
+
+  const msg = snapshot.val();
+
+  const wrap = document.createElement("div");
+
+  wrap.className = "chat-msg";
+
+  wrap.innerHTML = `
+    <div class="chat-user">${escapeHtml(msg.user)}</div>
+    <div class="chat-bubble">${escapeHtml(msg.text)}</div>
+  `;
+
+  const container = document.getElementById("chat-messages");
+
+  container.appendChild(wrap);
+
+  container.scrollTop = container.scrollHeight;
+});
+
+/* ═════════ ESCAPE HTML ═════════ */
+
+function escapeHtml(str){
+
+  return str
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
+}
+
+</script>
 </body>
 </html>
