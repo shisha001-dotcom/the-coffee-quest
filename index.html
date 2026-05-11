@@ -1082,6 +1082,123 @@ handleHash();
 ══════════════════════════════════════════════ -->
 
 <style>
+/* ═════════ USERNAME MODAL ═════════ */
+
+#username-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  z-index:999999;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  backdrop-filter:blur(6px);
+  padding:20px;
+}
+
+#username-modal.show{
+  display:flex;
+}
+
+.username-card{
+  width:100%;
+  max-width:420px;
+  background:#fff;
+  border-radius:28px;
+  padding:42px 34px;
+  text-align:center;
+  animation:userModal .25s ease;
+  box-shadow:0 20px 70px rgba(0,0,0,.35);
+}
+
+@keyframes userModal{
+  from{
+    opacity:0;
+    transform:translateY(20px) scale(.96);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
+.username-logo{
+  width:82px;
+  height:82px;
+  border-radius:24px;
+  background:#e63946;
+  color:#fff;
+  font-size:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0 auto 22px;
+  box-shadow:0 12px 30px rgba(230,57,70,.35);
+}
+
+.username-card h2{
+  font-family:'Bebas Neue',sans-serif;
+  letter-spacing:1px;
+  font-size:2rem;
+  margin-bottom:10px;
+  color:#1a1a1a;
+}
+
+.username-card p{
+  color:#777;
+  line-height:1.6;
+  margin-bottom:24px;
+  font-size:.95rem;
+}
+
+#username-input{
+  width:100%;
+  border:2px solid #e0d8cc;
+  border-radius:16px;
+  padding:16px;
+  font-size:1rem;
+  outline:none;
+  transition:border-color .2s, box-shadow .2s;
+  margin-bottom:18px;
+}
+
+#username-input:focus{
+  border-color:#e63946;
+  box-shadow:0 0 0 4px rgba(230,57,70,.12);
+}
+
+#username-save{
+  width:100%;
+  border:none;
+  border-radius:16px;
+  padding:16px;
+  background:#e63946;
+  color:#fff;
+  font-size:1rem;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform .15s, opacity .15s;
+}
+
+#username-save:hover{
+  transform:translateY(-2px);
+  opacity:.95;
+}
+
+@media(max-width:600px){
+
+  .username-card{
+    padding:34px 24px;
+    border-radius:24px;
+  }
+
+  .username-card h2{
+    font-size:1.7rem;
+  }
+
+}
+
+   
 /* ═════════ CHAT BUTTON ═════════ */
 #chat-toggle{
   position:fixed;
@@ -1304,7 +1421,36 @@ handleHash();
   </div>
 
 </div>
+<!-- USERNAME MODAL -->
+<div id="username-modal">
 
+  <div class="username-card">
+
+    <div class="username-logo">
+      🎲
+    </div>
+
+    <h2>Boardgame Community</h2>
+
+    <p>
+      Chọn tên hiển thị để bắt đầu trò chuyện cùng mọi người
+    </p>
+
+    <input
+      type="text"
+      id="username-input"
+      maxlength="20"
+      placeholder="Ví dụ: Vương, Admin, WerewolfKing..."
+    />
+
+    <button id="username-save">
+      Vào phòng chat
+    </button>
+
+  </div>
+
+</div>
+   
 <script type="module">
 
 import { initializeApp }
@@ -1340,20 +1486,77 @@ const app = initializeApp(firebaseConfig);
 
 const db = getDatabase(app);
 
-/* ═════════ USERNAME ═════════ */
+/* ═════════ USERNAME SYSTEM ═════════ */
 
-let username = localStorage.getItem("tcq_username");
+let username =
+  localStorage.getItem("tcq_username");
+
+const usernameModal =
+  document.getElementById("username-modal");
+
+const usernameInput =
+  document.getElementById("username-input");
+
+const usernameSave =
+  document.getElementById("username-save");
+
+/* CHƯA CÓ TÊN */
 
 if(!username){
 
-  username = prompt("Nhập tên của bạn");
+  usernameModal.classList.add("show");
 
-  if(!username || username.trim()===""){
-    username = "Khách_" + Math.floor(Math.random()*9999);
+  setTimeout(()=>{
+    usernameInput.focus();
+  },100);
+
+}
+
+/* SAVE USERNAME */
+
+function saveUsername(){
+
+  const val =
+    usernameInput.value.trim();
+
+  if(!val){
+
+    usernameInput.focus();
+
+    usernameInput.style.borderColor = "#e63946";
+
+    return;
   }
 
-  localStorage.setItem("tcq_username", username);
+  username = val;
+
+  localStorage.setItem(
+    "tcq_username",
+    username
+  );
+
+  usernameModal.classList.remove("show");
 }
+
+/* BUTTON */
+
+usernameSave.addEventListener(
+  "click",
+  saveUsername
+);
+
+/* ENTER */
+
+usernameInput.addEventListener(
+  "keydown",
+  e=>{
+
+    if(e.key==="Enter"){
+      saveUsername();
+    }
+
+  }
+);
 
 /* ═════════ CHAT OPEN/CLOSE ═════════ */
 
