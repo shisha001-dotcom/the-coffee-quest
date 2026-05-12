@@ -1176,41 +1176,201 @@ border-radius:50%;
 background:#2ecc71;
 }
 
+/* HEADER BUTTONS */
+
+#chat-menu-btn{
+background:none;
+border:none;
+color:#fff;
+font-size:20px;
+cursor:pointer;
+padding:4px 6px;
+border-radius:8px;
+transition:background .15s;
+line-height:1;
+}
+#chat-menu-btn:hover{background:rgba(255,255,255,.12)}
+
 #chat-close{
 background:none;
 border:none;
 color:#fff;
 font-size:22px;
 cursor:pointer;
+padding:2px 4px;
 }
 
-/* ONLINE BAR */
+/* SETTINGS PANEL */
 
-.chat-online{
-background:#faf6ef;
-border-bottom:1px solid #e0d8cc;
-padding:10px 14px;
+#chat-settings-panel{
+position:absolute;
+inset:0;
+z-index:10;
+pointer-events:none;
+border-radius:24px;
+overflow:hidden;
+}
+
+#chat-settings-panel.open{
+pointer-events:all;
+}
+
+#chat-settings-overlay{
+position:absolute;
+inset:0;
+background:rgba(0,0,0,.45);
+opacity:0;
+transition:opacity .25s;
+}
+
+#chat-settings-panel.open #chat-settings-overlay{
+opacity:1;
+}
+
+#chat-settings-drawer{
+position:absolute;
+top:0;right:0;bottom:0;
+width:82%;
+max-width:280px;
+background:#fff;
+transform:translateX(100%);
+transition:transform .28s cubic-bezier(.4,0,.2,1);
+display:flex;
+flex-direction:column;
+}
+
+#chat-settings-panel.open #chat-settings-drawer{
+transform:translateX(0);
+}
+
+.settings-header{
+background:#1a1a1a;
+color:#fff;
+padding:16px 18px;
 display:flex;
 align-items:center;
 justify-content:space-between;
+font-weight:800;
+font-size:.95rem;
 }
 
-.chat-online-left{
-font-size:.82rem;
-color:#666;
-font-weight:700;
-}
-
-#change-name-btn{
+#settings-close-btn{
+background:none;
 border:none;
-background:#fff;
-border:1px solid #ddd;
-border-radius:12px;
-padding:7px 12px;
-font-size:.75rem;
-font-weight:700;
+color:#fff;
+font-size:18px;
 cursor:pointer;
 }
+
+.settings-section{
+padding:18px 18px 14px;
+}
+
+.settings-label{
+font-size:.72rem;
+font-weight:800;
+text-transform:uppercase;
+letter-spacing:1px;
+color:#aaa;
+margin-bottom:10px;
+}
+
+.settings-name-display{
+font-size:1rem;
+font-weight:800;
+color:#1a1a1a;
+padding:10px 14px;
+background:#f5f0e8;
+border-radius:12px;
+border:2px solid #e0d8cc;
+margin-bottom:10px;
+min-height:42px;
+}
+
+.settings-rename-btn{
+width:100%;
+border:none;
+background:#e63946;
+color:#fff;
+border-radius:12px;
+padding:11px 16px;
+font-size:.85rem;
+font-weight:800;
+cursor:pointer;
+transition:background .15s;
+}
+.settings-rename-btn:hover{background:#c62d39}
+
+.settings-divider{
+height:1px;
+background:#f0ebe0;
+margin:0 18px;
+}
+
+.settings-theme-row{
+display:flex;
+gap:8px;
+}
+
+.theme-btn{
+flex:1;
+border:2px solid #e0d8cc;
+border-radius:10px;
+padding:9px 4px;
+font-size:.72rem;
+font-weight:800;
+cursor:pointer;
+transition:border-color .15s,transform .1s;
+}
+.theme-btn:hover{transform:scale(1.04)}
+.theme-btn.active{border-color:#e63946;outline:none}
+
+/* TOGGLE SWITCH */
+
+.settings-toggle{
+display:flex;
+align-items:center;
+gap:10px;
+cursor:pointer;
+}
+
+.toggle-track{
+width:40px;
+height:22px;
+background:#e0d8cc;
+border-radius:100px;
+position:relative;
+transition:background .2s;
+flex-shrink:0;
+}
+
+input[type=checkbox]:checked + .toggle-track{
+background:#e63946;
+}
+
+.toggle-thumb{
+position:absolute;
+top:3px;left:3px;
+width:16px;height:16px;
+background:#fff;
+border-radius:50%;
+transition:left .2s;
+box-shadow:0 1px 4px rgba(0,0,0,.2);
+}
+
+input[type=checkbox]:checked + .toggle-track .toggle-thumb{
+left:21px;
+}
+
+.settings-toggle input{display:none}
+
+.toggle-label{
+font-size:.8rem;
+color:#555;
+font-weight:600;
+}
+
+
 
 /* CHAT AREA */
 
@@ -1339,27 +1499,51 @@ cursor:pointer;
 <div id="chat-window">
 
 <div class="chat-header">
-
 <div class="chat-title">
 <div class="online-dot"></div>
-<h3>Boardgame Community</h3>
+<div>
+  <h3 style="font-size:.95rem;line-height:1.1">Boardgame Community</h3>
+  <div style="font-size:.7rem;color:#aaa;margin-top:2px">👥 <span id="online-count">0</span> đang online</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:6px">
+  <button id="chat-menu-btn" title="Cài đặt">☰</button>
+  <button id="chat-close">✕</button>
+</div>
 </div>
 
-<button id="chat-close">✕</button>
-
-</div>
-
-<div class="chat-online">
-
-<div class="chat-online-left">
-👥 Online:
-<span id="online-count">0</span>
-</div>
-
-<button id="change-name-btn">
-✏️ Đổi tên
-</button>
-
+<!-- SIDE SETTINGS PANEL -->
+<div id="chat-settings-panel">
+  <div id="chat-settings-overlay"></div>
+  <div id="chat-settings-drawer">
+    <div class="settings-header">
+      <span>⚙️ Cài đặt</span>
+      <button id="settings-close-btn">✕</button>
+    </div>
+    <div class="settings-section">
+      <div class="settings-label">👤 Tên hiển thị</div>
+      <div class="settings-name-display" id="settings-name-display">—</div>
+      <button class="settings-rename-btn" id="settings-rename-btn">✏️ Đổi tên</button>
+    </div>
+    <div class="settings-divider"></div>
+    <div class="settings-section">
+      <div class="settings-label">🎨 Giao diện chat</div>
+      <div class="settings-theme-row">
+        <button class="theme-btn active" data-theme="warm" style="background:#f5f0e8">☕ Ấm</button>
+        <button class="theme-btn" data-theme="dark" style="background:#1e1e2e;color:#cdd6f4">🌙 Tối</button>
+        <button class="theme-btn" data-theme="light" style="background:#ffffff">☀️ Sáng</button>
+      </div>
+    </div>
+    <div class="settings-divider"></div>
+    <div class="settings-section">
+      <div class="settings-label">🔔 Thông báo âm thanh</div>
+      <label class="settings-toggle">
+        <input type="checkbox" id="sound-toggle" checked>
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-label">Bật tiếng khi có tin nhắn mới</span>
+      </label>
+    </div>
+  </div>
 </div>
 
 <div id="chat-messages"></div>
@@ -1455,6 +1639,52 @@ closeBtn.onclick=()=>{
 chatWindow.classList.remove("open");
 };
 
+/* SETTINGS PANEL */
+
+const settingsPanel = document.getElementById("chat-settings-panel");
+const settingsOverlay = document.getElementById("chat-settings-overlay");
+
+document.getElementById("chat-menu-btn").onclick = () => {
+  settingsPanel.classList.add("open");
+  // update displayed name
+  document.getElementById("settings-name-display").textContent = username || "(chưa đặt tên)";
+};
+
+document.getElementById("settings-close-btn").onclick = () => {
+  settingsPanel.classList.remove("open");
+};
+
+settingsOverlay.onclick = () => {
+  settingsPanel.classList.remove("open");
+};
+
+document.getElementById("settings-rename-btn").onclick = () => {
+  settingsPanel.classList.remove("open");
+  usernameInput.value = username || "";
+  usernameModal.classList.add("show");
+  setTimeout(() => usernameInput.focus(), 300);
+};
+
+// Theme switcher
+document.querySelectorAll(".theme-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".theme-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const theme = btn.dataset.theme;
+    const msgs = document.getElementById("chat-messages");
+    if(theme === "dark"){
+      msgs.style.background = "#1e1e2e";
+      msgs.style.color = "#cdd6f4";
+    } else if(theme === "light"){
+      msgs.style.background = "#f8f9fa";
+      msgs.style.color = "#1a1a1a";
+    } else {
+      msgs.style.background = "#f5f0e8";
+      msgs.style.color = "#1a1a1a";
+    }
+  });
+});
+
 /* USERNAME */
 
 let username =
@@ -1480,18 +1710,6 @@ if(!username){
 usernameModal.classList.add("show");
 
 }
-
-/* CHANGE NAME */
-
-document
-.getElementById("change-name-btn")
-.onclick=()=>{
-
-usernameInput.value = username || "";
-
-usernameModal.classList.add("show");
-
-};
 
 /* ONLINE */
 
@@ -1534,6 +1752,10 @@ function saveUsername(){
     name: username,
     online: true
   });
+
+  // refresh settings panel display
+  const nameDisplay = document.getElementById("settings-name-display");
+  if(nameDisplay) nameDisplay.textContent = username;
 
   usernameModal.classList.remove("show");
 
