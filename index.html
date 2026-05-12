@@ -6,40 +6,6 @@
 <title>The Coffee Quest</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-/* ═════════ ONLINE BAR ═════════ */
-
-.chat-online{
-  background:#faf6ef;
-  border-bottom:1px solid #e0d8cc;
-  padding:8px 14px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.chat-online-left{
-  font-size:.8rem;
-  color:#666;
-  font-weight:700;
-}
-
-#change-name-btn{
-  border:none;
-  background:#fff;
-  border:1px solid #e0d8cc;
-  border-radius:10px;
-  padding:6px 10px;
-  font-size:.75rem;
-  font-weight:700;
-  cursor:pointer;
-  transition:.2s;
-}
-
-#change-name-btn:hover{
-  background:#f3eee6;
-}
-   
 /* ══════════════════════════════════════════════
    RESET & ROOT
 ══════════════════════════════════════════════ */
@@ -377,45 +343,6 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
 </div>
 
 <script>
-
-// 1. Lấy các phần tử cần thiết
-const changeNameBtn = document.getElementById("change-name-btn");
-const displayUsername = document.getElementById("display-username");
-
-// 2. Hàm cập nhật tên
-function updateUsername() {
-  const newName = prompt("Nhập tên mới của bạn:", username);
-  
-  if (newName && newName.trim() !== "") {
-    const sanitizedName = newName.trim().substring(0, 20); // Giới hạn 20 ký tự
-    
-    // Cập nhật biến toàn cục (giả sử bạn có biến username)
-    username = sanitizedName;
-    
-    // Lưu vào localStorage
-    localStorage.setItem("tcq_username", username);
-    
-    // Cập nhật hiển thị trên giao diện
-    if(displayUsername) displayUsername.innerText = username;
-    
-    alert("Đã đổi tên thành: " + username);
-  }
-}
-
-// 3. Gán sự kiện click cho nút
-if (changeNameBtn) {
-  changeNameBtn.addEventListener("click", updateUsername);
-}
-
-// 4. Khi vừa load trang, hiển thị tên cũ từ localStorage (nếu có)
-window.addEventListener("DOMContentLoaded", () => {
-  const savedName = localStorage.getItem("tcq_username");
-  if (savedName) {
-    username = savedName;
-    if(displayUsername) displayUsername.innerText = username;
-  }
-});
-  
 // ═══════════════════════════════════════════════════════════════════
 //  📌 DỮ LIỆU BOARD GAME — THÊM GAME MỚI VÀO ĐÂY
 //
@@ -1367,6 +1294,16 @@ handleHash();
   opacity:1;
 }
 
+/* ONLINE */
+.chat-online{
+  background:#faf6ef;
+  border-bottom:1px solid #e0d8cc;
+  padding:8px 14px;
+  font-size:.8rem;
+  color:#666;
+  font-weight:700;
+}
+
 /* MESSAGES */
 #chat-messages{
   flex:1;
@@ -1467,17 +1404,8 @@ handleHash();
   </div>
 
   <div class="chat-online">
-
-  <div class="chat-online-left">
-    👥 Online:
-    <span id="online-count">0</span>
+    👥 Online: <span id="online-count">0</span>
   </div>
-
-  <button id="change-name-btn">
-    ✏️ Đổi tên
-  </button>
-
-</div>
 
   <div id="chat-messages"></div>
 
@@ -1572,26 +1500,6 @@ const usernameInput =
 const usernameSave =
   document.getElementById("username-save");
 
-/* ═════════ CHANGE USERNAME ═════════ */
-
-const changeNameBtn =
-  document.getElementById("change-name-btn");
-
-changeNameBtn.addEventListener(
-  "click",
-  ()=>{
-
-    usernameInput.value = username || "";
-
-    usernameModal.classList.add("show");
-
-    setTimeout(()=>{
-      usernameInput.focus();
-    },100);
-
-  }
-);
-
 /* CHƯA CÓ TÊN */
 
 if(!username){
@@ -1615,8 +1523,7 @@ function saveUsername(){
 
     usernameInput.focus();
 
-    usernameInput.style.borderColor =
-      "#e63946";
+    usernameInput.style.borderColor = "#e63946";
 
     return;
   }
@@ -1629,7 +1536,6 @@ function saveUsername(){
   );
 
   usernameModal.classList.remove("show");
-
 }
 
 /* BUTTON */
@@ -1703,42 +1609,6 @@ onValue(ref(db,"onlineUsers"), snapshot=>{
 /* ═════════ CHAT MESSAGES ═════════ */
 
 const msgRef = ref(db, "communityChat");
-
-/* ═════════ AUTO CLEAR DAILY ═════════ */
-
-import {
-  remove
-}
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-const today =
-  new Date().toISOString().split("T")[0];
-
-const lastClearKey = "tcq_last_clear";
-
-/* KIỂM TRA NGÀY */
-
-const lastClear =
-  localStorage.getItem(lastClearKey);
-
-/* NẾU QUA NGÀY MỚI */
-
-if(lastClear !== today){
-
-  /* XÓA CHAT */
-
-  remove(msgRef);
-
-  /* LƯU NGÀY ĐÃ XÓA */
-
-  localStorage.setItem(
-    lastClearKey,
-    today
-  );
-
-  console.log("Chat cleared for new day");
-}
-
 
 /* SEND */
 
