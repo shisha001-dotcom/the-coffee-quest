@@ -6,6 +6,40 @@
 <title>The Coffee Quest</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
+/* ═════════ ONLINE BAR ═════════ */
+
+.chat-online{
+  background:#faf6ef;
+  border-bottom:1px solid #e0d8cc;
+  padding:8px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.chat-online-left{
+  font-size:.8rem;
+  color:#666;
+  font-weight:700;
+}
+
+#change-name-btn{
+  border:none;
+  background:#fff;
+  border:1px solid #e0d8cc;
+  border-radius:10px;
+  padding:6px 10px;
+  font-size:.75rem;
+  font-weight:700;
+  cursor:pointer;
+  transition:.2s;
+}
+
+#change-name-btn:hover{
+  background:#f3eee6;
+}
+   
 /* ══════════════════════════════════════════════
    RESET & ROOT
 ══════════════════════════════════════════════ */
@@ -1076,616 +1110,556 @@ renderGrid();
 handleHash();
 </script>
 
-<!-- ══════════════════════════════════════════════
-     CHAT ONLINE REALTIME
-     DÁN TOÀN BỘ PHẦN NÀY TRƯỚC </body>
-══════════════════════════════════════════════ -->
-
 <style>
-/* ═════════ USERNAME MODAL ═════════ */
 
-#username-modal{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.72);
-  z-index:999999;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  backdrop-filter:blur(6px);
-  padding:20px;
-}
+/* CHAT BUTTON */
 
-#username-modal.show{
-  display:flex;
-}
-
-.username-card{
-  width:100%;
-  max-width:420px;
-  background:#fff;
-  border-radius:28px;
-  padding:42px 34px;
-  text-align:center;
-  animation:userModal .25s ease;
-  box-shadow:0 20px 70px rgba(0,0,0,.35);
-}
-
-@keyframes userModal{
-  from{
-    opacity:0;
-    transform:translateY(20px) scale(.96);
-  }
-  to{
-    opacity:1;
-    transform:translateY(0) scale(1);
-  }
-}
-
-.username-logo{
-  width:82px;
-  height:82px;
-  border-radius:24px;
-  background:#e63946;
-  color:#fff;
-  font-size:40px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  margin:0 auto 22px;
-  box-shadow:0 12px 30px rgba(230,57,70,.35);
-}
-
-.username-card h2{
-  font-family:'Bebas Neue',sans-serif;
-  letter-spacing:1px;
-  font-size:2rem;
-  margin-bottom:10px;
-  color:#1a1a1a;
-}
-
-.username-card p{
-  color:#777;
-  line-height:1.6;
-  margin-bottom:24px;
-  font-size:.95rem;
-}
-
-#username-input{
-  width:100%;
-  border:2px solid #e0d8cc;
-  border-radius:16px;
-  padding:16px;
-  font-size:1rem;
-  outline:none;
-  transition:border-color .2s, box-shadow .2s;
-  margin-bottom:18px;
-}
-
-#username-input:focus{
-  border-color:#e63946;
-  box-shadow:0 0 0 4px rgba(230,57,70,.12);
-}
-
-#username-save{
-  width:100%;
-  border:none;
-  border-radius:16px;
-  padding:16px;
-  background:#e63946;
-  color:#fff;
-  font-size:1rem;
-  font-weight:800;
-  cursor:pointer;
-  transition:transform .15s, opacity .15s;
-}
-
-#username-save:hover{
-  transform:translateY(-2px);
-  opacity:.95;
-}
-
-@media(max-width:600px){
-
-  .username-card{
-    padding:34px 24px;
-    border-radius:24px;
-  }
-
-  .username-card h2{
-    font-size:1.7rem;
-  }
-
-}
-
-   
-/* ═════════ CHAT BUTTON ═════════ */
 #chat-toggle{
-  position:fixed;
-  bottom:22px;
-  right:22px;
-  width:64px;
-  height:64px;
-  border:none;
-  border-radius:50%;
-  background:#e63946;
-  color:#fff;
-  font-size:28px;
-  cursor:pointer;
-  z-index:99999;
-  box-shadow:0 10px 25px rgba(0,0,0,.25);
-  transition:transform .2s, box-shadow .2s;
-}
-#chat-toggle:hover{
-  transform:scale(1.08);
-  box-shadow:0 14px 30px rgba(0,0,0,.35);
+position:fixed;
+bottom:20px;
+right:20px;
+width:64px;
+height:64px;
+border:none;
+border-radius:50%;
+background:#e63946;
+color:#fff;
+font-size:28px;
+cursor:pointer;
+z-index:99999;
+box-shadow:0 10px 25px rgba(0,0,0,.25);
 }
 
-/* ═════════ CHAT WINDOW ═════════ */
+/* CHAT WINDOW */
+
 #chat-window{
-  position:fixed;
-  bottom:100px;
-  right:22px;
-  width:360px;
-  height:520px;
-  background:#fff;
-  border-radius:22px;
-  overflow:hidden;
-  display:none;
-  flex-direction:column;
-  z-index:99999;
-  border:2px solid #e0d8cc;
-  box-shadow:0 20px 60px rgba(0,0,0,.25);
-  animation:chatFade .25s ease;
+position:fixed;
+bottom:96px;
+right:20px;
+width:360px;
+height:540px;
+background:#fff;
+border-radius:24px;
+overflow:hidden;
+display:none;
+flex-direction:column;
+z-index:99999;
+box-shadow:0 20px 60px rgba(0,0,0,.25);
+border:2px solid #e7ded1;
 }
 
 #chat-window.open{
-  display:flex;
-}
-
-@keyframes chatFade{
-  from{
-    opacity:0;
-    transform:translateY(20px);
-  }
-  to{
-    opacity:1;
-    transform:translateY(0);
-  }
+display:flex;
 }
 
 /* HEADER */
+
 .chat-header{
-  background:#1a1a1a;
-  color:#fff;
-  padding:16px 18px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
+background:#1a1a1a;
+color:#fff;
+padding:16px 18px;
+display:flex;
+align-items:center;
+justify-content:space-between;
 }
 
 .chat-title{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.chat-title h3{
-  font-size:1rem;
-  font-weight:800;
+display:flex;
+align-items:center;
+gap:10px;
 }
 
 .online-dot{
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  background:#2ecc71;
+width:10px;
+height:10px;
+border-radius:50%;
+background:#2ecc71;
 }
 
 #chat-close{
-  background:none;
-  border:none;
-  color:#fff;
-  font-size:22px;
-  cursor:pointer;
-  opacity:.7;
-}
-#chat-close:hover{
-  opacity:1;
+background:none;
+border:none;
+color:#fff;
+font-size:22px;
+cursor:pointer;
 }
 
-/* ONLINE */
+/* ONLINE BAR */
+
 .chat-online{
-  background:#faf6ef;
-  border-bottom:1px solid #e0d8cc;
-  padding:8px 14px;
-  font-size:.8rem;
-  color:#666;
-  font-weight:700;
+background:#faf6ef;
+border-bottom:1px solid #e0d8cc;
+padding:10px 14px;
+display:flex;
+align-items:center;
+justify-content:space-between;
 }
 
-/* MESSAGES */
+.chat-online-left{
+font-size:.82rem;
+color:#666;
+font-weight:700;
+}
+
+#change-name-btn{
+border:none;
+background:#fff;
+border:1px solid #ddd;
+border-radius:12px;
+padding:7px 12px;
+font-size:.75rem;
+font-weight:700;
+cursor:pointer;
+}
+
+/* CHAT AREA */
+
 #chat-messages{
-  flex:1;
-  overflow-y:auto;
-  padding:14px;
-  background:#f5f0e8;
+flex:1;
+overflow-y:auto;
+padding:14px;
+background:#f5f0e8;
 }
 
 .chat-msg{
-  margin-bottom:12px;
-  display:flex;
-  flex-direction:column;
-  gap:4px;
+margin-bottom:14px;
 }
 
 .chat-user{
-  font-size:.72rem;
-  font-weight:800;
-  color:#888;
-  padding-left:4px;
+font-size:.72rem;
+font-weight:800;
+color:#777;
+margin-bottom:4px;
+padding-left:4px;
 }
 
 .chat-bubble{
-  background:#fff;
-  border-radius:14px;
-  padding:10px 14px;
-  font-size:.9rem;
-  line-height:1.5;
-  color:#333;
-  border:1px solid #e0d8cc;
-  word-break:break-word;
+background:#fff;
+border-radius:14px;
+padding:10px 14px;
+border:1px solid #e0d8cc;
+line-height:1.5;
+word-break:break-word;
 }
 
 /* INPUT */
+
 .chat-input-wrap{
-  border-top:1px solid #e0d8cc;
-  background:#fff;
-  padding:12px;
-  display:flex;
-  gap:10px;
+display:flex;
+gap:10px;
+padding:12px;
+background:#fff;
+border-top:1px solid #e0d8cc;
 }
 
 #chat-input{
-  flex:1;
-  border:2px solid #e0d8cc;
-  border-radius:12px;
-  padding:12px;
-  font-size:.92rem;
-  outline:none;
-}
-
-#chat-input:focus{
-  border-color:#e63946;
+flex:1;
+border:2px solid #e0d8cc;
+border-radius:14px;
+padding:12px;
+outline:none;
 }
 
 #chat-send{
-  border:none;
-  background:#e63946;
-  color:#fff;
-  border-radius:12px;
-  padding:0 18px;
-  cursor:pointer;
-  font-weight:800;
+border:none;
+background:#e63946;
+color:#fff;
+border-radius:14px;
+padding:0 18px;
+font-weight:800;
+cursor:pointer;
 }
 
-#chat-send:hover{
-  opacity:.9;
+/* USERNAME MODAL */
+
+#username-modal{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.72);
+z-index:999999;
+display:none;
+align-items:center;
+justify-content:center;
+backdrop-filter:blur(6px);
+padding:20px;
 }
 
-@media(max-width:600px){
-  #chat-window{
-    width:calc(100vw - 24px);
-    right:12px;
-    bottom:84px;
-    height:70vh;
-  }
-
-  #chat-toggle{
-    right:14px;
-    bottom:14px;
-  }
+#username-modal.show{
+display:flex;
 }
+
+.username-card{
+width:100%;
+max-width:420px;
+background:#fff;
+border-radius:28px;
+padding:40px 30px;
+text-align:center;
+}
+
+.username-logo{
+width:82px;
+height:82px;
+border-radius:24px;
+background:#e63946;
+color:#fff;
+font-size:42px;
+display:flex;
+align-items:center;
+justify-content:center;
+margin:0 auto 22px;
+}
+
+#username-input{
+width:100%;
+border:2px solid #e0d8cc;
+border-radius:16px;
+padding:16px;
+font-size:1rem;
+outline:none;
+margin-bottom:16px;
+}
+
+#username-save{
+width:100%;
+border:none;
+border-radius:16px;
+padding:16px;
+background:#e63946;
+color:#fff;
+font-size:1rem;
+font-weight:800;
+cursor:pointer;
+}
+
 </style>
 
-<!-- CHAT BUTTON -->
 <button id="chat-toggle">💬</button>
 
-<!-- CHAT WINDOW -->
 <div id="chat-window">
 
-  <div class="chat-header">
-    <div class="chat-title">
-      <div class="online-dot"></div>
-      <h3>Boardgame Community</h3>
-    </div>
+<div class="chat-header">
 
-    <button id="chat-close">✕</button>
-  </div>
+<div class="chat-title">
+<div class="online-dot"></div>
+<h3>Boardgame Community</h3>
+</div>
 
-  <div class="chat-online">
-    👥 Online: <span id="online-count">0</span>
-  </div>
-
-  <div id="chat-messages"></div>
-
-  <div class="chat-input-wrap">
-    <input
-      type="text"
-      id="chat-input"
-      placeholder="Nhập tin nhắn..."
-      maxlength="300"
-    />
-
-    <button id="chat-send">Gửi</button>
-  </div>
+<button id="chat-close">✕</button>
 
 </div>
-<!-- USERNAME MODAL -->
+
+<div class="chat-online">
+
+<div class="chat-online-left">
+👥 Online:
+<span id="online-count">0</span>
+</div>
+
+<button id="change-name-btn">
+✏️ Đổi tên
+</button>
+
+</div>
+
+<div id="chat-messages"></div>
+
+<div class="chat-input-wrap">
+
+<input
+type="text"
+id="chat-input"
+placeholder="Nhập tin nhắn..."
+maxlength="300"
+/>
+
+<button id="chat-send">
+Gửi
+</button>
+
+</div>
+
+</div>
+
 <div id="username-modal">
 
-  <div class="username-card">
+<div class="username-card">
 
-    <div class="username-logo">
-      🎲
-    </div>
+<div class="username-logo">
+🎲
+</div>
 
-    <h2>Boardgame Community</h2>
+<h2>Boardgame Community</h2>
 
-    <p>
-      Chọn tên hiển thị để bắt đầu trò chuyện cùng mọi người
-    </p>
+<p style="margin:12px 0 24px;color:#777">
+Nhập tên hiển thị của bạn
+</p>
 
-    <input
-      type="text"
-      id="username-input"
-      maxlength="20"
-      placeholder="Ví dụ: Vương, Admin, WerewolfKing..."
-    />
+<input
+type="text"
+id="username-input"
+maxlength="20"
+placeholder="Ví dụ: Vương..."
+/>
 
-    <button id="username-save">
-      Vào phòng chat
-    </button>
-
-  </div>
+<button id="username-save">
+Vào chat
+</button>
 
 </div>
-   
+
+</div>
+
 <script type="module">
 
 import { initializeApp }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
-  getDatabase,
-  ref,
-  push,
-  onChildAdded,
-  set,
-  onValue,
-  onDisconnect
+getDatabase,
+ref,
+push,
+onChildAdded,
+set,
+onValue,
+onDisconnect,
+remove
 }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-/* ═════════ FIREBASE CONFIG ═════════ */
-
 const firebaseConfig = {
-  apiKey: "AIzaSyBIn1bj6ndt8Yy5AiPFdeKtI5MrZnaNugc",
-  authDomain: "doublevcute.firebaseapp.com",
-  databaseURL: "https://doublevcute-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "doublevcute",
-  storageBucket: "doublevcute.firebasestorage.app",
-  messagingSenderId: "31483876077",
-  appId: "1:31483876077:web:f2efbb34d8a2c6dcb532e4",
-  measurementId: "G-EKGL5TN6NY"
+apiKey: "AIzaSyBIn1bj6ndt8Yy5AiPFdeKtI5MrZnaNugc",
+authDomain: "doublevcute.firebaseapp.com",
+databaseURL: "https://doublevcute-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId: "doublevcute",
+storageBucket: "doublevcute.firebasestorage.app",
+messagingSenderId: "31483876077",
+appId: "1:31483876077:web:f2efbb34d8a2c6dcb532e4",
+measurementId: "G-EKGL5TN6NY"
 };
 
-/* ═════════ INIT FIREBASE ═════════ */
-
 const app = initializeApp(firebaseConfig);
-
 const db = getDatabase(app);
 
-/* ═════════ USERNAME SYSTEM ═════════ */
+/* CHAT OPEN */
+
+const toggleBtn = document.getElementById("chat-toggle");
+const chatWindow = document.getElementById("chat-window");
+const closeBtn = document.getElementById("chat-close");
+
+toggleBtn.onclick=()=>{
+chatWindow.classList.toggle("open");
+};
+
+closeBtn.onclick=()=>{
+chatWindow.classList.remove("open");
+};
+
+/* USERNAME */
 
 let username =
-  localStorage.getItem("tcq_username");
+localStorage.getItem("tcq_username");
 
 const usernameModal =
-  document.getElementById("username-modal");
+document.getElementById("username-modal");
 
 const usernameInput =
-  document.getElementById("username-input");
+document.getElementById("username-input");
 
 const usernameSave =
-  document.getElementById("username-save");
-
-/* CHƯA CÓ TÊN */
+document.getElementById("username-save");
 
 if(!username){
 
-  usernameModal.classList.add("show");
-
-  setTimeout(()=>{
-    usernameInput.focus();
-  },100);
+usernameModal.classList.add("show");
 
 }
+
+/* CHANGE NAME */
+
+document
+.getElementById("change-name-btn")
+.onclick=()=>{
+
+usernameInput.value=username||"";
+
+usernameModal.classList.add("show");
+
+};
+
+/* ONLINE */
+
+const userId =
+Date.now()+"_"+Math.random();
+
+const onlineRef =
+ref(db,"onlineUsers/"+userId);
+
+function updateOnline(){
+
+set(onlineRef,{
+name:username,
+online:true
+});
+
+}
+
+onDisconnect(onlineRef).remove();
 
 /* SAVE USERNAME */
 
 function saveUsername(){
 
-  const val =
-    usernameInput.value.trim();
+const val =
+usernameInput.value.trim();
 
-  if(!val){
+if(!val) return;
 
-    usernameInput.focus();
+username=val;
 
-    usernameInput.style.borderColor = "#e63946";
+localStorage.setItem(
+"tcq_username",
+username
+);
 
-    return;
-  }
+updateOnline();
 
-  username = val;
+usernameModal.classList.remove("show");
 
-  localStorage.setItem(
-    "tcq_username",
-    username
-  );
-
-  usernameModal.classList.remove("show");
 }
 
-/* BUTTON */
-
-usernameSave.addEventListener(
-  "click",
-  saveUsername
-);
-
-/* ENTER */
+usernameSave.onclick=saveUsername;
 
 usernameInput.addEventListener(
-  "keydown",
-  e=>{
-
-    if(e.key==="Enter"){
-      saveUsername();
-    }
-
-  }
+"keydown",
+e=>{
+if(e.key==="Enter"){
+saveUsername();
+}
+}
 );
 
-/* ═════════ CHAT OPEN/CLOSE ═════════ */
+/* ONLINE COUNT */
 
-const toggleBtn = document.getElementById("chat-toggle");
+onValue(
+ref(db,"onlineUsers"),
+snapshot=>{
 
-const chatWindow = document.getElementById("chat-window");
+const data=snapshot.val();
 
-const closeBtn = document.getElementById("chat-close");
+document.getElementById(
+"online-count"
+).textContent =
+data ? Object.keys(data).length : 0;
 
-toggleBtn.addEventListener("click", ()=>{
+}
+);
 
-  chatWindow.classList.toggle("open");
+/* CHAT */
 
-});
+const msgRef =
+ref(db,"communityChat");
 
-closeBtn.addEventListener("click", ()=>{
+/* CLEAR DAILY */
 
-  chatWindow.classList.remove("open");
+const today =
+new Date().toISOString().split("T")[0];
 
-});
+const lastClear =
+localStorage.getItem("tcq_clear");
 
-/* ═════════ ONLINE USERS ═════════ */
+if(lastClear!==today){
 
-const userId =
-  Date.now() + "_" + Math.random().toString(36).slice(2);
+remove(msgRef);
 
-const onlineRef =
-  ref(db, "onlineUsers/" + userId);
+localStorage.setItem(
+"tcq_clear",
+today
+);
 
-set(onlineRef,{
-  name: username,
-  online: true
-});
-
-/* QUAN TRỌNG */
-onDisconnect(onlineRef).remove();
-
-onValue(ref(db,"onlineUsers"), snapshot=>{
-
-  const data = snapshot.val();
-
-  const count =
-    data ? Object.keys(data).length : 0;
-
-  document.getElementById("online-count")
-    .textContent = count;
-
-});
-
-/* ═════════ CHAT MESSAGES ═════════ */
-
-const msgRef = ref(db, "communityChat");
+}
 
 /* SEND */
 
 function sendMessage(){
 
-  const input =
-    document.getElementById("chat-input");
+const input =
+document.getElementById("chat-input");
 
-  const text = input.value.trim();
+const text =
+input.value.trim();
 
-  if(!text) return;
+if(!text || !username) return;
 
-  push(msgRef,{
-    user: username,
-    text: text,
-    time: Date.now()
-  });
+push(msgRef,{
+user:username,
+text:text,
+time:Date.now()
+});
 
-  input.value = "";
+input.value="";
+
 }
 
-/* BUTTON SEND */
+document
+.getElementById("chat-send")
+.onclick=sendMessage;
 
-document.getElementById("chat-send")
-.addEventListener("click", sendMessage);
+document
+.getElementById("chat-input")
+.addEventListener("keydown",e=>{
 
-/* ENTER SEND */
-
-document.getElementById("chat-input")
-.addEventListener("keydown", e=>{
-
-  if(e.key === "Enter"){
-    sendMessage();
-  }
+if(e.key==="Enter"){
+sendMessage();
+}
 
 });
 
 /* RECEIVE */
 
-onChildAdded(msgRef, snapshot=>{
+onChildAdded(msgRef,snapshot=>{
 
-  const msg = snapshot.val();
+const msg=snapshot.val();
 
-  const wrap = document.createElement("div");
+const div =
+document.createElement("div");
 
-  wrap.className = "chat-msg";
+div.className="chat-msg";
 
-  wrap.innerHTML = `
-    <div class="chat-user">
-      ${escapeHtml(msg.user)}
-    </div>
+div.innerHTML=`
+<div class="chat-user">
+${escapeHtml(msg.user)}
+</div>
 
-    <div class="chat-bubble">
-      ${escapeHtml(msg.text)}
-    </div>
-  `;
+<div class="chat-bubble">
+${escapeHtml(msg.text)}
+</div>
+`;
 
-  const container =
-    document.getElementById("chat-messages");
+const container =
+document.getElementById(
+"chat-messages"
+);
 
-  container.appendChild(wrap);
+container.appendChild(div);
 
-  container.scrollTop =
-    container.scrollHeight;
+container.scrollTop =
+container.scrollHeight;
 
 });
 
-/* ═════════ ESCAPE HTML ═════════ */
+/* ESCAPE */
 
 function escapeHtml(str){
 
-  return String(str)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;");
+return String(str)
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;");
+
 }
 
 </script>
+
 </body>
 </html>
