@@ -1610,6 +1610,42 @@ onValue(ref(db,"onlineUsers"), snapshot=>{
 
 const msgRef = ref(db, "communityChat");
 
+/* ═════════ AUTO CLEAR DAILY ═════════ */
+
+import {
+  remove
+}
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const today =
+  new Date().toISOString().split("T")[0];
+
+const lastClearKey = "tcq_last_clear";
+
+/* KIỂM TRA NGÀY */
+
+const lastClear =
+  localStorage.getItem(lastClearKey);
+
+/* NẾU QUA NGÀY MỚI */
+
+if(lastClear !== today){
+
+  /* XÓA CHAT */
+
+  remove(msgRef);
+
+  /* LƯU NGÀY ĐÃ XÓA */
+
+  localStorage.setItem(
+    lastClearKey,
+    today
+  );
+
+  console.log("Chat cleared for new day");
+}
+
+
 /* SEND */
 
 function sendMessage(){
