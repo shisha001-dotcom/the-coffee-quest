@@ -6,6 +6,40 @@
 <title>The Coffee Quest</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
+/* ═════════ ONLINE BAR ═════════ */
+
+.chat-online{
+  background:#faf6ef;
+  border-bottom:1px solid #e0d8cc;
+  padding:8px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.chat-online-left{
+  font-size:.8rem;
+  color:#666;
+  font-weight:700;
+}
+
+#change-name-btn{
+  border:none;
+  background:#fff;
+  border:1px solid #e0d8cc;
+  border-radius:10px;
+  padding:6px 10px;
+  font-size:.75rem;
+  font-weight:700;
+  cursor:pointer;
+  transition:.2s;
+}
+
+#change-name-btn:hover{
+  background:#f3eee6;
+}
+   
 /* ══════════════════════════════════════════════
    RESET & ROOT
 ══════════════════════════════════════════════ */
@@ -1404,8 +1438,17 @@ handleHash();
   </div>
 
   <div class="chat-online">
-    👥 Online: <span id="online-count">0</span>
+
+  <div class="chat-online-left">
+    👥 Online:
+    <span id="online-count">0</span>
   </div>
+
+  <button id="change-name-btn">
+    ✏️ Đổi tên
+  </button>
+
+</div>
 
   <div id="chat-messages"></div>
 
@@ -1500,6 +1543,26 @@ const usernameInput =
 const usernameSave =
   document.getElementById("username-save");
 
+/* ═════════ CHANGE USERNAME ═════════ */
+
+const changeNameBtn =
+  document.getElementById("change-name-btn");
+
+changeNameBtn.addEventListener(
+  "click",
+  ()=>{
+
+    usernameInput.value = username || "";
+
+    usernameModal.classList.add("show");
+
+    setTimeout(()=>{
+      usernameInput.focus();
+    },100);
+
+  }
+);
+
 /* CHƯA CÓ TÊN */
 
 if(!username){
@@ -1523,7 +1586,8 @@ function saveUsername(){
 
     usernameInput.focus();
 
-    usernameInput.style.borderColor = "#e63946";
+    usernameInput.style.borderColor =
+      "#e63946";
 
     return;
   }
@@ -1536,6 +1600,7 @@ function saveUsername(){
   );
 
   usernameModal.classList.remove("show");
+
 }
 
 /* BUTTON */
