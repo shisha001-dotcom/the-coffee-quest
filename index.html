@@ -6,6 +6,61 @@
 <title>The Coffee Quest</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
+/* ═════════ TOP MENU ═════════ */
+
+.top-menu{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:16px 24px 4px;
+}
+
+.top-menu-btn{
+  border:none;
+  background:#fff;
+  border:2px solid var(--border);
+  color:var(--ink);
+  border-radius:14px;
+  padding:10px 16px;
+  font-weight:800;
+  cursor:pointer;
+  transition:.2s;
+  font-size:.9rem;
+}
+
+.top-menu-btn:hover{
+  transform:translateY(-2px);
+  border-color:var(--accent);
+}
+
+/* DARK MODE */
+
+body.dark-mode{
+  --bg:#111827;
+  --card:#1f2937;
+  --ink:#f9fafb;
+  --muted:#9ca3af;
+  --border:#374151;
+  --tag-bg:#374151;
+}
+
+body.dark-mode .top-menu-btn{
+  background:#1f2937;
+  color:#fff;
+}
+
+body.dark-mode .filter-bar,
+body.dark-mode .game-card,
+body.dark-mode .detail-body,
+body.dark-mode .obj-box,
+body.dark-mode .steps-list li,
+body.dark-mode .turn-card,
+body.dark-mode .related-card{
+  background:#1f2937 !important;
+  color:#fff !important;
+  border-color:#374151 !important;
+}
+
 /* ═════════ ONLINE BAR ═════════ */
 
 .chat-online{
@@ -443,6 +498,27 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
     </div>
     <div class="header-count">Hiển thị <b id="countNum">0</b> game</div>
   </header>
+
+<!-- TOP MENU -->
+<div class="top-menu">
+
+  <button class="top-menu-btn" id="open-settings-btn">
+    ⚙️ Cài đặt
+  </button>
+
+  <button class="top-menu-btn" id="top-change-name-btn">
+    👤 Đổi tên
+  </button>
+
+  <button class="top-menu-btn" id="theme-light-btn">
+    ☀️ Light
+  </button>
+
+  <button class="top-menu-btn" id="theme-dark-btn">
+    🌙 Dark
+  </button>
+
+</div>
 
   <div class="filter-bar">
     <span class="filter-label">Lọc:</span>
@@ -1334,6 +1410,105 @@ document.getElementById('lightbox').addEventListener('click',e=>{ if(e.target.id
 document.getElementById('searchInput').addEventListener('input',e=>{ searchQ=e.target.value; renderGrid(); });
 document.querySelectorAll('.chip').forEach(c=>{ c.addEventListener('click',()=>{ document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); activeFilter=c.dataset.filter; renderGrid(); }); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLb(); });
+
+/* ═════════ TOP MENU SYSTEM ═════════ */
+
+/* OPEN SETTINGS */
+
+const openSettingsBtn =
+  document.getElementById("open-settings-btn");
+
+if(openSettingsBtn){
+
+  openSettingsBtn.onclick = ()=>{
+
+    const chatWindow =
+      document.getElementById("chat-window");
+
+    chatWindow.classList.add("open");
+
+  };
+
+}
+
+/* CHANGE NAME */
+
+const topChangeNameBtn =
+  document.getElementById("top-change-name-btn");
+
+if(topChangeNameBtn){
+
+  topChangeNameBtn.onclick = ()=>{
+
+    const usernameModal =
+      document.getElementById("username-modal");
+
+    const usernameInput =
+      document.getElementById("username-input");
+
+    usernameInput.value =
+      localStorage.getItem("tcq_username") || "";
+
+    usernameModal.classList.add("show");
+
+    setTimeout(()=>{
+      usernameInput.focus();
+    },100);
+
+  };
+
+}
+
+/* LIGHT MODE */
+
+const lightBtn =
+  document.getElementById("theme-light-btn");
+
+if(lightBtn){
+
+  lightBtn.onclick = ()=>{
+
+    document.body.classList.remove("dark-mode");
+
+    localStorage.setItem(
+      "tcq_theme",
+      "light"
+    );
+
+  };
+
+}
+
+/* DARK MODE */
+
+const darkBtn =
+  document.getElementById("theme-dark-btn");
+
+if(darkBtn){
+
+  darkBtn.onclick = ()=>{
+
+    document.body.classList.add("dark-mode");
+
+    localStorage.setItem(
+      "tcq_theme",
+      "dark"
+    );
+
+  };
+
+}
+
+/* LOAD THEME */
+
+const savedTheme =
+  localStorage.getItem("tcq_theme");
+
+if(savedTheme === "dark"){
+
+  document.body.classList.add("dark-mode");
+
+}
 
 // ── INIT ──
 renderGrid();
