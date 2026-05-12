@@ -1,1571 +1,1691 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>The Coffee Quest - Thư Viện Luật Boardgame</title>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
-  
-  <style>
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 1: RESET & BIẾN CSS
-    ════════════════════════════════════════════════════════════ */
-    :root {
-      /* ─ DARK MODE THEME ─ */
-      --bg-primary: #0f1419;
-      --bg-secondary: #1a1f2e;
-      --bg-tertiary: #252d3d;
-      --text-primary: #ffffff;
-      --text-secondary: #b0b9c8;
-      --text-muted: #7a8899;
-      
-      /* ─ ACCENT COLORS ─ */
-      --accent-primary: #ffd700;      /* Vàng */
-      --accent-secondary: #ff6b6b;   /* Đỏ */
-      --accent-success: #51cf66;      /* Xanh */
-      --accent-warning: #ff922b;      /* Cam */
-      
-      /* ─ BORDER & SHADOW ─ */
-      --border-color: #3a4556;
-      --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
-      --shadow-md: 0 8px 24px rgba(0,0,0,0.4);
-      --shadow-lg: 0 16px 40px rgba(0,0,0,0.5);
-      
-      /* ─ SPACING & SIZE ─ */
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
-      --tab-height: 70px;
-      --header-height: 80px;
-      
-      /* ─ FONT SIZE (có thể chỉnh trong settings) ─ */
-      --font-size-base: 16px;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
-      font-size: var(--font-size-base);
-    }
-
-    body {
-      font-family: 'Nunito', sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      overflow-x: hidden;
-      /* Padding dưới để tab menu không che nội dung */
-      padding-bottom: var(--tab-height);
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 2: HEADER (DÙNG CHUNG CHO TẤT CẢ TAB)
-    ════════════════════════════════════════════════════════════ */
-    .header {
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-      border-bottom: 1px solid var(--border-color);
-      padding: 20px 24px;
-      height: var(--header-height);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: var(--shadow-md);
-      backdrop-filter: blur(10px);
-    }
-
-    .logo {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.8rem;
-      letter-spacing: 2px;
-      color: var(--accent-primary);
-      text-decoration: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      white-space: nowrap;
-    }
-
-    .logo-icon {
-      font-size: 2rem;
-    }
-
-    .logo-text {
-      color: var(--text-primary);
-    }
-
-    .header-title {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.4rem;
-      letter-spacing: 1px;
-      color: var(--accent-primary);
-    }
-
-    .header-action {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 3: TAB MENU (CỐ ĐỊNH DƯỚI CÙNG)
-    ════════════════════════════════════════════════════════════ */
-    .tab-menu {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: var(--tab-height);
-      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-      border-top: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 1000;
-      box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
-      backdrop-filter: blur(10px);
-    }
-
-    .tab-item {
-      flex: 1;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      border: none;
-      background: none;
-      color: var(--text-secondary);
-      padding: 8px;
-    }
-
-    .tab-item:hover {
-      background: rgba(255, 215, 0, 0.05);
-    }
-
-    .tab-item.active {
-      color: var(--accent-primary);
-    }
-
-    .tab-icon {
-      font-size: 1.6rem;
-      transition: transform 0.3s ease;
-    }
-
-    .tab-item.active .tab-icon {
-      transform: scale(1.1);
-    }
-
-    .tab-label {
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 4: PAGE CONTAINER
-    ════════════════════════════════════════════════════════════ */
-    .page-container {
-      display: none;
-      animation: fadeIn 0.3s ease;
-    }
-
-    .page-container.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .page-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 24px 16px;
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 5: TAB 1 - TIN TỨC
-    ════════════════════════════════════════════════════════════ */
-    .news-container {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .news-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 2rem;
-      letter-spacing: 1px;
-      color: var(--accent-primary);
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .news-title::after {
-      content: '';
-      flex: 1;
-      height: 2px;
-      background: linear-gradient(to right, var(--accent-primary), transparent);
-    }
-
-    .news-card {
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      transition: all 0.3s ease;
-      box-shadow: var(--shadow-sm);
-      cursor: pointer;
-    }
-
-    .news-card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-md);
-      border-color: var(--accent-primary);
-    }
-
-    .news-image {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-      display: block;
-    }
-
-    .news-body {
-      padding: 20px;
-    }
-
-    .news-date {
-      font-size: 0.85rem;
-      color: var(--accent-primary);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-
-    .news-heading {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.4rem;
-      letter-spacing: 0.8px;
-      color: var(--text-primary);
-      margin-bottom: 10px;
-      line-height: 1.2;
-    }
-
-    .news-desc {
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-      line-height: 1.6;
-      margin-bottom: 12px;
-    }
-
-    .news-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--accent-primary);
-      font-weight: 700;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .news-btn:hover {
-      gap: 10px;
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 6: TAB 2 - LUẬT CHƠI (SỬ DỤNG CODE CŨ)
-    ════════════════════════════════════════════════════════════ */
-    .search-wrap {
-      position: relative;
-      margin-bottom: 24px;
-    }
-
-    .search-input {
-      width: 100%;
-      background: var(--bg-tertiary);
-      border: 2px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      color: var(--text-primary);
-      padding: 14px 48px 14px 16px;
-      font-size: 1rem;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      outline: none;
-    }
-
-    .search-input:focus {
-      border-color: var(--accent-primary);
-      background: rgba(255, 215, 0, 0.05);
-    }
-
-    .search-input::placeholder {
-      color: var(--text-muted);
-    }
-
-    .search-icon {
-      position: absolute;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 1.2rem;
-      color: var(--text-muted);
-      pointer-events: none;
-    }
-
-    .filter-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .filter-label {
-      font-size: 0.75rem;
-      font-weight: 800;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      display: flex;
-      align-items: center;
-    }
-
-    .chip {
-      padding: 8px 16px;
-      border-radius: 100px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      border: 2px solid var(--border-color);
-      background: transparent;
-      color: var(--text-secondary);
-      transition: all 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .chip:hover {
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
-    }
-
-    .chip.active {
-      background: var(--accent-primary);
-      border-color: var(--accent-primary);
-      color: var(--bg-primary);
-    }
-
-    .game-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 20px;
-      margin-bottom: 40px;
-    }
-
-    .game-card {
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: var(--shadow-sm);
-      animation: scaleIn 0.3s ease;
-    }
-
-    @keyframes scaleIn {
-      from { opacity: 0; transform: scale(0.95); }
-      to { opacity: 1; transform: scale(1); }
-    }
-
-    .game-card:hover {
-      transform: translateY(-6px);
-      box-shadow: var(--shadow-md);
-      border-color: var(--accent-primary);
-    }
-
-    .card-stripe {
-      height: 4px;
-    }
-
-    .card-content {
-      padding: 16px;
-    }
-
-    .card-header {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    .card-emoji {
-      font-size: 2.2rem;
-      width: 50px;
-      height: 50px;
-      background: rgba(255, 215, 0, 0.1);
-      border-radius: var(--radius-md);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .card-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.3rem;
-      letter-spacing: 0.8px;
-      color: var(--text-primary);
-      margin-bottom: 6px;
-    }
-
-    .card-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .tag {
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 100px;
-      background: rgba(255, 215, 0, 0.1);
-      color: var(--accent-primary);
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-    }
-
-    .tag.diff-easy {
-      background: rgba(81, 207, 102, 0.15);
-      color: var(--accent-success);
-    }
-
-    .tag.diff-medium {
-      background: rgba(255, 146, 43, 0.15);
-      color: var(--accent-warning);
-    }
-
-    .tag.diff-hard {
-      background: rgba(255, 107, 107, 0.15);
-      color: var(--accent-secondary);
-    }
-
-    .card-desc {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      line-height: 1.5;
-      margin-top: 12px;
-      border-top: 1px solid var(--border-color);
-      padding-top: 12px;
-    }
-
-    .card-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid var(--border-color);
-    }
-
-    .view-btn {
-      color: var(--accent-primary);
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .view-btn:hover {
-      gap: 10px;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      display: none;
-    }
-
-    .empty-state.show {
-      display: block;
-    }
-
-    .empty-icon {
-      font-size: 3rem;
-      margin-bottom: 16px;
-    }
-
-    .empty-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.6rem;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
-    .empty-text {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 7: TAB 3 - THÔNG TIN LIÊN LẠC
-    ════════════════════════════════════════════════════════════ */
-    .contact-container {
-      display: flex;
-      flex-direction: column;
-      gap: 32px;
-    }
-
-    .contact-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 2rem;
-      letter-spacing: 1px;
-      color: var(--accent-primary);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .contact-title::after {
-      content: '';
-      flex: 1;
-      height: 2px;
-      background: linear-gradient(to right, var(--accent-primary), transparent);
-    }
-
-    .info-section {
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .info-section-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.4rem;
-      letter-spacing: 0.8px;
-      color: var(--accent-primary);
-      margin-bottom: 16px;
-    }
-
-    .info-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 16px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .info-item:last-child {
-      margin-bottom: 0;
-      padding-bottom: 0;
-      border-bottom: none;
-    }
-
-    .info-icon {
-      font-size: 1.4rem;
-      min-width: 30px;
-      color: var(--accent-primary);
-    }
-
-    .info-content {
-      flex: 1;
-    }
-
-    .info-label {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-
-    .info-value {
-      color: var(--text-primary);
-      font-size: 1rem;
-      font-weight: 600;
-      word-break: break-word;
-    }
-
-    .info-link {
-      color: var(--accent-primary);
-      text-decoration: none;
-      transition: all 0.3s ease;
-    }
-
-    .info-link:hover {
-      text-decoration: underline;
-    }
-
-    .branches-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 20px;
-      margin-top: 24px;
-    }
-
-    .branch-card {
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      transition: all 0.3s ease;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .branch-card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-md);
-      border-color: var(--accent-primary);
-    }
-
-    .branch-image {
-      width: 100%;
-      height: 180px;
-      object-fit: cover;
-      display: block;
-    }
-
-    .branch-info {
-      padding: 16px;
-    }
-
-    .branch-name {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.2rem;
-      letter-spacing: 0.6px;
-      color: var(--text-primary);
-      margin-bottom: 10px;
-    }
-
-    .branch-detail {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      margin-bottom: 8px;
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    .branch-detail-icon {
-      flex-shrink: 0;
-      color: var(--accent-primary);
-    }
-
-    .branch-action {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid var(--border-color);
-    }
-
-    .branch-btn {
-      flex: 1;
-      padding: 8px 12px;
-      background: rgba(255, 215, 0, 0.1);
-      border: 1px solid var(--accent-primary);
-      border-radius: var(--radius-md);
-      color: var(--accent-primary);
-      font-weight: 700;
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-    }
-
-    .branch-btn:hover {
-      background: var(--accent-primary);
-      color: var(--bg-primary);
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 8: TAB 4 - CÀI ĐẶT CÁ NHÂN
-    ════════════════════════════════════════════════════════════ */
-    .settings-container {
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-      max-width: 600px;
-    }
-
-    .settings-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 2rem;
-      letter-spacing: 1px;
-      color: var(--accent-primary);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .settings-title::after {
-      content: '';
-      flex: 1;
-      height: 2px;
-      background: linear-gradient(to right, var(--accent-primary), transparent);
-    }
-
-    .setting-group {
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .setting-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-
-    .setting-label {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .setting-icon {
-      font-size: 1.2rem;
-      color: var(--accent-primary);
-    }
-
-    .setting-desc {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin-top: 8px;
-    }
-
-    /* Toggle Switch */
-    .toggle-switch {
-      display: inline-flex;
-      align-items: center;
-      width: 50px;
-      height: 28px;
-      background: rgba(255, 215, 0, 0.2);
-      border: 1px solid var(--border-color);
-      border-radius: 100px;
-      cursor: pointer;
-      padding: 2px;
-      transition: all 0.3s ease;
-    }
-
-    .toggle-switch.on {
-      background: var(--accent-primary);
-    }
-
-    .toggle-circle {
-      width: 24px;
-      height: 24px;
-      background: var(--bg-primary);
-      border-radius: 50%;
-      transition: transform 0.3s ease;
-    }
-
-    .toggle-switch.on .toggle-circle {
-      transform: translateX(22px);
-    }
-
-    /* Slider & Select */
-    .setting-options {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-      flex-wrap: wrap;
-    }
-
-    .option-btn {
-      padding: 10px 16px;
-      background: rgba(255, 215, 0, 0.1);
-      border: 2px solid var(--border-color);
-      border-radius: var(--radius-md);
-      color: var(--text-secondary);
-      font-weight: 700;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-    }
-
-    .option-btn:hover {
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
-    }
-
-    .option-btn.active {
-      background: var(--accent-primary);
-      border-color: var(--accent-primary);
-      color: var(--bg-primary);
-    }
-
-    /* Color Picker */
-    .color-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-top: 12px;
-    }
-
-    .color-item {
-      width: 60px;
-      height: 60px;
-      border-radius: var(--radius-md);
-      border: 3px solid var(--border-color);
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .color-item:hover {
-      transform: scale(1.05);
-    }
-
-    .color-item.active {
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
-    }
-
-    /* Reset Button */
-    .reset-section {
-      background: rgba(255, 107, 107, 0.1);
-      border: 1px solid rgba(255, 107, 107, 0.3);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-      text-align: center;
-    }
-
-    .reset-btn {
-      background: var(--accent-secondary);
-      border: none;
-      color: white;
-      padding: 12px 24px;
-      border-radius: var(--radius-md);
-      font-weight: 700;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-top: 12px;
-    }
-
-    .reset-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 107, 107, 0.3);
-    }
-
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 9: RESPONSIVE
-    ════════════════════════════════════════════════════════════ */
-    @media (max-width: 768px) {
-      .header-title {
-        display: none;
-      }
-
-      .logo {
-        font-size: 1.4rem;
-      }
-
-      .game-grid,
-      .branches-grid,
-      .color-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      }
-
-      .page-content {
-        padding: 16px 12px;
-      }
-
-      .tab-label {
-        font-size: 0.65rem;
-      }
-
-      .tab-icon {
-        font-size: 1.4rem;
-      }
-
-      body {
-        padding-bottom: 65px;
-      }
-
-      --tab-height: 65px;
-    }
-
-    @media (max-width: 480px) {
-      :root {
-        --font-size-base: 14px;
-      }
-
-      .logo {
-        font-size: 1.2rem;
-        gap: 6px;
-      }
-
-      .logo-icon {
-        font-size: 1.4rem;
-      }
-
-      .game-grid,
-      .branches-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .color-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-
-      .header-action {
-        gap: 6px;
-      }
-    }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>The Coffee Quest</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+/* ══════════════════════════════════════════════
+   RESET & ROOT
+══════════════════════════════════════════════ */
+:root{
+  --bg:#f5f0e8;
+  --card:#fff;
+  --ink:#1a1a1a;
+  --muted:#888;
+  --border:#e0d8cc;
+  --accent:#e63946;
+  --green:#2a9d8f;
+  --yellow:#e9c46a;
+  --tag-bg:#f0ebe0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+
+/* ══════════════════════════════════════════════
+   SHARED HEADER
+══════════════════════════════════════════════ */
+.site-header{
+  background:var(--ink);color:#fff;
+  padding:18px 32px;
+  display:flex;align-items:center;gap:20px;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 12px rgba(0,0,0,.3);
+}
+.logo{
+  font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:2px;
+  color:var(--accent);white-space:nowrap;cursor:pointer;text-decoration:none;
+}
+.logo span{color:#fff}
+
+/* ══════════════════════════════════════════════
+   PAGE VISIBILITY
+══════════════════════════════════════════════ */
+.page{display:none}
+.page.active{display:block}
+
+/* ══════════════════════════════════════════════
+   LIST PAGE
+══════════════════════════════════════════════ */
+.search-wrap{flex:1;position:relative;max-width:480px}
+.search-wrap input{
+  width:100%;background:#2a2a2a;border:2px solid #3a3a3a;border-radius:10px;
+  color:#fff;font-family:'Nunito',sans-serif;font-size:.95rem;font-weight:600;
+  padding:10px 44px 10px 16px;outline:none;transition:border-color .2s;
+}
+.search-wrap input:focus{border-color:var(--accent)}
+.search-wrap input::placeholder{color:#555}
+.search-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:17px;color:#555;pointer-events:none}
+.header-count{color:#666;font-size:.82rem;font-weight:700;white-space:nowrap}
+.header-count b{color:var(--yellow)}
+
+.filter-bar{
+  padding:14px 32px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  border-bottom:1px solid var(--border);background:#faf6ef;
+}
+.filter-label{font-size:.75rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-right:4px}
+.chip{
+  padding:5px 14px;border-radius:100px;font-size:.78rem;font-weight:700;cursor:pointer;
+  border:2px solid var(--border);background:#fff;color:var(--ink);transition:all .15s;
+}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.list-main{max-width:1100px;margin:0 auto;padding:32px 24px 80px}
+#empty{text-align:center;padding:80px 20px;display:none}
+#empty .e-icon{font-size:52px;margin-bottom:16px}
+#empty h3{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--muted)}
+#empty p{color:var(--muted);font-size:.9rem;margin-top:8px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+
+.game-card{
+  background:var(--card);border:2px solid var(--border);border-radius:16px;
+  overflow:hidden;cursor:pointer;
+  transition:transform .18s,box-shadow .18s,border-color .18s;
+  animation:fadeUp .35s ease both;
+}
+.game-card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(0,0,0,.12);border-color:#ccc}
+.card-stripe{height:6px}
+.card-body{padding:20px 22px 14px}
+.card-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.card-emoji{font-size:30px;width:52px;height:52px;background:var(--tag-bg);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.card-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:1px;line-height:1.1;margin-bottom:6px}
+.card-meta{display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:.7rem;font-weight:800;padding:3px 9px;border-radius:100px;background:var(--tag-bg);color:var(--ink);text-transform:uppercase;letter-spacing:.4px}
+.tag.diff-easy{background:#d4edda;color:#1a5c2d}
+.tag.diff-medium{background:#fff3cd;color:#7d5a00}
+.tag.diff-hard{background:#fde8e8;color:#8b0000}
+.card-objective{font-size:.86rem;color:#555;line-height:1.55;border-top:1px solid var(--border);padding-top:12px;margin-top:4px}
+.card-objective strong{color:var(--ink);font-weight:800}
+.card-footer{padding:10px 22px 16px;display:flex;align-items:center;justify-content:space-between}
+.view-btn{font-size:.78rem;font-weight:800;color:var(--accent);display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
+.view-btn::after{content:'→';transition:transform .15s}
+.game-card:hover .view-btn::after{transform:translateX(5px)}
+
+/* ══════════════════════════════════════════════
+   DETAIL PAGE
+══════════════════════════════════════════════ */
+.detail-nav{
+  background:#111;padding:12px 32px;
+  display:flex;align-items:center;gap:14px;
+  border-bottom:3px solid var(--accent);
+}
+.back-btn{
+  display:flex;align-items:center;gap:7px;
+  color:#bbb;font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;
+  cursor:pointer;background:none;border:none;transition:color .15s;white-space:nowrap;
+  padding:0;
+}
+.back-btn:hover{color:#fff}
+.breadcrumb-sep{color:#444}
+.breadcrumb-cur{color:#666;font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* HERO */
+.detail-hero{position:relative;overflow:hidden;min-height:280px;display:flex;align-items:flex-end}
+.hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.4)}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.2) 60%,transparent 100%)}
+.hero-content{position:relative;z-index:1;padding:40px 48px 36px;width:100%}
+.hero-emoji{font-size:52px;display:block;margin-bottom:10px}
+.hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.2rem,5vw,3.8rem);letter-spacing:2px;color:#fff;line-height:1;margin-bottom:16px}
+.hero-tags{display:flex;flex-wrap:wrap;gap:8px}
+.hero-tag{font-size:.74rem;font-weight:800;padding:5px 13px;border-radius:100px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);color:#fff;text-transform:uppercase;letter-spacing:.5px;backdrop-filter:blur(6px)}
+.hero-tag.hl{background:var(--accent);border-color:var(--accent)}
+
+/* BODY */
+.detail-body{max-width:860px;margin:0 auto;padding:44px 32px 60px}
+
+.d-section{margin-bottom:38px}
+.d-head{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.d-head::after{content:'';flex:1;height:2px;background:linear-gradient(to right,rgba(230,57,70,.22),transparent)}
+
+.obj-box{background:#fff8f8;border-left:4px solid var(--accent);border-radius:0 12px 12px 0;padding:16px 20px;font-size:1rem;line-height:1.7;color:#333;font-weight:700}
+.win-box{background:#e8f8f0;border-left:4px solid var(--green);border-radius:0 12px 12px 0;padding:16px 20px;font-size:1rem;line-height:1.7;color:#1a5c2d;font-weight:700}
+
+.steps-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.step-item{display:flex;gap:16px;background:#faf6ef;border:1px solid var(--border);border-radius:12px;padding:16px 18px;font-size:.92rem;line-height:1.65;color:#444;transition:border-color .2s,box-shadow .2s}
+.step-item:hover{border-color:#c8bfb0;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.step-num{width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;font-size:.78rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+
+.turn-list{display:flex;flex-direction:column;gap:8px}
+.turn-item{display:flex;align-items:flex-start;gap:12px;font-size:.92rem;color:#444;line-height:1.65;padding:12px 16px;background:#f0f7ff;border:1px solid #cde3f5;border-radius:10px}
+.turn-icon{font-size:16px;flex-shrink:0;margin-top:2px}
+
+.tips-list{display:flex;flex-direction:column;gap:8px}
+.tip-item{display:flex;align-items:flex-start;gap:12px;font-size:.9rem;color:#555;line-height:1.65;padding:12px 16px;background:#fffbf0;border:1px solid #f0e5b0;border-radius:10px}
+
+/* ── IMAGES ── */
+.images-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.img-wrap{border-radius:12px;overflow:hidden;border:2px solid var(--border);background:#f0ebe0;cursor:zoom-in;transition:transform .2s,box-shadow .2s,border-color .2s}
+.img-wrap:hover{transform:scale(1.025);box-shadow:0 6px 20px rgba(0,0,0,.13);border-color:#bbb}
+.img-wrap img{width:100%;height:170px;object-fit:cover;display:block}
+.img-caption{padding:8px 12px;font-size:.76rem;font-weight:700;color:var(--muted);background:#f9f5ee;border-top:1px solid var(--border)}
+.no-images{padding:32px;background:var(--tag-bg);border:2px dashed var(--border);border-radius:12px;text-align:center;color:var(--muted);font-size:.88rem;line-height:1.7}
+.no-images code{background:#e8e0d4;padding:1px 6px;border-radius:4px;font-size:.82rem}
+
+/* ── VIDEO ── */
+.video-frame{aspect-ratio:16/9;background:#111;border-radius:14px;overflow:hidden}
+.video-frame iframe{width:100%;height:100%;border:none}
+.no-video{aspect-ratio:16/9;background:var(--tag-bg);border:2px dashed var(--border);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-size:.9rem}
+.no-video .nv-icon{font-size:2.8rem}
+.no-video a{color:#457b9d;font-weight:700}
+
+/* ── LIGHTBOX ── */
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:14px;animation:fadeIn .2s ease}
+#lightbox.open{display:flex}
+#lightbox img{max-width:92vw;max-height:80vh;border-radius:12px;object-fit:contain;box-shadow:0 0 60px rgba(0,0,0,.6)}
+#lb-caption{color:#bbb;font-size:.88rem;font-weight:700}
+#lb-close{position:absolute;top:18px;right:22px;font-size:30px;color:#fff;cursor:pointer;background:none;border:none;line-height:1;opacity:.7;transition:opacity .15s}
+#lb-close:hover{opacity:1}
+
+/* ── RELATED ── */
+.related-section{background:#faf6ef;border-top:3px solid var(--border);padding:44px 32px 64px}
+.related-inner{max-width:860px;margin:0 auto}
+.related-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:1px;color:var(--ink);margin-bottom:22px;display:flex;align-items:center;gap:12px}
+.related-title::after{content:'';flex:1;height:2px;background:var(--border)}
+.related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.rel-card{background:var(--card);border:2px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s}
+.rel-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.1);border-color:#ccc}
+.rel-stripe{height:5px}
+.rel-body{padding:16px}
+.rel-emoji{font-size:26px;display:block;margin-bottom:8px}
+.rel-name{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.8px;margin-bottom:8px}
+.rel-meta{display:flex;flex-wrap:wrap;gap:4px}
+.rel-tag{font-size:.67rem;font-weight:800;padding:2px 8px;border-radius:100px;background:var(--tag-bg);color:var(--ink)}
+.rel-go{padding:10px 16px;font-size:.75rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border)}
+.rel-go::after{content:'→';transition:transform .15s}
+.rel-card:hover .rel-go::after{transform:translateX(4px)}
+
+/* ══════════════════════════════════════════════
+   FOOTER & ANIMATIONS
+══════════════════════════════════════════════ */
+.site-footer{text-align:center;padding:22px;border-top:1px solid var(--border);color:var(--muted);font-size:.8rem}
+.site-footer b{color:var(--accent)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+@media(max-width:660px){
+  .site-header{flex-wrap:wrap;gap:10px;padding:14px 16px}
+  .search-wrap{max-width:100%;order:3;width:100%}
+  .filter-bar{padding:12px 16px}
+  .list-main{padding:20px 12px 60px}
+  #grid{grid-template-columns:1fr}
+  .detail-nav{padding:10px 16px}
+  .hero-content{padding:28px 20px 24px}
+  .detail-body{padding:28px 16px 50px}
+  .related-section{padding:28px 16px 48px}
+}
+</style>
 </head>
 <body>
 
-  <!-- ════════════════════════════════════════════════════════════
-       HEADER (CHUNG CHO TẤT CẢ TAB)
-  ════════════════════════════════════════════════════════════ -->
-  <header class="header">
-    <a class="logo" onclick="switchTab('news')">
-      <span class="logo-icon">🎲</span>
-      <span class="logo-text">Quest</span>
-    </a>
-    <h1 class="header-title" id="header-title">Thư Viện Luật Boardgame</h1>
-    <div class="header-action" id="header-action"></div>
+<!-- ══════════════════════════════════════════════
+     PAGE: LIST
+══════════════════════════════════════════════ -->
+<div id="page-list" class="page active">
+
+  <header class="site-header">
+    <a class="logo" onclick="goList()">🎲 <span>The Coffee</span>Quest</a>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Tìm tên board game…" autocomplete="off"/>
+      <div class="search-icon">🔍</div>
+    </div>
+    <div class="header-count">Hiển thị <b id="countNum">0</b> game</div>
   </header>
 
-  <!-- ════════════════════════════════════════════════════════════
-       TAB 1: TIN TỨC
-  ════════════════════════════════════════════════════════════ -->
-  <div id="tab-news" class="page-container active">
-    <div class="page-content">
-      <div class="news-title">📰 Tin Tức & Sự Kiện</div>
-      <div class="news-container" id="news-list">
-        <!-- NEWS CARDS GENERATED BY JS -->
-      </div>
+  <div class="filter-bar">
+    <span class="filter-label">Lọc:</span>
+    <div class="chip active" data-filter="all">Tất cả</div>
+    <div class="chip" data-filter="Party">🎉 Party</div>
+    <div class="chip" data-filter="abc">🎉 abc</div> 
+    <div class="chip" data-filter="Family">👨‍👩‍👧 Gia đình</div>
+    <div class="chip" data-filter="Strategy">♟️ Chiến lược</div>
+    <div class="chip" data-filter="Cooperative">🤝 Hợp tác</div>
+    <div class="chip" data-filter="Classic">👑 Cổ điển</div>
+  </div>
+
+  <main class="list-main">
+    <div id="empty">
+      <div class="e-icon">🔍</div>
+      <h3>Không tìm thấy game nào</h3>
+      <p>Thử từ khóa khác hoặc xóa bộ lọc</p>
+    </div>
+    <div id="grid"></div>
+  </main>
+
+  <footer class="site-footer"><b>The Coffee Quest</b> — Hệ thống coffee & boardgame thứ hai Việt Nam</footer>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE: DETAIL
+══════════════════════════════════════════════ -->
+<div id="page-detail" class="page">
+
+  <header class="site-header">
+    <a class="logo" onclick="goList()">🎲 <span>Board</span>Rules</a>
+  </header>
+
+  <div class="detail-nav">
+    <button class="back-btn" onclick="goList()">← Tất cả game</button>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-cur" id="d-crumb"></span>
+  </div>
+
+  <!-- HERO BANNER -->
+  <div class="detail-hero" id="d-hero">
+    <div class="hero-bg" id="d-hero-bg"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <span class="hero-emoji" id="d-emoji"></span>
+      <div class="hero-title" id="d-title"></div>
+      <div class="hero-tags" id="d-tags"></div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════════
-       TAB 2: LUẬT CHƠI
-  ════════════════════════════════════════════════════════════ -->
-  <div id="tab-rules" class="page-container">
-    <div class="page-content">
-      <div class="search-wrap">
-        <input 
-          type="text" 
-          id="searchInput" 
-          class="search-input" 
-          placeholder="Tìm luật boardgame…" 
-          autocomplete="off"
-        />
-        <div class="search-icon">🔍</div>
-      </div>
+  <!-- DETAIL BODY -->
+  <div class="detail-body">
 
-      <div class="filter-bar">
-        <span class="filter-label">Lọc:</span>
-        <div class="chip active" data-filter="all">Tất cả</div>
-        <div class="chip" data-filter="Party">🎉 Party</div>
-        <div class="chip" data-filter="Family">👨‍👩‍👧 Gia đình</div>
-        <div class="chip" data-filter="Strategy">♟️ Chiến lược</div>
-        <div class="chip" data-filter="Cooperative">🤝 Hợp tác</div>
-        <div class="chip" data-filter="Classic">👑 Cổ điển</div>
-      </div>
+    <div class="d-section">
+      <div class="d-head">🏆 Mục Tiêu</div>
+      <div class="obj-box" id="d-objective"></div>
+    </div>
 
-      <div class="empty-state" id="empty-state">
-        <div class="empty-icon">🔍</div>
-        <h3 class="empty-title">Không tìm thấy game nào</h3>
-        <p class="empty-text">Thử từ khóa khác hoặc xóa bộ lọc</p>
-      </div>
+    <div class="d-section">
+      <div class="d-head">🖼️ Ảnh Hướng Dẫn</div>
+      <div id="d-images"></div>
+    </div>
 
-      <div class="game-grid" id="game-grid">
-        <!-- GAME CARDS GENERATED BY JS -->
-      </div>
+    <div class="d-section">
+      <div class="d-head">🎯 Chuẩn Bị</div>
+      <ul class="steps-list" id="d-setup"></ul>
+    </div>
+
+    <div class="d-section">
+      <div class="d-head">🔄 Lượt Chơi</div>
+      <div class="turn-list" id="d-turn"></div>
+    </div>
+
+    <div class="d-section">
+      <div class="d-head">🥇 Điều Kiện Thắng</div>
+      <div class="win-box" id="d-win"></div>
+    </div>
+
+    <div class="d-section" id="d-tips-wrap">
+      <div class="d-head">💡 Mẹo Chơi</div>
+      <div class="tips-list" id="d-tips"></div>
+    </div>
+
+    <div class="d-section" id="d-video-wrap">
+      <div class="d-head">🎬 Video Hướng Dẫn</div>
+      <div id="d-video"></div>
+    </div>
+
+  </div>
+
+  <!-- RELATED GAMES -->
+  <div class="related-section">
+    <div class="related-inner">
+      <div class="related-title">✨ Có Thể Bạn Sẽ Thích</div>
+      <div class="related-grid" id="d-related"></div>
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════════
-       TAB 3: THÔNG TIN LIÊN LẠC
-  ════════════════════════════════════════════════════════════ -->
-  <div id="tab-contact" class="page-container">
-    <div class="page-content">
-      <div class="contact-container">
-        <h2 class="contact-title">📍 Thông Tin Liên Lạc</h2>
+  <footer class="site-footer"><b>The Coffee Quest</b> — Tra cứu luật chơi board game tiếng Việt</footer>
+</div>
 
-        <!-- THÔNG TIN QUÁN -->
-        <div class="info-section">
-          <div class="info-section-title">☕ The Coffee Quest</div>
-          
-          <!-- THÊM THÔNG TIN LIÊN LẠC TẠI ĐÂY -->
-          <div class="info-item">
-            <div class="info-icon">📞</div>
-            <div class="info-content">
-              <div class="info-label">Hotline</div>
-              <div class="info-value">0123 456 789</div>
-            </div>
-          </div>
+<!-- LIGHTBOX -->
+<div id="lightbox">
+  <button id="lb-close" onclick="closeLb()">✕</button>
+  <img id="lb-img" src="" alt=""/>
+  <div id="lb-caption"></div>
+</div>
 
-          <div class="info-item">
-            <div class="info-icon">📱</div>
-            <div class="info-content">
-              <div class="info-label">Facebook</div>
-              <a href="https://facebook.com" target="_blank" class="info-link">The Coffee Quest Official</a>
-            </div>
-          </div>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  📌 DỮ LIỆU BOARD GAME — THÊM GAME MỚI VÀO ĐÂY
+//
+//  Mỗi game là 1 object. Các trường:
+//
+//  name       — Tên game (bắt buộc)
+//  category   — "Party" | "Family" | "Strategy" | "Cooperative" | "Classic"
+//  emoji      — 1 emoji đại diện
+//  players    — VD: "2-6"
+//  time       — VD: "30-45 phút"
+//  difficulty — "Dễ" | "Trung bình" | "Khó"
+//  color      — Màu hex, VD: "#e63946"
+//  heroBg     — URL ảnh nền trang chi tiết (hoặc null)
+//  objective  — Mục tiêu thắng (1 câu)
+//  setup      — Mảng string: các bước chuẩn bị
+//  turn       — Mảng string: các hành động 1 lượt
+//  win        — Điều kiện chiến thắng
+//  tips       — (Tuỳ chọn) Mảng mẹo chơi
+//  images     — (Tuỳ chọn) Mảng ảnh hướng dẫn:
+//               [{ url: "https://...", caption: "Mô tả" }]
+//               url có thể là link web, base64, hoặc đường dẫn file
+//  youtubeUrl — (Tuỳ chọn) Link YouTube đầy đủ (hoặc null)
+// ═══════════════════════════════════════════════════════════════════
 
-          <div class="info-item">
-            <div class="info-icon">💬</div>
-            <div class="info-content">
-              <div class="info-label">Discord</div>
-              <a href="https://discord.com" target="_blank" class="info-link">Coffee Quest Community</a>
-            </div>
-          </div>
+const GAMES = [
 
-          <div class="info-item">
-            <div class="info-icon">📍</div>
-            <div class="info-content">
-              <div class="info-label">Địa chỉ</div>
-              <div class="info-value">123 Nguyễn Huệ, Quận 1, TP.HCM</div>
+  // ── GAME 1: UNO ───────────────────────────────────────────────────────────
+  {
+    name: "Uno",
+    category: "Party",
+    emoji: "🃏",
+    players: "2-10",
+    time: "15 phút",
+    difficulty: "Dễ",
+    color: "#e63946",
+    heroBg: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Baraja_de_UNO.JPG/1200px-Baraja_de_UNO.JPG",
+    objective: "Đánh hết bài trên tay trước những người chơi còn lại.",
+    setup: [
+      "Trộn đều 108 lá bài",
+      "Mỗi người nhận 7 lá bài (giữ bí mật)",
+      "Úp phần còn lại thành chồng bài rút, lật 1 lá lên làm bài bắt đầu"
+    ],
+    turn: [
+      "Đánh 1 lá cùng MÀU hoặc cùng SỐ với lá trên bàn",
+      "Không đánh được → rút 1 lá từ chồng bài",
+      "Còn đúng 1 lá → phải hô to 'UNO!' ngay khi đánh lá áp cuối"
+    ],
+    win: "Người đánh hết bài đầu tiên thắng ván. Tích điểm từ bài còn lại của đối thủ — đủ 500 điểm thắng cả trận.",
+    tips: [
+      "Giữ lại Wild Draw Four làm át chủ bài, chỉ dùng khi cần thiết.",
+      "Khi đối thủ còn 1 lá (đã hô UNO), dùng Draw Two hoặc Wild Draw Four để phá họ.",
+      "Quên hô UNO và bị bắt → phạt rút 2 lá!"
+    ],
+    images: [
+      { url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Baraja_de_UNO.JPG/640px-Baraja_de_UNO.JPG", caption: "Bộ bài Uno đầy đủ 108 lá" },
+      { url: "https://upload.wikimedia.org/wikipedia/commons/9/9f/UNO_cards_deck.svg", caption: "Các loại lá bài đặc biệt trong Uno" }
+    ],
+    youtubeUrl: "https://www.youtube.com/watch?v=ZHXuav5okgc"
+  },
+
+  // ── GAME 2: TICKET TO RIDE ────────────────────────────────────────────────
+  {
+    name: "Ticket to Ride",
+    category: "Family",
+    emoji: "🚂",
+    players: "2-5",
+    time: "45-75 phút",
+    difficulty: "Trung bình",
+    color: "#457b9d",
+    heroBg: null,
+    objective: "Hoàn thành các tuyến đường sắt bí mật và xây mạng lưới đường sắt dài nhất.",
+    setup: [
+      "Trải bản đồ Bắc Mỹ ra giữa bàn",
+      "Mỗi người nhận 45 toa tàu và 4 thẻ Tàu ngẫu nhiên",
+      "Rút 3 Vé Nhiệm Vụ — giữ ít nhất 2, có thể giữ cả 3",
+      "Lật 5 thẻ Tàu lên mặt bàn"
+    ],
+    turn: [
+      "HÀNH ĐỘNG A: Rút 2 thẻ Tàu (từ 5 thẻ ngửa hoặc chồng úp)",
+      "HÀNH ĐỘNG B: Xây tuyến đường (bỏ thẻ đúng màu và đủ số lượng)",
+      "HÀNH ĐỘNG C: Rút thêm Vé Nhiệm Vụ (rút 3, giữ ít nhất 1)"
+    ],
+    win: "Cộng điểm tuyến + điểm vé hoàn thành - điểm vé chưa xong + 10đ cho đường dài nhất. Người nhiều điểm nhất thắng.",
+    tips: [
+      "Giữ bí Vé Nhiệm Vụ — đừng lộ bạn cần đường nào để đối thủ chặn.",
+      "Tuyến 5-6 ô cho 10-15đ — ưu tiên xây sớm.",
+      "Thu thập đủ thẻ màu TRƯỚC khi xây tuyến quan trọng."
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=QbM85mJmRKs"
+  },
+
+  // ── GAME 3: CATAN ─────────────────────────────────────────────────────────
+  {
+    name: "Catan",
+    category: "Strategy",
+    emoji: "🏝️",
+    players: "3-4",
+    time: "60-120 phút",
+    difficulty: "Trung bình",
+    color: "#e9c46a",
+    heroBg: null,
+    objective: "Đạt 10 điểm chiến thắng đầu tiên bằng cách xây dựng khu định cư và thành phố.",
+    setup: [
+      "Xếp ngẫu nhiên 19 ô địa hình thành bản đồ lục giác",
+      "Đặt số xúc xắc theo thứ tự chữ cái lên các ô (bỏ qua sa mạc)",
+      "Mỗi người đặt 2 khu định cư và 2 đường ban đầu (miễn phí)"
+    ],
+    turn: [
+      "Tung 2 xúc xắc — ô có số đó sản xuất tài nguyên cho mọi người kề ô",
+      "Trao đổi tài nguyên với người chơi khác hoặc ngân hàng",
+      "Dùng tài nguyên để xây đường, định cư, thành phố hoặc mua thẻ phát triển"
+    ],
+    win: "Người đầu tiên đạt đúng 10 điểm trong lượt của mình thắng ngay. Điểm từ: định cư(1đ), thành phố(2đ), Longest Road(2đ), Largest Army(2đ), thẻ VP(1đ/thẻ).",
+    tips: [
+      "Chọn vị trí kề nhiều số xuất hiện thường (6, 8, 5, 9) và đa dạng tài nguyên.",
+      "Đừng tích hơn 7 tài nguyên — mất một nửa khi ai đó tung số 7.",
+      "Xây đường hướng về cảng để tối ưu tỷ lệ trao đổi 2:1."
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=UN8Pu7EhDpI"
+  },
+
+  // ── GAME 4: PANDEMIC ──────────────────────────────────────────────────────
+  {
+    name: "Pandemic",
+    category: "Cooperative",
+    emoji: "🦠",
+    players: "2-4",
+    time: "45-60 phút",
+    difficulty: "Trung bình",
+    color: "#2a9d8f",
+    heroBg: null,
+    objective: "Cả nhóm cùng tìm vaccine cho 4 loại dịch bệnh trước khi thế giới sụp đổ.",
+    setup: [
+      "Đặt Trạm Nghiên cứu đầu tiên tại Atlanta",
+      "Rút 9 thẻ Nhiễm: 3 thành phố đầu 3 khối, 3 thành phố tiếp 2 khối, 3 thành phố cuối 1 khối",
+      "Xáo 4 thẻ Epidemic vào chồng thẻ Player, chia đều thành 4 phần",
+      "Mỗi người nhận vai trò đặc biệt ngẫu nhiên"
+    ],
+    turn: [
+      "Thực hiện 4 hành động: di chuyển, xây Trạm, xử lý bệnh, chữa bệnh, cho/nhận thẻ",
+      "Rút 2 thẻ Player (nếu rút Epidemic → xử lý ngay)",
+      "Rút thẻ Nhiễm theo mức hiện tại — nguy cơ bùng phát dây chuyền"
+    ],
+    win: "TẤT CẢ CÙNG THẮNG khi tìm được vaccine cho cả 4 loại bệnh. CÙNG THUA nếu bùng phát 8 lần, hết thẻ rút, hoặc hết khối bệnh bất kỳ màu nào.",
+    tips: [
+      "Giao tiếp và lên kế hoạch cùng nhau — đây là game hợp tác!",
+      "Ưu tiên dập bùng phát (Outbreak) hơn chữa bệnh lẻ tẻ.",
+      "Nhớ rằng sau Epidemic, các thành phố đã nhiễm SẼ bị lại sớm!"
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=ojt0lPlMxHs"
+  },
+
+  // ── GAME 5: CỜ VUA ────────────────────────────────────────────────────────
+  {
+    name: "Cờ Vua",
+    category: "Classic",
+    emoji: "♟️",
+    players: "2",
+    time: "15-180 phút",
+    difficulty: "Khó",
+    color: "#1a1a1a",
+    heroBg: null,
+    objective: "Chiếu bí (Checkmate) Vua đối phương.",
+    setup: [
+      "Đặt bàn cờ sao cho góc PHẢI của mỗi người là ô SÁNG",
+      "Hàng 1: Xe-Mã-Tượng-Hậu-Vua-Tượng-Mã-Xe. Hàng 2: 8 Tốt",
+      "Đen đối xứng ở hàng 7-8. Hậu đứng ô cùng màu với mình. Trắng đi trước"
+    ],
+    turn: [
+      "Di chuyển 1 quân theo luật di chuyển của quân đó",
+      "Không được để Vua mình bị chiếu sau nước đi",
+      "Đặc biệt: Nhập thành, En Passant, Phong cấp Tốt"
+    ],
+    win: "Chiếu bí Vua đối phương. Hòa khi: Pat, lặp nước 3 lần, 50 nước không ăn quân/đi tốt.",
+    tips: [
+      "Kiểm soát 4 ô trung tâm (e4, d4, e5, d5) trong khai cuộc.",
+      "Nhập thành sớm để bảo vệ Vua.",
+      "Phát triển Mã và Tượng trước, không đi Hậu sớm."
+    ],
+    images: null,
+    youtubeUrl: null
+  },
+
+  // ── GAME 6: MONOPOLY ──────────────────────────────────────────────────────
+  {
+    name: "Monopoly",
+    category: "Classic",
+    emoji: "🏦",
+    players: "2-8",
+    time: "60-180 phút",
+    difficulty: "Trung bình",
+    color: "#2d6a4f",
+    heroBg: null,
+    objective: "Khiến tất cả đối thủ phá sản bằng cách độc quyền bất động sản.",
+    setup: [
+      "Mỗi người nhận $1,500 từ ngân hàng",
+      "Xếp thẻ Community Chest và Chance thành 2 chồng úp",
+      "Người tung xúc xắc cao nhất đi đầu"
+    ],
+    turn: [
+      "Tung 2 xúc xắc và di chuyển theo số điểm",
+      "Dừng ở đất trống: mua hoặc từ chối (ngân hàng đấu giá)",
+      "Dừng ở đất có chủ: trả tiền thuê (x2 nếu độc quyền, tăng mạnh nếu có nhà/khách sạn)"
+    ],
+    win: "Người duy nhất còn tiền khi tất cả đối thủ đã phá sản.",
+    tips: [
+      "Nhóm đất màu cam (St. James, Tennessee, New York) được dừng vào nhiều nhất!",
+      "Xây đến 3 nhà/ô là 'điểm ngọt' — chi phí hợp lý, tiền thuê vọt mạnh.",
+      "Đàm phán trao đổi đất để hoàn thành nhóm màu sớm."
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=L5BeVWmNpSE"
+  },
+
+  // ── GAME 7: DIXIT ─────────────────────────────────────────────────────────
+  {
+    name: "Dixit",
+    category: "Party",
+    emoji: "🎨",
+    players: "3-6",
+    time: "30 phút",
+    difficulty: "Dễ",
+    color: "#9b5de5",
+    heroBg: null,
+    objective: "Đoán đúng bài của Người Kể Chuyện và đánh lừa người khác chọn bài của mình.",
+    setup: [
+      "Xáo bài, chia mỗi người 6 lá",
+      "Đặt con thỏ tất cả vào ô xuất phát trên bảng điểm"
+    ],
+    turn: [
+      "Người Kể: chọn 1 lá bí mật, đưa ra gợi ý (từ, câu, âm thanh, cử chỉ…)",
+      "Người còn lại: chọn 1 lá trong tay mô tả nhất với gợi ý, đặt úp",
+      "Xáo tất cả bài, lật ngửa. Mọi người bỏ phiếu bí mật chọn bài của Người Kể"
+    ],
+    win: "Đầu tiên đạt 30 điểm thắng. Người Kể +3đ nếu có người đoán đúng nhưng không phải tất cả. Quá rõ hoặc quá tối: Người Kể 0đ!",
+    tips: [
+      "Gợi ý vừa đủ mơ hồ — không quá rõ (tất cả đoán đúng = 0đ) cũng không quá tối.",
+      "Bẫy người khác chọn bài của mình bằng cách chọn lá 'gần giống' gợi ý.",
+      "Dixit hay nhất khi gợi ý mang tính cá nhân hoặc văn hóa chung của nhóm."
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=aVGUMKrAqUA"
+  },
+
+  // ── GAME 8: CARCASSONNE ───────────────────────────────────────────────────
+  {
+    name: "Carcassonne",
+    category: "Family",
+    emoji: "🏰",
+    players: "2-5",
+    time: "30-45 phút",
+    difficulty: "Dễ",
+    color: "#e07b39",
+    heroBg: null,
+    objective: "Xây dựng bản đồ và ghi điểm từ thành phố, đường, tu viện và đồng cỏ.",
+    setup: [
+      "Đặt 1 ô gạch bắt đầu ở giữa bàn",
+      "Mỗi người nhận 8 quân Meeple cùng màu",
+      "Trộn phần còn lại thành chồng gạch úp"
+    ],
+    turn: [
+      "Lật 1 gạch ngẫu nhiên, đặt vào bản đồ (các cạnh tiếp giáp phải khớp)",
+      "Tùy chọn: đặt 1 Meeple lên ô vừa đặt (trong vùng CHƯA có Meeple)",
+      "Thu điểm nếu có công trình hoàn chỉnh — Meeple trả về tay"
+    ],
+    win: "Khi hết gạch: tổng điểm thành phố+đường+tu viện + công trình chưa xong (1đ/gạch) + đồng cỏ (3đ/thành phố hoàn chỉnh kề). Người nhiều nhất thắng.",
+    tips: [
+      "Đặt Meeple vào thành phố lớn sớm — điểm cao nhất nhưng cần kiên nhẫn.",
+      "Nối gạch vào thành phố đối thủ và đặt Meeple vào — cả hai chia điểm đầy đủ!",
+      "Meeple Farmer (nằm xuống) ở lại đến cuối ván — rất mạnh nhưng khóa Meeple lâu."
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=I3_BejHOXkA"
+  },
+
+// ── GAME 9: NO THANKS ───────────────────────────────────────────────────
+  {
+    name: "NO THANKS!",
+    category: "abc",
+    emoji: "🏰",
+    players: "2-5",
+    time: "10-15 phút",
+    difficulty: "Dễ",
+    color: "#e07b39",
+    heroBg: "https://m.media-amazon.com/images/S/aplus-media/vc/1e9bb57d-eaf6-4564-8259-f77aa1daeaaf._CR0,0,970,300_PT0_SX970__.jpg",
+    objective: "No Thanks là một tựa game thẻ bài chiến thuật đơn giản nhưng đầy hại não. Mục tiêu của bạn là có ít điểm phạt nhất khi trò chơi kết thúc. Điểm số được tính bằng tổng các lá bài bạn đã lấy, tuy nhiên các lá bài liên tiếp nhau chỉ tính điểm lá nhỏ nhất. ",
+    setup: [
+      "Bộ bài: Gồm các lá bài được đánh số từ 3 đến 35.",
+      "Chip: Mỗi người chơi nhận số lượng chip bằng nhau (số lượng tùy thuộc vào số người chơi).",
+      "Loại bỏ bài: Bỏ ngẫu nhiên 9 lá bài khỏi bộ bài (không ai được xem) và đặt phần còn lại vào giữa bàn. Lật lá đầu tiên lên để bắt đầu. "
+    ],
+    turn: [
+      "Ở mỗi lượt, người chơi hiện tại sẽ đối mặt với lá bài đang được lật ngửa trên bàn và có 2 lựa chọn:",
+      "Lấy lá bài: Bạn nhận lá bài đó (cùng toàn bộ chip đang đặt trên lá bài) và đặt vào khu vực của mình. Bạn sẽ là người lật lá bài tiếp theo.",
+      "Từ chối (No Thanks!): Bạn đặt 111 chip của mình lên lá bài và nói 'No Thanks!'. Lượt chơi chuyển cho người tiếp theo bên trái. "
+    ],
+    win: "Khi hết gạch: tổng điểm thành phố+đường+tu viện + công trình chưa xong (1đ/gạch) + đồng cỏ (3đ/thành phố hoàn chỉnh kề). Người nhiều nhất thắng.",
+    tips: [
+      "Đặt Meeple vào thành phố lớn sớm — điểm cao nhất nhưng cần kiên nhẫn.",
+      "Nối gạch vào thành phố đối thủ và đặt Meeple vào — cả hai chia điểm đầy đủ!",
+      "Meeple Farmer (nằm xuống) ở lại đến cuối ván — rất mạnh nhưng khóa Meeple lâu."
+    ],
+    images: [
+       { url: "https://i.ytimg.com/vi/wA3LdhgA8BE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCjbNGUF-qNuMUaXwLR8Xxn5QzCYA", caption: "Mô tả ảnh" }
+    ],
+    youtubeUrl: "https://www.youtube.com/watch?v=I3_BejHOXkA"
+  },
+
+   // ── GAME: WEREWOLF ───────────────────────────────────────────────────
+{
+  name: "WEREWOLF",
+  category: "Party Game",
+  emoji: "🐺",
+  players: "6-20",
+  time: "20-45 phút",
+  difficulty: "Trung bình",
+  color: "#7a1f1f",
+  heroBg: "https://cdn.shopify.com/s/files/1/0559/3053/5686/files/werewolf-party-game.jpg",
+  
+  objective: "Werewolf là trò chơi suy luận và nhập vai nổi tiếng, nơi người chơi được chia thành 2 phe chính: Dân làng và Ma sói. Mục tiêu của Dân làng là tìm ra và loại bỏ toàn bộ Ma sói trước khi bị tiêu diệt. Mục tiêu của Ma sói là bí mật giết hết dân làng để chiếm quyền kiểm soát ngôi làng.",
+  
+  setup: [
+    "6-8 người chơi: Khuyên dùng 2 Ma sói, 1 Tiên tri, 1 Bảo vệ, còn lại là Dân làng.",
+    "9-12 người chơi: Khuyên dùng 3 Ma sói, 1 Tiên tri, 1 Bảo vệ, 1 Phù thủy, còn lại là Dân làng.",
+    "13-16 người chơi: Có thể thêm Thợ săn, Cupid hoặc Già làng để tăng độ hấp dẫn.",
+    "17-20 người chơi: Có thể bổ sung thêm nhiều vai trò đặc biệt như Cô bé, Kẻ phản bội hoặc Sói trắng.",
+    "Mỗi người chơi nhận ngẫu nhiên 1 lá vai trò và giữ bí mật tuyệt đối.",
+    "Chọn 1 người làm Quản trò để điều khiển trò chơi. Quản trò không tham gia vào bất kỳ phe nào.",
+    "Tất cả người chơi ngồi thành vòng tròn để dễ quan sát biểu cảm và thảo luận.",
+    "Quản trò yêu cầu mọi người nhắm mắt để bắt đầu đêm đầu tiên."
+  ],
+
+  turn: [
+    "Trò chơi diễn ra theo vòng lặp gồm Ban đêm và Ban ngày. Trong Ban đêm, tất cả người chơi nhắm mắt và Quản trò lần lượt gọi từng vai trò thức dậy để thực hiện kỹ năng bí mật. Ma sói sẽ chọn 1 người để giết. Sau đó các vai trò đặc biệt như Tiên tri, Bảo vệ hoặc Phù thủy sẽ lần lượt hành động rồi tiếp tục đi ngủ.",
+    
+    "Khi trời sáng, Quản trò thông báo ai đã chết trong đêm. Người bị loại không được tiếp tục tham gia thảo luận. Những người còn sống bắt đầu tranh luận, suy luận và buộc tội lẫn nhau để tìm ra Ma sói đang ẩn nấp.",
+    
+    "Sau thời gian thảo luận, tất cả người chơi tiến hành bỏ phiếu treo cổ 1 người bị nghi ngờ nhiều nhất. Người có nhiều phiếu nhất sẽ bị loại và công khai vai trò. Nếu người đó là Ma sói thì phe Dân làng có lợi thế lớn hơn.",
+    
+    "Ví dụ: Trong đêm, Ma sói chọn người A để giết nhưng Bảo vệ đã bảo vệ A nên không ai chết. Sáng hôm sau, cả làng nghi ngờ người B vì liên tục đổ tội vô lý cho người khác. Sau khi bỏ phiếu, B bị treo cổ và lật ra đúng là Ma sói.",
+    
+    "Tiên tri là vai trò có khả năng soi 1 người mỗi đêm để biết họ có phải Ma sói hay không. Đây là nguồn thông tin rất quan trọng nhưng dễ bị Ma sói nhắm tới nếu lộ thân phận.",
+    
+    "Bảo vệ có thể chọn 1 người để bảo vệ mỗi đêm khỏi đòn tấn công của Ma sói. Một số luật mở rộng không cho phép bảo vệ cùng 1 người liên tiếp nhiều đêm.",
+    
+    "Phù thủy sở hữu 2 bình thuốc gồm 1 thuốc cứu và 1 thuốc độc. Thuốc cứu có thể hồi sinh người bị Ma sói giết trong đêm, còn thuốc độc có thể tiêu diệt bất kỳ ai mà Phù thủy nghi ngờ.",
+    
+    "Thợ săn khi chết sẽ được quyền kéo theo 1 người khác chết cùng. Đây là vai trò rất nguy hiểm khiến Ma sói phải dè chừng.",
+    
+    "Cupid có thể ghép 2 người thành cặp đôi. Nếu một người chết thì người còn lại cũng sẽ chết theo vì đau buồn. Điều này tạo ra nhiều tình huống bất ngờ và hài hước."
+  ],
+
+  win: "Phe Dân làng thắng khi toàn bộ Ma sói bị loại bỏ. Phe Ma sói thắng khi số lượng Ma sói bằng hoặc nhiều hơn số dân còn sống.",
+
+  tips: [
+    "Quan sát biểu cảm và cách phản ứng của người chơi khi bị nghi ngờ.",
+    "Nếu là Ma sói, hãy tham gia tranh luận tự nhiên để tránh bị phát hiện.",
+    "Tiên tri nên tiết lộ thông tin đúng thời điểm thay vì lộ thân phận quá sớm.",
+    "Đừng bỏ phiếu theo cảm tính, hãy chú ý logic và hành động của từng người.",
+    "Ma sói thường cố thao túng cuộc trò chuyện để hướng nghi ngờ sang người vô tội."
+  ],
+
+  images: [
+    {
+      url: "https://cdn.shopify.com/s/files/1/0559/3053/5686/files/werewolf-night-phase.jpg",
+      caption: "Ban đêm: Ma sói bí mật chọn nạn nhân"
+    },
+    {
+      url: "https://i.ytimg.com/vi/9CkqA7W2M5A/maxresdefault.jpg",
+      caption: "Các vai trò phổ biến trong Werewolf"
+    }
+  ],
+
+  youtubeUrl: "https://www.youtube.com/watch?v=6qy0ROzEWco"
+},
+
+   // ── GAME: CLUE ───────────────────────────────────────────────────
+{
+  name: "CLUE",
+  category: "Suy luận",
+  emoji: "🕵️",
+  players: "3-6",
+  time: "30-60 phút",
+  difficulty: "Trung bình",
+  color: "#6b3fa0",
+  heroBg: "https://images.ctfassets.net/r3qu44etwf9a/5k3r2O7k9lKzQ9A7nQv8mK/9fbc7f8a1b6a3c0f7d3a6a0f0d2f8f5e/clue-board-game-hero.jpg",
+
+  objective: "Clue là trò chơi suy luận phá án nổi tiếng, nơi người chơi phải tìm ra 3 bí mật của vụ án mạng: Ai là hung thủ, hung khí gây án là gì và vụ án xảy ra ở căn phòng nào. Người chiến thắng là người đầu tiên đưa ra kết luận chính xác về cả 3 yếu tố.",
+
+  setup: [
+    "Chuẩn bị 3 nhóm thẻ gồm: Nhân vật, Hung khí và Căn phòng.",
+    "Rút ngẫu nhiên 1 thẻ từ mỗi nhóm rồi đặt bí mật vào phong bì án mạng. Đây chính là lời giải cuối cùng.",
+    "Xào toàn bộ các thẻ còn lại và chia đều cho người chơi.",
+    "Mỗi người nhận 1 bảng ghi chú để đánh dấu các thông tin đã biết.",
+    "Mỗi người chọn 1 nhân vật và đặt quân cờ vào vị trí bắt đầu tương ứng trên bản đồ.",
+    "Các hung khí được đặt ngẫu nhiên trong các căn phòng trên bàn chơi.",
+    "Nếu chơi 3-4 người: sử dụng toàn bộ vai trò cơ bản. Nếu chơi đủ 5-6 người, tất cả nhân vật sẽ xuất hiện giúp game hỗn loạn và khó đoán hơn."
+  ],
+
+  turn: [
+    "Trong lượt chơi, người chơi gieo xúc xắc để di chuyển qua các hành lang và tiến vào những căn phòng trong biệt thự. Khi vào được một căn phòng, người chơi có thể đưa ra suy luận về vụ án bằng cách chỉ định 1 nghi phạm và 1 hung khí trong chính căn phòng hiện tại.",
+    
+    "Ví dụ: Người chơi bước vào Phòng Bếp và nói Tôi nghi ngờ Đại tá Mustard đã dùng Dao trong Phòng Bếp. Lúc này quân Đại tá Mustard và vũ khí Dao sẽ được di chuyển vào căn phòng đó.",
+    
+    "Sau khi một lời suy luận được đưa ra, người chơi bên trái phải bí mật cho xem 1 lá bài liên quan nếu họ sở hữu ít nhất 1 trong các lá được nhắc tới. Nếu không có, lượt kiểm tra tiếp tục sang người kế tiếp cho tới khi có người chứng minh được suy luận đó sai.",
+    
+    "Ví dụ: Nếu người chơi nghi ngờ Giáo sư Plum dùng Dây thừng tại Phòng Khách và người bên cạnh có lá Dây thừng, họ sẽ bí mật cho xem lá đó. Điều này giúp người suy luận biết rằng Dây thừng không nằm trong phong bì án mạng.",
+    
+    "Người chơi cần liên tục ghi chú các thông tin đã xem để loại trừ dần nghi phạm, hung khí và địa điểm. Đây là phần quan trọng nhất của game vì mọi dữ kiện đều phải được suy luận từ logic và trí nhớ.",
+    
+    "Bất kỳ lúc nào trong lượt của mình, nếu tin rằng đã tìm ra đáp án cuối cùng, người chơi có thể đưa ra cáo buộc chính thức. Người đó sẽ bí mật mở phong bì án mạng để kiểm tra.",
+    
+    "Nếu cáo buộc chính xác cả 3 yếu tố gồm Hung thủ, Hung khí và Căn phòng, người chơi chiến thắng ngay lập tức.",
+    
+    "Nếu cáo buộc sai, người chơi bị loại khỏi việc chiến thắng nhưng vẫn phải tiếp tục cho người khác xem bài khi bị hỏi. Điều này khiến việc đoán liều rất rủi ro."
+  ],
+
+  win: "Người đầu tiên đưa ra cáo buộc chính xác về Hung thủ, Hung khí và Căn phòng trong phong bì án mạng sẽ chiến thắng.",
+
+  tips: [
+    "Luôn ghi chú cẩn thận vì chỉ cần quên 1 thông tin nhỏ cũng có thể làm hỏng toàn bộ suy luận.",
+    "Ưu tiên di chuyển vào các phòng mà bạn chưa kiểm tra.",
+    "Quan sát phản ứng của người khác khi một nghi phạm hoặc hung khí được nhắc đến.",
+    "Đôi khi nên đưa ra suy luận giả để đánh lạc hướng đối thủ.",
+    "Đừng vội cáo buộc cuối cùng nếu chưa thật sự chắc chắn."
+  ],
+
+  images: [
+    {
+      url: "https://i.ytimg.com/vi/KEXdWfsKZ1k/maxresdefault.jpg",
+      caption: "Bản đồ biệt thự trong Clue"
+    },
+    {
+      url: "https://cf.geekdo-images.com/original/img/clue-cards-example.jpg",
+      caption: "Ví dụ các thẻ nghi phạm, hung khí và căn phòng"
+    },
+    {
+      url: "https://i.ytimg.com/vi/cvF0pWc5Taw/maxresdefault.jpg",
+      caption: "Người chơi ghi chú để suy luận hung thủ"
+    }
+  ],
+
+  youtubeUrl: "https://www.youtube.com/watch?v=OuM0P8SZQF4"
+},
+
+   // ── GAME: ĐUA RÙA ───────────────────────────────────────────────────
+{
+  name: "ĐUA RÙA",
+  category: "Gia đình",
+  emoji: "🐢",
+  players: "2-5",
+  time: "15-25 phút",
+  difficulty: "Dễ",
+  color: "#3ca55c",
+  heroBg: "https://cf.geekdo-images.com/original/img/turtle-race-banner.jpg",
+
+  objective: "Đua Rùa là trò chơi gia đình vui nhộn và đầy bất ngờ, nơi mỗi người chơi bí mật điều khiển một chú rùa với mục tiêu đưa rùa của mình về đích đầu tiên. Điều thú vị là người chơi không chỉ di chuyển rùa của bản thân mà còn có thể điều khiển tất cả các rùa khác trên đường đua.",
+
+  setup: [
+    "Đặt bàn đua ở giữa bàn chơi và xếp tất cả rùa tại ô xuất phát.",
+    "Mỗi người chơi bí mật rút hoặc chọn 1 màu rùa đại diện cho mình. Không được tiết lộ màu rùa cho người khác.",
+    "Mỗi người chơi nhận số lá bài di chuyển bằng nhau.",
+    "Nếu chơi 2-3 người: dùng ít màu rùa hơn để tăng khả năng suy luận.",
+    "Nếu chơi 4-5 người: sử dụng đủ các màu rùa để cuộc đua hỗn loạn và khó đoán hơn.",
+    "Xào bộ bài di chuyển và chia bài cho người chơi.",
+    "Người nhỏ tuổi nhất hoặc người thích rùa nhất sẽ đi trước."
+  ],
+
+  turn: [
+    "Trong lượt chơi, người chơi chọn 1 lá bài trên tay và thực hiện hành động ghi trên lá bài đó. Các lá bài thường cho phép di chuyển 1 chú rùa tiến lên hoặc lùi lại một số ô nhất định.",
+    
+    "Điểm đặc biệt của Đua Rùa là các chú rùa có thể chồng lên nhau. Nếu một chú rùa ở dưới cùng di chuyển, toàn bộ chồng rùa nằm phía trên sẽ được kéo đi cùng.",
+    
+    "Ví dụ: Rùa đỏ đang nằm dưới rùa xanh và rùa vàng. Khi rùa đỏ tiến lên 2 ô, cả rùa xanh và rùa vàng cũng di chuyển theo vì đang đứng trên lưng rùa đỏ.",
+    
+    "Người chơi có thể sử dụng bài để hỗ trợ rùa của mình hoặc cố tình giúp rùa khác nhằm đánh lạc hướng đối thủ. Điều này khiến việc đoán màu rùa của nhau trở nên rất khó.",
+    
+    "Ví dụ: Người chơi liên tục đẩy rùa xanh lên đầu đoàn đua khiến mọi người nghĩ đó là rùa của họ, nhưng thực tế họ đang bí mật điều khiển rùa vàng đang bám ngay phía sau.",
+    
+    "Một số phiên bản có thêm lá bài đặc biệt như di chuyển bất kỳ rùa nào, đổi vị trí hoặc khiến rùa đi lùi để tạo thêm hỗn loạn.",
+    
+    "Sau khi thực hiện hành động, người chơi rút thêm bài để giữ đủ số lượng bài trên tay rồi chuyển lượt cho người tiếp theo.",
+    
+    "Trò chơi tiếp tục cho tới khi có ít nhất 1 chú rùa cán đích. Nếu nhiều rùa cùng về đích do đang chồng lên nhau, rùa nằm dưới cùng sẽ được tính là về trước."
+  ],
+
+  win: "Người chơi chiến thắng nếu chú rùa bí mật của mình về đích đầu tiên. Nếu nhiều rùa cùng tới đích, thứ tự được tính từ dưới lên trên của chồng rùa.",
+
+  tips: [
+    "Đừng quá lộ việc liên tục hỗ trợ rùa của mình.",
+    "Tận dụng cơ chế chồng rùa để kéo nhiều rùa đi cùng.",
+    "Đôi khi giúp rùa đối thủ dẫn đầu sẽ khiến mọi người nghi ngờ sai.",
+    "Giữ lại các lá bài mạnh cho thời điểm gần đích.",
+    "Quan sát xem người khác thường hỗ trợ màu nào để suy luận bí mật của họ."
+  ],
+
+  images: [
+    {
+      url: "https://i.ytimg.com/vi/turtle-race-boardgame-maxresdefault.jpg",
+      caption: "Các chú rùa chồng lên nhau trong cuộc đua"
+    },
+    {
+      url: "https://cf.geekdo-images.com/original/img/turtle-race-gameplay.jpg",
+      caption: "Ví dụ bàn chơi Đua Rùa"
+    },
+    {
+      url: "https://i.ytimg.com/vi/turtle-race-cards.jpg",
+      caption: "Các lá bài di chuyển trong game"
+    }
+  ],
+
+  youtubeUrl: "https://www.youtube.com/watch?v=V7Xq1k6g0mM"
+}
+
+  // ═══════════════════════════════════════════════════════════════
+  //  THÊM GAME MỚI — COPY BLOCK NÀY, DÁN TRƯỚC DẤU ] CUỐI MẢNG
+  //  và thêm dấu PHẨY sau } của game trước đó.
+  //
+  // ,{
+  //   name: "Tên Game",
+  //   category: "Party",
+  //   emoji: "🎲",
+  //   players: "2-4",
+  //   time: "30 phút",
+  //   difficulty: "Dễ",
+  //   color: "#e63946",
+  //   heroBg: null,            // URL ảnh nền hero, hoặc null
+  //   objective: "Mục tiêu thắng.",
+  //   setup: ["Bước 1", "Bước 2"],
+  //   turn:  ["Hành động 1", "Hành động 2"],
+  //   win:   "Điều kiện chiến thắng.",
+  //   tips:  ["Mẹo 1", "Mẹo 2"],
+  //   images: [
+  //     { url: "https://...", caption: "Mô tả ảnh" }
+  //   ],
+  //   youtubeUrl: "https://www.youtube.com/watch?v=..."
+  // }
+  // ═══════════════════════════════════════════════════════════════
+];
+
+// ────────────────────────────────────────────────────────────────
+//  ENGINE — không cần chỉnh sửa phần dưới
+// ────────────────────────────────────────────────────────────────
+
+let activeFilter = 'all', searchQ = '', currentIdx = -1;
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function diffClass(d){ return d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium' }
+function getYtId(url){
+  if(!url||url.includes('/None')) return null;
+  const pp=[/[?&]v=([a-zA-Z0-9_-]{11})/,/youtu\.be\/([a-zA-Z0-9_-]{11})/,/embed\/([a-zA-Z0-9_-]{11})/,/shorts\/([a-zA-Z0-9_-]{11})/];
+  for(const p of pp){ const m=url.match(p); if(m) return m[1]; }
+  return null;
+}
+
+// ── PAGES ──
+function showPage(id){ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.getElementById('page-'+id).classList.add('active'); window.scrollTo(0,0); }
+
+function goList(){
+  showPage('list');
+  history.pushState(null,'','#');
+  const v=document.getElementById('d-video'); if(v) v.innerHTML='';
+}
+
+function goDetail(idx){
+  currentIdx=idx;
+  renderDetail(idx);
+  showPage('detail');
+  history.pushState(null,'','#game-'+idx);
+}
+
+window.addEventListener('popstate', handleHash);
+function handleHash(){
+  const h=window.location.hash;
+  if(h.startsWith('#game-')){ const i=parseInt(h.slice(6)); if(!isNaN(i)&&i>=0&&i<GAMES.length){ currentIdx=i; renderDetail(i); showPage('detail'); return; } }
+  showPage('list');
+}
+
+// ── LIST ──
+function filteredGames(){ return GAMES.filter(g=>{ const mc=activeFilter==='all'||g.category===activeFilter; const q=searchQ.toLowerCase(); const mq=!q||g.name.toLowerCase().includes(q)||(g.category||'').toLowerCase().includes(q); return mc&&mq; }); }
+
+function renderGrid(){
+  const games=filteredGames();
+  document.getElementById('countNum').textContent=games.length;
+  const grid=document.getElementById('grid'), empty=document.getElementById('empty');
+  if(!games.length){ grid.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  grid.innerHTML=games.map((g,i)=>{
+    const ri=GAMES.indexOf(g);
+    return `<div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i*0.04}s">
+      <div class="card-stripe" style="background:${g.color}"></div>
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-emoji">${g.emoji}</div>
+          <div>
+            <div class="card-title">${esc(g.name)}</div>
+            <div class="card-meta">
+              <span class="tag">${esc(g.category)}</span>
+              <span class="tag">👥 ${esc(g.players)}</span>
+              <span class="tag">⏱ ${esc(g.time)}</span>
+              <span class="tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>
             </div>
           </div>
         </div>
-
-        <!-- DANH SÁCH CƠ SỞ -->
-        <div>
-          <h2 class="contact-title">🏪 Danh Sách Cơ Sở</h2>
-          <div class="branches-grid" id="branches-list">
-            <!-- BRANCH CARDS GENERATED BY JS -->
-          </div>
-        </div>
+        <div class="card-objective"><strong>Mục tiêu:</strong> ${esc(g.objective)}</div>
       </div>
+      <div class="card-footer"><div class="view-btn">Xem luật chơi</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── DETAIL ──
+function renderDetail(idx){
+  const g=GAMES[idx];
+  document.getElementById('d-crumb').textContent=g.name;
+
+  // hero
+  const bg=document.getElementById('d-hero-bg');
+  bg.style.backgroundImage = g.heroBg ? `url('${g.heroBg}')` : `linear-gradient(135deg,${g.color}cc,${g.color}44)`;
+
+  document.getElementById('d-emoji').textContent=g.emoji;
+  document.getElementById('d-title').textContent=g.name;
+  document.getElementById('d-tags').innerHTML=`
+    <span class="hero-tag hl">${esc(g.category)}</span>
+    <span class="hero-tag">👥 ${esc(g.players)} người</span>
+    <span class="hero-tag">⏱ ${esc(g.time)}</span>
+    <span class="hero-tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>`;
+
+  document.getElementById('d-objective').textContent=g.objective;
+
+  // images
+  const imgEl=document.getElementById('d-images');
+  if(g.images&&g.images.length){
+    imgEl.innerHTML=`<div class="images-grid">${g.images.map(im=>`
+      <div class="img-wrap" onclick="openLb('${im.url.replace(/'/g,"\\'")}','${esc(im.caption)}')">
+        <img src="${im.url}" alt="${esc(im.caption)}" loading="lazy" onerror="this.parentElement.style.display='none'"/>
+        <div class="img-caption">${esc(im.caption)}</div>
+      </div>`).join('')}</div>`;
+  } else {
+    imgEl.innerHTML=`<div class="no-images">
+      <b>🖼️</b>Chưa có ảnh hướng dẫn cho game này.<br>
+      Thêm ảnh bằng cách điền trường <code>images</code> trong dữ liệu game:<br>
+      <code>images: [{ url: "https://...", caption: "Mô tả" }]</code>
+    </div>`;
+  }
+
+  // setup
+  document.getElementById('d-setup').innerHTML=(g.setup||[]).map((s,i)=>`
+    <li class="step-item"><div class="step-num">${i+1}</div><div>${esc(s)}</div></li>`).join('');
+
+  // turn
+  document.getElementById('d-turn').innerHTML=(g.turn||[]).map(t=>`
+    <div class="turn-item"><div class="turn-icon">▸</div><div>${esc(t)}</div></div>`).join('');
+
+  // win
+  document.getElementById('d-win').textContent=g.win;
+
+  // tips
+  const tw=document.getElementById('d-tips-wrap');
+  if(g.tips&&g.tips.length){
+    tw.style.display='block';
+    document.getElementById('d-tips').innerHTML=g.tips.map(t=>`
+      <div class="tip-item"><div class="turn-icon">💡</div><div>${esc(t)}</div></div>`).join('');
+  } else { tw.style.display='none'; }
+
+  // video
+  const vw=document.getElementById('d-video-wrap'), ytId=getYtId(g.youtubeUrl);
+  vw.style.display='block';
+  if(ytId){
+    document.getElementById('d-video').innerHTML=`
+      <div class="video-frame">
+        <iframe src="https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1"
+          title="Hướng dẫn ${esc(g.name)}"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen></iframe>
+      </div>`;
+  } else {
+    document.getElementById('d-video').innerHTML=`
+      <div class="no-video">
+        <div class="nv-icon">📽️</div>
+        <p>Chưa có video hướng dẫn.</p>
+        <a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to play '+g.name)}" target="_blank" rel="noopener">Tìm trên YouTube →</a>
+      </div>`;
+  }
+
+  // related — same category, exclude current, max 4
+  const related=GAMES.filter((_,i)=>i!==idx&&GAMES[i].category===g.category).slice(0,4);
+  const relEl=document.getElementById('d-related');
+  if(related.length){
+    relEl.innerHTML=related.map(r=>{
+      const ri=GAMES.indexOf(r);
+      return `<div class="rel-card" onclick="goDetail(${ri})">
+        <div class="rel-stripe" style="background:${r.color}"></div>
+        <div class="rel-body">
+          <span class="rel-emoji">${r.emoji}</span>
+          <div class="rel-name">${esc(r.name)}</div>
+          <div class="rel-meta">
+            <span class="rel-tag">👥 ${esc(r.players)}</span>
+            <span class="rel-tag">⏱ ${esc(r.time)}</span>
+            <span class="rel-tag ${diffClass(r.difficulty)}">⚡ ${esc(r.difficulty)}</span>
+          </div>
+        </div>
+        <div class="rel-go">Xem luật chơi</div>
+      </div>`;
+    }).join('');
+  } else {
+    relEl.innerHTML=`<p style="color:var(--muted);font-size:.9rem;grid-column:1/-1">Chưa có game cùng thể loại "${esc(g.category)}".</p>`;
+  }
+}
+
+// ── LIGHTBOX ──
+function openLb(url,cap){
+  document.getElementById('lb-img').src=url;
+  document.getElementById('lb-caption').textContent=cap;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeLb(){ document.getElementById('lightbox').classList.remove('open'); document.body.style.overflow=''; }
+document.getElementById('lightbox').addEventListener('click',e=>{ if(e.target.id==='lightbox') closeLb(); });
+
+// ── FILTERS ──
+document.getElementById('searchInput').addEventListener('input',e=>{ searchQ=e.target.value; renderGrid(); });
+document.querySelectorAll('.chip').forEach(c=>{ c.addEventListener('click',()=>{ document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); activeFilter=c.dataset.filter; renderGrid(); }); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLb(); });
+
+// ── INIT ──
+renderGrid();
+handleHash();
+</script>
+
+<!-- ══════════════════════════════════════════════
+     CHAT ONLINE REALTIME
+     DÁN TOÀN BỘ PHẦN NÀY TRƯỚC </body>
+══════════════════════════════════════════════ -->
+
+<style>
+/* ═════════ USERNAME MODAL ═════════ */
+
+#username-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  z-index:999999;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  backdrop-filter:blur(6px);
+  padding:20px;
+}
+
+#username-modal.show{
+  display:flex;
+}
+
+.username-card{
+  width:100%;
+  max-width:420px;
+  background:#fff;
+  border-radius:28px;
+  padding:42px 34px;
+  text-align:center;
+  animation:userModal .25s ease;
+  box-shadow:0 20px 70px rgba(0,0,0,.35);
+}
+
+@keyframes userModal{
+  from{
+    opacity:0;
+    transform:translateY(20px) scale(.96);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
+.username-logo{
+  width:82px;
+  height:82px;
+  border-radius:24px;
+  background:#e63946;
+  color:#fff;
+  font-size:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0 auto 22px;
+  box-shadow:0 12px 30px rgba(230,57,70,.35);
+}
+
+.username-card h2{
+  font-family:'Bebas Neue',sans-serif;
+  letter-spacing:1px;
+  font-size:2rem;
+  margin-bottom:10px;
+  color:#1a1a1a;
+}
+
+.username-card p{
+  color:#777;
+  line-height:1.6;
+  margin-bottom:24px;
+  font-size:.95rem;
+}
+
+#username-input{
+  width:100%;
+  border:2px solid #e0d8cc;
+  border-radius:16px;
+  padding:16px;
+  font-size:1rem;
+  outline:none;
+  transition:border-color .2s, box-shadow .2s;
+  margin-bottom:18px;
+}
+
+#username-input:focus{
+  border-color:#e63946;
+  box-shadow:0 0 0 4px rgba(230,57,70,.12);
+}
+
+#username-save{
+  width:100%;
+  border:none;
+  border-radius:16px;
+  padding:16px;
+  background:#e63946;
+  color:#fff;
+  font-size:1rem;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform .15s, opacity .15s;
+}
+
+#username-save:hover{
+  transform:translateY(-2px);
+  opacity:.95;
+}
+
+@media(max-width:600px){
+
+  .username-card{
+    padding:34px 24px;
+    border-radius:24px;
+  }
+
+  .username-card h2{
+    font-size:1.7rem;
+  }
+
+}
+
+   
+/* ═════════ CHAT BUTTON ═════════ */
+#chat-toggle{
+  position:fixed;
+  bottom:22px;
+  right:22px;
+  width:64px;
+  height:64px;
+  border:none;
+  border-radius:50%;
+  background:#e63946;
+  color:#fff;
+  font-size:28px;
+  cursor:pointer;
+  z-index:99999;
+  box-shadow:0 10px 25px rgba(0,0,0,.25);
+  transition:transform .2s, box-shadow .2s;
+}
+#chat-toggle:hover{
+  transform:scale(1.08);
+  box-shadow:0 14px 30px rgba(0,0,0,.35);
+}
+
+/* ═════════ CHAT WINDOW ═════════ */
+#chat-window{
+  position:fixed;
+  bottom:100px;
+  right:22px;
+  width:360px;
+  height:520px;
+  background:#fff;
+  border-radius:22px;
+  overflow:hidden;
+  display:none;
+  flex-direction:column;
+  z-index:99999;
+  border:2px solid #e0d8cc;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
+  animation:chatFade .25s ease;
+}
+
+#chat-window.open{
+  display:flex;
+}
+
+@keyframes chatFade{
+  from{
+    opacity:0;
+    transform:translateY(20px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+/* HEADER */
+.chat-header{
+  background:#1a1a1a;
+  color:#fff;
+  padding:16px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.chat-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.chat-title h3{
+  font-size:1rem;
+  font-weight:800;
+}
+
+.online-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:#2ecc71;
+}
+
+#chat-close{
+  background:none;
+  border:none;
+  color:#fff;
+  font-size:22px;
+  cursor:pointer;
+  opacity:.7;
+}
+#chat-close:hover{
+  opacity:1;
+}
+
+/* ONLINE */
+.chat-online{
+  background:#faf6ef;
+  border-bottom:1px solid #e0d8cc;
+  padding:8px 14px;
+  font-size:.8rem;
+  color:#666;
+  font-weight:700;
+}
+
+/* MESSAGES */
+#chat-messages{
+  flex:1;
+  overflow-y:auto;
+  padding:14px;
+  background:#f5f0e8;
+}
+
+.chat-msg{
+  margin-bottom:12px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.chat-user{
+  font-size:.72rem;
+  font-weight:800;
+  color:#888;
+  padding-left:4px;
+}
+
+.chat-bubble{
+  background:#fff;
+  border-radius:14px;
+  padding:10px 14px;
+  font-size:.9rem;
+  line-height:1.5;
+  color:#333;
+  border:1px solid #e0d8cc;
+  word-break:break-word;
+}
+
+/* INPUT */
+.chat-input-wrap{
+  border-top:1px solid #e0d8cc;
+  background:#fff;
+  padding:12px;
+  display:flex;
+  gap:10px;
+}
+
+#chat-input{
+  flex:1;
+  border:2px solid #e0d8cc;
+  border-radius:12px;
+  padding:12px;
+  font-size:.92rem;
+  outline:none;
+}
+
+#chat-input:focus{
+  border-color:#e63946;
+}
+
+#chat-send{
+  border:none;
+  background:#e63946;
+  color:#fff;
+  border-radius:12px;
+  padding:0 18px;
+  cursor:pointer;
+  font-weight:800;
+}
+
+#chat-send:hover{
+  opacity:.9;
+}
+
+@media(max-width:600px){
+  #chat-window{
+    width:calc(100vw - 24px);
+    right:12px;
+    bottom:84px;
+    height:70vh;
+  }
+
+  #chat-toggle{
+    right:14px;
+    bottom:14px;
+  }
+}
+</style>
+
+<!-- CHAT BUTTON -->
+<button id="chat-toggle">💬</button>
+
+<!-- CHAT WINDOW -->
+<div id="chat-window">
+
+  <div class="chat-header">
+    <div class="chat-title">
+      <div class="online-dot"></div>
+      <h3>Boardgame Community</h3>
     </div>
+
+    <button id="chat-close">✕</button>
   </div>
 
-  <!-- ════════════════════════════════════════════════════════════
-       TAB 4: CÀI ĐẶT CÁ NHÂN
-  ════════════════════════════════════════════════════════════ -->
-  <div id="tab-settings" class="page-container">
-    <div class="page-content">
-      <div class="settings-container">
-        <h2 class="settings-title">⚙️ Cài Đặt Cá Nhân</h2>
+  <div class="chat-online">
+    👥 Online: <span id="online-count">0</span>
+  </div>
 
-        <!-- DARK MODE TOGGLE -->
-        <div class="setting-group">
-          <div class="setting-header">
-            <label class="setting-label">
-              <span class="setting-icon">🌙</span>
-              Dark Mode
-            </label>
-            <div class="toggle-switch on" id="darkModeToggle">
-              <div class="toggle-circle"></div>
-            </div>
-          </div>
-          <div class="setting-desc">Bật/tắt giao diện tối sang sáng</div>
-        </div>
+  <div id="chat-messages"></div>
 
-        <!-- FONT SIZE -->
-        <div class="setting-group">
-          <div class="setting-label">
-            <span class="setting-icon">📝</span>
-            Kích Thước Chữ
-          </div>
-          <div class="setting-options">
-            <button class="option-btn" data-size="14">Nhỏ</button>
-            <button class="option-btn active" data-size="16">Bình thường</button>
-            <button class="option-btn" data-size="18">Lớn</button>
-            <button class="option-btn" data-size="20">Rất lớn</button>
-          </div>
-          <div class="setting-desc">Chọn kích thước chữ phù hợp với bạn</div>
-        </div>
+  <div class="chat-input-wrap">
+    <input
+      type="text"
+      id="chat-input"
+      placeholder="Nhập tin nhắn..."
+      maxlength="300"
+    />
 
-        <!-- THEME COLOR -->
-        <div class="setting-group">
-          <div class="setting-label">
-            <span class="setting-icon">🎨</span>
-            Chủ Đề Màu
-          </div>
-          <div class="color-grid">
-            <div class="color-item active" style="background: #ffd700;" data-color="ffd700" title="Vàng"></div>
-            <div class="color-item" style="background: #ff6b6b;" data-color="ff6b6b" title="Đỏ"></div>
-            <div class="color-item" style="background: #ff922b;" data-color="ff922b" title="Cam"></div>
-            <div class="color-item" style="background: #51cf66;" data-color="51cf66" title="Xanh lá"></div>
-            <div class="color-item" style="background: #4c6ef5;" data-color="4c6ef5" title="Xanh dương"></div>
-            <div class="color-item" style="background: #9775fa;" data-color="9775fa" title="Tím"></div>
-            <div class="color-item" style="background: #00d9ff;" data-color="00d9ff" title="Cyan"></div>
-            <div class="color-item" style="background: #ff44cc;" data-color="ff44cc" title="Hồng"></div>
-          </div>
-          <div class="setting-desc">Lựa chọn màu accent yêu thích của bạn</div>
-        </div>
+    <button id="chat-send">Gửi</button>
+  </div>
 
-        <!-- RESET SETTINGS -->
-        <div class="reset-section">
-          <div class="setting-label" style="justify-content: center;">
-            <span class="setting-icon">🔄</span>
-            Reset Cài Đặt
-          </div>
-          <p class="setting-desc">Khôi phục tất cả cài đặt về mặc định</p>
-          <button class="reset-btn" onclick="resetSettings()">Reset Ngay</button>
-        </div>
-      </div>
+</div>
+<!-- USERNAME MODAL -->
+<div id="username-modal">
+
+  <div class="username-card">
+
+    <div class="username-logo">
+      🎲
     </div>
+
+    <h2>Boardgame Community</h2>
+
+    <p>
+      Chọn tên hiển thị để bắt đầu trò chuyện cùng mọi người
+    </p>
+
+    <input
+      type="text"
+      id="username-input"
+      maxlength="20"
+      placeholder="Ví dụ: Vương, Admin, WerewolfKing..."
+    />
+
+    <button id="username-save">
+      Vào phòng chat
+    </button>
+
   </div>
 
-  <!-- ════════════════════════════════════════════════════════════
-       TAB MENU (CỐ ĐỊNH DƯỚI CÙNG)
-  ════════════════════════════════════════════════════════════ -->
-  <div class="tab-menu">
-    <button class="tab-item active" onclick="switchTab('news')">
-      <div class="tab-icon">📰</div>
-      <div class="tab-label">Tin Tức</div>
-    </button>
-    <button class="tab-item" onclick="switchTab('rules')">
-      <div class="tab-icon">📚</div>
-      <div class="tab-label">Luật Chơi</div>
-    </button>
-    <button class="tab-item" onclick="switchTab('contact')">
-      <div class="tab-icon">📍</div>
-      <div class="tab-label">Liên Lạc</div>
-    </button>
-    <button class="tab-item" onclick="switchTab('settings')">
-      <div class="tab-icon">⚙️</div>
-      <div class="tab-label">Cài Đặt</div>
-    </button>
-  </div>
+</div>
+   
+<script type="module">
 
-  <script>
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 1: DỮ LIỆU BOARDGAME (GIỮ NGUYÊN TỪ CODE CŨ)
-    ════════════════════════════════════════════════════════════ */
-    const GAMES = [
-      {
-        name: "Uno",
-        category: "Party",
-        emoji: "🃏",
-        players: "2-10",
-        time: "15 phút",
-        difficulty: "Dễ",
-        color: "#e63946",
-        objective: "Đánh hết bài trên tay trước những người chơi còn lại."
-      },
-      {
-        name: "Ticket to Ride",
-        category: "Family",
-        emoji: "🚂",
-        players: "2-5",
-        time: "45-75 phút",
-        difficulty: "Trung bình",
-        color: "#457b9d",
-        objective: "Hoàn thành các tuyến đường sắt bí mật và xây mạng lưới đường sắt dài nhất."
-      },
-      {
-        name: "Catan",
-        category: "Strategy",
-        emoji: "🏝️",
-        players: "3-4",
-        time: "60-120 phút",
-        difficulty: "Trung bình",
-        color: "#e9c46a",
-        objective: "Đạt 10 điểm chiến thắng đầu tiên bằng cách xây dựng khu định cư và thành phố."
-      },
-      {
-        name: "Pandemic",
-        category: "Cooperative",
-        emoji: "🦠",
-        players: "2-4",
-        time: "45-60 phút",
-        difficulty: "Trung bình",
-        color: "#2a9d8f",
-        objective: "Cả nhóm cùng tìm vaccine cho 4 loại dịch bệnh trước khi thế giới sụp đổ."
-      },
-      {
-        name: "Cờ Vua",
-        category: "Classic",
-        emoji: "♟️",
-        players: "2",
-        time: "15-180 phút",
-        difficulty: "Khó",
-        color: "#1a1a1a",
-        objective: "Chiếu bí (Checkmate) Vua đối phương."
-      },
-      {
-        name: "Monopoly",
-        category: "Classic",
-        emoji: "🏦",
-        players: "2-8",
-        time: "60-180 phút",
-        difficulty: "Trung bình",
-        color: "#2d6a4f",
-        objective: "Khiến tất cả đối thủ phá sản bằng cách độc quyền bất động sản."
-      },
-      {
-        name: "Dixit",
-        category: "Party",
-        emoji: "🎨",
-        players: "3-6",
-        time: "30 phút",
-        difficulty: "Dễ",
-        color: "#9b5de5",
-        objective: "Đoán đúng bài của Người Kể Chuyện và đánh lừa người khác chọn bài của mình."
-      },
-      {
-        name: "Carcassonne",
-        category: "Family",
-        emoji: "🏰",
-        players: "2-5",
-        time: "30-45 phút",
-        difficulty: "Dễ",
-        color: "#e07b39",
-        objective: "Xây dựng bản đồ và ghi điểm từ thành phố, đường, tu viện và đồng cỏ."
-      }
-    ];
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 2: DỮ LIỆU TIN TỨC (CÓ THỂ CHỈNH SỬA)
-    ════════════════════════════════════════════════════════════ */
-    const NEWS = [
-      {
-        id: 1,
-        date: "15 Tháng 5, 2026",
-        title: "Cả Catan & Ticket to Ride Giảm Giá 30%",
-        desc: "Những game chiến lược ưu tiên của năm nay đang có đợt giảm giá khủng. Chỉ trong tháng 5 này thôi!",
-        image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=600&h=300&fit=crop"
-      },
-      {
-        id: 2,
-        date: "10 Tháng 5, 2026",
-        title: "Turnament Uno Toàn Quốc - Đăng Ký Ngay!",
-        desc: "Cuộc thi Uno lớn nhất năm nay với tiền thưởng 50 triệu đồng. Hãy chứng tỏ kỹ năng của bạn!",
-        image: "https://images.unsplash.com/photo-1570303344177-3be2b9a9a4db?w=600&h=300&fit=crop"
-      },
-      {
-        id: 3,
-        date: "5 Tháng 5, 2026",
-        title: "Pandemic Legacy Đã Về Kho Hàng",
-        desc: "Phiên bản mở rộng Pandemic Legacy Series 2 vừa nhập về. Số lượng có hạn, đặt trước ngay!",
-        image: "https://images.unsplash.com/photo-1537904904737-13592ebc6b73?w=600&h=300&fit=crop"
-      }
-    ];
+import {
+  getDatabase,
+  ref,
+  push,
+  onChildAdded,
+  set,
+  onValue,
+  onDisconnect
+}
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 3: DỮ LIỆU CƠ SỞ (TEMPLATE ĐỂ THÊM CƠ SỞ MỚI)
-    ════════════════════════════════════════════════════════════ */
-    const BRANCHES = [
-      {
-        id: 1,
-        name: "Cơ Sở Quận 1",
-        address: "123 Nguyễn Huệ, Quận 1, TP.HCM",
-        phone: "0123 456 789",
-        image: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop",
-        mapUrl: "https://maps.google.com"
-      },
-      {
-        id: 2,
-        name: "Cơ Sở Quận 3",
-        address: "456 Võ Văn Tần, Quận 3, TP.HCM",
-        phone: "0123 456 790",
-        image: "https://images.unsplash.com/photo-1555521309-e78ffc0d75d9?w=400&h=300&fit=crop",
-        mapUrl: "https://maps.google.com"
-      },
-      {
-        id: 3,
-        name: "Cơ Sở Bình Thạnh",
-        address: "789 Đinh Bộ Lĩnh, Bình Thạnh, TP.HCM",
-        phone: "0123 456 791",
-        image: "https://images.unsplash.com/photo-1559328007-9cd308917c60?w=400&h=300&fit=crop",
-        mapUrl: "https://maps.google.com"
-      }
-    ];
+/* ═════════ FIREBASE CONFIG ═════════ */
 
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 4: HỆ THỐNG CÀI ĐẶT (LOCALSTORAGE)
-    ════════════════════════════════════════════════════════════ */
-    const DEFAULT_SETTINGS = {
-      darkMode: true,
-      fontSize: "16",
-      themeColor: "ffd700"
-    };
+const firebaseConfig = {
+  apiKey: "AIzaSyBIn1bj6ndt8Yy5AiPFdeKtI5MrZnaNugc",
+  authDomain: "doublevcute.firebaseapp.com",
+  databaseURL: "https://doublevcute-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "doublevcute",
+  storageBucket: "doublevcute.firebasestorage.app",
+  messagingSenderId: "31483876077",
+  appId: "1:31483876077:web:f2efbb34d8a2c6dcb532e4",
+  measurementId: "G-EKGL5TN6NY"
+};
 
-    function loadSettings() {
-      const saved = localStorage.getItem('coffeeQuestSettings');
-      return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+/* ═════════ INIT FIREBASE ═════════ */
+
+const app = initializeApp(firebaseConfig);
+
+const db = getDatabase(app);
+
+/* ═════════ USERNAME SYSTEM ═════════ */
+
+let username =
+  localStorage.getItem("tcq_username");
+
+const usernameModal =
+  document.getElementById("username-modal");
+
+const usernameInput =
+  document.getElementById("username-input");
+
+const usernameSave =
+  document.getElementById("username-save");
+
+/* CHƯA CÓ TÊN */
+
+if(!username){
+
+  usernameModal.classList.add("show");
+
+  setTimeout(()=>{
+    usernameInput.focus();
+  },100);
+
+}
+
+/* SAVE USERNAME */
+
+function saveUsername(){
+
+  const val =
+    usernameInput.value.trim();
+
+  if(!val){
+
+    usernameInput.focus();
+
+    usernameInput.style.borderColor = "#e63946";
+
+    return;
+  }
+
+  username = val;
+
+  localStorage.setItem(
+    "tcq_username",
+    username
+  );
+
+  usernameModal.classList.remove("show");
+}
+
+/* BUTTON */
+
+usernameSave.addEventListener(
+  "click",
+  saveUsername
+);
+
+/* ENTER */
+
+usernameInput.addEventListener(
+  "keydown",
+  e=>{
+
+    if(e.key==="Enter"){
+      saveUsername();
     }
 
-    function saveSettings(settings) {
-      localStorage.setItem('coffeeQuestSettings', JSON.stringify(settings));
-      applySettings(settings);
-    }
+  }
+);
 
-    function applySettings(settings) {
-      // Font size
-      document.documentElement.style.setProperty('--font-size-base', settings.fontSize + 'px');
+/* ═════════ CHAT OPEN/CLOSE ═════════ */
 
-      // Theme color
-      const accentColor = '#' + settings.themeColor;
-      document.documentElement.style.setProperty('--accent-primary', accentColor);
+const toggleBtn = document.getElementById("chat-toggle");
 
-      // Update UI
-      document.querySelectorAll('[data-size]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.size === settings.fontSize);
-      });
+const chatWindow = document.getElementById("chat-window");
 
-      document.querySelectorAll('[data-color]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.color === settings.themeColor);
-      });
-    }
+const closeBtn = document.getElementById("chat-close");
 
-    function resetSettings() {
-      if (confirm('Bạn chắc chắn muốn khôi phục cài đặt mặc định?')) {
-        saveSettings(DEFAULT_SETTINGS);
-        location.reload();
-      }
-    }
+toggleBtn.addEventListener("click", ()=>{
 
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 5: TAB SWITCHING
-    ════════════════════════════════════════════════════════════ */
-    let currentTab = 'news';
+  chatWindow.classList.toggle("open");
 
-    function switchTab(tabName) {
-      // Hide all tabs
-      document.querySelectorAll('.page-container').forEach(tab => {
-        tab.classList.remove('active');
-      });
+});
 
-      // Remove active from all tab items
-      document.querySelectorAll('.tab-item').forEach(item => {
-        item.classList.remove('active');
-      });
+closeBtn.addEventListener("click", ()=>{
 
-      // Show selected tab
-      document.getElementById('tab-' + tabName).classList.add('active');
+  chatWindow.classList.remove("open");
 
-      // Mark tab item as active
-      event.target.closest('.tab-item').classList.add('active');
+});
 
-      // Update header title
-      const titles = {
-        news: '📰 Tin Tức & Sự Kiện',
-        rules: '📚 Thư Viện Luật Chơi',
-        contact: '📍 Liên Hệ & Thông Tin',
-        settings: '⚙️ Cài Đặt Cá Nhân'
-      };
-      document.getElementById('header-title').textContent = titles[tabName];
+/* ═════════ ONLINE USERS ═════════ */
 
-      currentTab = tabName;
+const userId =
+  Date.now() + "_" + Math.random().toString(36).slice(2);
 
-      // Render content if needed
-      if (tabName === 'news') renderNews();
-      else if (tabName === 'rules') renderRules();
-      else if (tabName === 'contact') renderContact();
-    }
+const onlineRef =
+  ref(db, "onlineUsers/" + userId);
 
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 6: RENDER TIN TỨC
-    ════════════════════════════════════════════════════════════ */
-    function renderNews() {
-      const container = document.getElementById('news-list');
-      container.innerHTML = NEWS.map(news => `
-        <div class="news-card">
-          <img src="${news.image}" alt="${news.title}" class="news-image" loading="lazy"/>
-          <div class="news-body">
-            <div class="news-date">${news.date}</div>
-            <h3 class="news-heading">${news.title}</h3>
-            <p class="news-desc">${news.desc}</p>
-            <button class="news-btn" onclick="alert('Xem thêm: ${news.title}')">
-              Xem Thêm
-              <span>→</span>
-            </button>
-          </div>
-        </div>
-      `).join('');
-    }
+set(onlineRef,{
+  name: username,
+  online: true
+});
 
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 7: RENDER LUẬT CHƠI (TỪ CODE CŨ)
-    ════════════════════════════════════════════════════════════ */
-    let activeFilter = 'all';
-    let searchQuery = '';
+/* QUAN TRỌNG */
+onDisconnect(onlineRef).remove();
 
-    function filteredGames() {
-      return GAMES.filter(g => {
-        const categoryMatch = activeFilter === 'all' || g.category === activeFilter;
-        const searchMatch = !searchQuery || g.name.toLowerCase().includes(searchQuery.toLowerCase());
-        return categoryMatch && searchMatch;
-      });
-    }
+onValue(ref(db,"onlineUsers"), snapshot=>{
 
-    function renderRules() {
-      const games = filteredGames();
-      const grid = document.getElementById('game-grid');
-      const empty = document.getElementById('empty-state');
+  const data = snapshot.val();
 
-      if (games.length === 0) {
-        grid.innerHTML = '';
-        empty.classList.add('show');
-        return;
-      }
+  const count =
+    data ? Object.keys(data).length : 0;
 
-      empty.classList.remove('show');
-      grid.innerHTML = games.map(g => {
-        const diffClass = g.difficulty === 'Dễ' ? 'diff-easy' : 
-                         g.difficulty === 'Khó' ? 'diff-hard' : 'diff-medium';
-        return `
-          <div class="game-card" onclick="alert('Chi tiết: ${g.name}')">
-            <div class="card-stripe" style="background: ${g.color}"></div>
-            <div class="card-content">
-              <div class="card-header">
-                <div class="card-emoji">${g.emoji}</div>
-                <div style="flex: 1;">
-                  <div class="card-title">${g.name}</div>
-                  <div class="card-meta">
-                    <span class="tag">${g.category}</span>
-                    <span class="tag">👥 ${g.players}</span>
-                    <span class="tag">⏱ ${g.time}</span>
-                    <span class="tag ${diffClass}">⚡ ${g.difficulty}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="card-desc">${g.objective}</div>
-              <div class="card-footer">
-                <button class="view-btn">
-                  Xem Luật
-                  <span>→</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
+  document.getElementById("online-count")
+    .textContent = count;
 
-    // Setup search & filter
-    document.addEventListener('DOMContentLoaded', function() {
-      const searchInput = document.getElementById('searchInput');
-      if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-          searchQuery = e.target.value;
-          renderRules();
-        });
-      }
+});
 
-      document.querySelectorAll('.chip').forEach(chip => {
-        chip.addEventListener('click', (e) => {
-          document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-          e.target.classList.add('active');
-          activeFilter = e.target.dataset.filter;
-          renderRules();
-        });
-      });
-    });
+/* ═════════ CHAT MESSAGES ═════════ */
 
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 8: RENDER LIÊN LẠC
-    ════════════════════════════════════════════════════════════ */
-    function renderContact() {
-      const container = document.getElementById('branches-list');
-      container.innerHTML = BRANCHES.map(branch => `
-        <div class="branch-card">
-          <img src="${branch.image}" alt="${branch.name}" class="branch-image" loading="lazy"/>
-          <div class="branch-info">
-            <h3 class="branch-name">${branch.name}</h3>
-            <div class="branch-detail">
-              <span class="branch-detail-icon">📍</span>
-              <span>${branch.address}</span>
-            </div>
-            <div class="branch-detail">
-              <span class="branch-detail-icon">📞</span>
-              <span>${branch.phone}</span>
-            </div>
-            <div class="branch-action">
-              <button class="branch-btn" onclick="window.open('tel:${branch.phone}')">Gọi</button>
-              <button class="branch-btn" onclick="window.open('${branch.mapUrl}')">Maps</button>
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
+const msgRef = ref(db, "communityChat");
 
-    /* ════════════════════════════════════════════════════════════
-       PHẦN 9: SETTINGS HANDLERS
-    ════════════════════════════════════════════════════════════ */
-    document.addEventListener('DOMContentLoaded', function() {
-      // Load settings
-      const settings = loadSettings();
-      applySettings(settings);
+/* SEND */
 
-      // Font size buttons
-      document.querySelectorAll('[data-size]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          settings.fontSize = btn.dataset.size;
-          saveSettings(settings);
-        });
-      });
+function sendMessage(){
 
-      // Color buttons
-      document.querySelectorAll('[data-color]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          settings.themeColor = btn.dataset.color;
-          saveSettings(settings);
-        });
-      });
+  const input =
+    document.getElementById("chat-input");
 
-      // Dark mode toggle (placeholder - bạn có thể mở rộng sau)
-      const darkToggle = document.getElementById('darkModeToggle');
-      if (darkToggle) {
-        darkToggle.addEventListener('click', () => {
-          darkToggle.classList.toggle('on');
-          // Thêm logic dark/light mode ở đây
-        });
-      }
+  const text = input.value.trim();
 
-      // Render news on load
-      renderNews();
-    });
-  </script>
+  if(!text) return;
 
+  push(msgRef,{
+    user: username,
+    text: text,
+    time: Date.now()
+  });
+
+  input.value = "";
+}
+
+/* BUTTON SEND */
+
+document.getElementById("chat-send")
+.addEventListener("click", sendMessage);
+
+/* ENTER SEND */
+
+document.getElementById("chat-input")
+.addEventListener("keydown", e=>{
+
+  if(e.key === "Enter"){
+    sendMessage();
+  }
+
+});
+
+/* RECEIVE */
+
+onChildAdded(msgRef, snapshot=>{
+
+  const msg = snapshot.val();
+
+  const wrap = document.createElement("div");
+
+  wrap.className = "chat-msg";
+
+  wrap.innerHTML = `
+    <div class="chat-user">
+      ${escapeHtml(msg.user)}
+    </div>
+
+    <div class="chat-bubble">
+      ${escapeHtml(msg.text)}
+    </div>
+  `;
+
+  const container =
+    document.getElementById("chat-messages");
+
+  container.appendChild(wrap);
+
+  container.scrollTop =
+    container.scrollHeight;
+
+});
+
+/* ═════════ ESCAPE HTML ═════════ */
+
+function escapeHtml(str){
+
+  return String(str)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
+}
+
+</script>
 </body>
 </html>
