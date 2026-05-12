@@ -1469,6 +1469,12 @@ document.getElementById("username-input");
 const usernameSave =
 document.getElementById("username-save");
 
+usernameSave.onclick = saveUsername;
+
+usernameInput.addEventListener("keydown", e => {
+  if(e.key === "Enter") saveUsername();
+});
+
 if(!username){
 
 usernameModal.classList.add("show");
@@ -1481,7 +1487,7 @@ document
 .getElementById("change-name-btn")
 .onclick=()=>{
 
-usernameInput.value=username||"";
+usernameInput.value = username || "";
 
 usernameModal.classList.add("show");
 
@@ -1504,10 +1510,7 @@ online:true
 
 }
 
-onDisconnect(onlineRef)
-  .then((disconnectRef)=>{
-    disconnectRef.remove();
-  });
+onDisconnect(onlineRef).remove();
 
 /* SAVE USERNAME */
 
