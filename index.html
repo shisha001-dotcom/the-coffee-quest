@@ -1504,40 +1504,37 @@ online:true
 
 }
 
-onDisconnect(onlineRef).remove();
+onDisconnect(onlineRef)
+  .then((disconnectRef)=>{
+    disconnectRef.remove();
+  });
 
 /* SAVE USERNAME */
 
 function saveUsername(){
 
-const val =
-usernameInput.value.trim();
+  const val =
+    usernameInput.value.trim();
 
-if(!val) return;
+  if(!val) return;
 
-username=val;
+  username = val;
 
-localStorage.setItem(
-"tcq_username",
-username
-);
+  localStorage.setItem(
+    "tcq_username",
+    username
+  );
 
-updateOnline();
+  /* UPDATE ONLINE USER */
 
-usernameModal.classList.remove("show");
+  set(onlineRef,{
+    name: username,
+    online: true
+  });
+
+  usernameModal.classList.remove("show");
 
 }
-
-usernameSave.onclick=saveUsername;
-
-usernameInput.addEventListener(
-"keydown",
-e=>{
-if(e.key==="Enter"){
-saveUsername();
-}
-}
-);
 
 /* ONLINE COUNT */
 
