@@ -37,7 +37,14 @@ function handleHash(){
 }
 
 // ── LIST ──
-function filteredGames(){ return GAMES.filter(g=>{ const mc=activeFilter==='all'||g.category===activeFilter; const q=searchQ.toLowerCase(); const mq=!q||g.name.toLowerCase().includes(q)||(g.category||'').toLowerCase().includes(q); return mc&&mq; }); }
+function filteredGames(){ 
+  return GAMES.filter(g=>{ 
+    const mc=activeFilter==='all'||g.category===activeFilter; 
+    const q=searchQ.toLowerCase(); 
+    const mq=!q||g.name.toLowerCase().includes(q)||(g.category||'').toLowerCase().includes(q);
+    return mc&&mq;
+  });
+}
 
 function renderGrid(){
   const games=filteredGames();
@@ -180,7 +187,7 @@ document.getElementById('lightbox').addEventListener('click',e=>{ if(e.target.id
 
 // ── FILTERS ──
 document.getElementById('searchInput').addEventListener('input',e=>{ searchQ=e.target.value; renderGrid(); });
-document.querySelectorAll('.chip').forEach(c=>{ c.addEventListener('click',()=>{ document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); activeFilter=c.dataset.filter; renderGrid(); }); });
+document.querySelectorAll('.chip').forEach(c=>{ c.addEventListener('click',()=>{ document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); activeFilter=c.getAttribute('data-filter'); renderGrid(); }); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLb(); });
 
 // ── INIT ──
