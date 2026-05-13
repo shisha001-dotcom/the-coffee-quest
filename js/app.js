@@ -33,7 +33,7 @@ window.addEventListener('popstate', handleHash);
 function handleHash(){
   const h=window.location.hash;
   if(h.startsWith('#game-')){ const i=parseInt(h.slice(6)); if(!isNaN(i)&&i>=0&&i<GAMES.length){ currentIdx=i; renderDetail(i); showPage('detail'); return; } }
-  showPage('list');
+  showPage('news');
 }
 
 // ── LIST ──
