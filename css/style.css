@@ -491,3 +491,76 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
   font-weight:800;
   cursor:pointer;
 }
+
+/* ═════════ SAFE BANNER ═════════ */
+
+.news-banner{
+  position:relative;
+  width:100%;
+  height:100vh;
+  overflow:hidden;
+  background:#111;
+}
+
+.banner-img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+/* SAFE AREA */
+
+.banner-safe{
+  position:relative;
+  z-index:2;
+
+  width:100%;
+  height:100%;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  padding:
+    80px
+    min(10vw,120px);
+}
+
+/* CONTENT */
+
+.banner-content{
+
+  width:100%;
+  max-width:1200px;
+
+  color:#fff;
+
+  text-shadow:
+    0 4px 20px rgba(0,0,0,.6);
+}
+
+.banner-content h1{
+
+  font-size:
+    clamp(3rem,8vw,7rem);
+
+  font-family:
+    'Bebas Neue',
+    sans-serif;
+
+  letter-spacing:4px;
+
+  margin-bottom:16px;
+}
+
+.banner-content p{
+
+  font-size:
+    clamp(1rem,2vw,1.5rem);
+
+  font-weight:700;
+
+  max-width:700px;
+}
