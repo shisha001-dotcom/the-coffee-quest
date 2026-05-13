@@ -193,3 +193,77 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLb(); });
 // ── INIT ──
 renderGrid();
 handleHash();
+
+/* ═════════ MENU ═════════ */
+
+const sideMenu = document.getElementById('side-menu');
+const menuOverlay = document.getElementById('menu-overlay');
+
+document.getElementById('menu-toggle')?.addEventListener('click', openMenu);
+document.getElementById('menu-toggle-news')?.addEventListener('click', openMenu);
+
+menuOverlay?.addEventListener('click', closeMenu);
+
+function openMenu(){
+  sideMenu.classList.add('open');
+  menuOverlay.classList.add('show');
+}
+
+function closeMenu(){
+  sideMenu.classList.remove('open');
+  menuOverlay.classList.remove('show');
+}
+
+/* ═════════ PAGE SWITCH ═════════ */
+
+function hideAllPages(){
+  document.querySelectorAll('.page').forEach(p=>{
+    p.classList.remove('active');
+  });
+}
+
+function goNews(){
+  hideAllPages();
+  document.getElementById('page-news').classList.add('active');
+  closeMenu();
+}
+
+function goBoardgame(){
+  hideAllPages();
+  document.getElementById('page-list').classList.add('active');
+  closeMenu();
+}
+
+function goContact(){
+  hideAllPages();
+  document.getElementById('page-contact').classList.add('active');
+  closeMenu();
+}
+
+function goSettings(){
+  hideAllPages();
+  document.getElementById('page-settings').classList.add('active');
+  closeMenu();
+
+  const currentName =
+    localStorage.getItem('tcq_username') || '';
+
+  document.getElementById('settings-username').value =
+    currentName;
+}
+
+/* ═════════ SETTINGS ═════════ */
+
+function saveUsernameSettings(){
+
+  const value =
+    document.getElementById('settings-username')
+    .value
+    .trim();
+
+  if(!value) return;
+
+  localStorage.setItem('tcq_username', value);
+
+  alert('Đã cập nhật tên hiển thị!');
+}
