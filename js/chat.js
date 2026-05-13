@@ -8,7 +8,9 @@ import {
   onChildAdded,
   set,
   onValue,
-  onDisconnect
+  onDisconnect,
+  remove,
+  get
 }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
@@ -154,6 +156,7 @@ onValue(ref(db,"onlineUsers"), snapshot=>{
 /* ═════════ CHAT MESSAGES ═════════ */
 
 const msgRef = ref(db, "communityChat");
+clearChatIfNewDay();
 
 /* SEND */
 
@@ -191,6 +194,20 @@ document.getElementById("chat-input")
 
 });
 
+/* CLEAR UI KHI DB RESET */
+
+onValue(msgRef, snapshot=>{
+
+  if(!snapshot.exists()){
+
+    document.getElementById(
+      "chat-messages"
+    ).innerHTML = "";
+
+  }
+
+});
+
 /* RECEIVE */
 
 onChildAdded(msgRef, snapshot=>{
@@ -220,6 +237,48 @@ onChildAdded(msgRef, snapshot=>{
     container.scrollHeight;
 
 });
+
+/* ═════════ RESET CHAT MỖI NGÀY ═════════ */
+
+async function clearChatIfNewDay(){
+
+  const today =
+    new Date().toISOString().split('T')[0];
+
+  const savedDay =
+    localStorage.getItem('tcq-last-reset-day');
+
+  /* CÙNG NGÀY → KHÔNG RESET */
+
+  if(savedDay === today) return;
+
+  /* LƯU NGÀY MỚI */
+
+  localStorage.setItem(
+    'tcq-last-reset-day',
+    today
+  );
+
+  try{
+
+    /* XÓA TOÀN BỘ CHAT */
+
+    await remove(msgRef);
+
+    console.log(
+      '🧹 Đã reset chat ngày mới'
+    );
+
+  }catch(err){
+
+    console.error(
+      'Lỗi reset chat:',
+      err
+    );
+
+  }
+
+}
 
 /* ═════════ ESCAPE HTML ═════════ */
 
