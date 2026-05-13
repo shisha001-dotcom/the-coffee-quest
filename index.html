@@ -4,1314 +4,246 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>The Coffee Quest</title>
-<!-- ═══════════════════════════════════════════
-     FONT: Playfair Display (tiêu đề sang trọng)
-           + DM Sans (body dễ đọc)
-     Thay font tại đây nếu muốn đổi style
-═══════════════════════════════════════════ -->
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet"/>
-
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-/* ════════════════════════════════════════════════════
-   ROOT VARIABLES — ĐỔI MÀU TẠI ĐÂY
-   Chỉnh --accent để đổi màu chủ đạo toàn site
-════════════════════════════════════════════════════ */
-:root {
-  --bg:        #f7f3ec;       /* Nền tổng thể */
-  --card:      #ffffff;       /* Màu card */
-  --ink:       #1a1208;       /* Màu chữ chính */
-  --muted:     #8a7e6e;       /* Chữ phụ */
-  --border:    #e8dece;       /* Viền nhẹ */
-  --accent:    #c8392b;       /* Màu nhấn chính (đỏ cà phê) */
-  --accent2:   #e07b39;       /* Màu nhấn phụ (cam) */
-  --green:     #2a9d6f;       /* Màu xanh */
-  --tag-bg:    #f0ebe0;       /* Nền tag */
-  --header-h:  64px;          /* Chiều cao header */
-  --radius-lg: 20px;          /* Bo góc lớn */
-  --radius-md: 14px;          /* Bo góc vừa */
-  --shadow:    0 4px 24px rgba(0,0,0,.10); /* Bóng đổ chung */
+/* ══════════════════════════════════════════════
+   RESET & ROOT
+══════════════════════════════════════════════ */
+:root{
+  --bg:#f5f0e8;
+  --card:#fff;
+  --ink:#1a1a1a;
+  --muted:#888;
+  --border:#e0d8cc;
+  --accent:#e63946;
+  --green:#2a9d8f;
+  --yellow:#e9c46a;
+  --tag-bg:#f0ebe0;
 }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
 
-/* ════ RESET ════ */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg);
-  color: var(--ink);
-  min-height: 100vh;
-  overflow-x: hidden;
-}
-a { text-decoration: none; color: inherit; }
-button { font-family: inherit; cursor: pointer; }
-input, textarea { font-family: inherit; }
-
-/* ════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════
    SHARED HEADER
-════════════════════════════════════════════════════ */
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 200;
-  height: var(--header-h);
-  background: var(--ink);
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  gap: 12px;
-  box-shadow: 0 2px 16px rgba(0,0,0,.35);
+══════════════════════════════════════════════ */
+.site-header{
+  background:var(--ink);color:#fff;
+  padding:18px 32px;
+  display:flex;align-items:center;gap:20px;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 12px rgba(0,0,0,.3);
 }
+.logo{
+  font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:2px;
+  color:var(--accent);white-space:nowrap;cursor:pointer;text-decoration:none;
+}
+.logo span{color:#fff}
 
-/* LOGO — Click để về Daily Quest */
-.logo {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.3rem;
-  font-weight: 900;
-  color: #fff;
-  letter-spacing: .5px;
-  cursor: pointer;
-  white-space: nowrap;
-  flex: 1;
-}
-.logo em {
-  color: var(--accent);
-  font-style: normal;
-}
+/* ══════════════════════════════════════════════
+   PAGE VISIBILITY
+══════════════════════════════════════════════ */
+.page{display:none}
+.page.active{display:block}
 
-/* SEARCH (chỉ hiện trên màn boardgame) */
-.header-search-wrap {
-  flex: 1;
-  max-width: 400px;
-  position: relative;
-  display: none; /* JS sẽ show khi ở màn boardgame */
+/* ══════════════════════════════════════════════
+   LIST PAGE
+══════════════════════════════════════════════ */
+.search-wrap{flex:1;position:relative;max-width:480px}
+.search-wrap input{
+  width:100%;background:#2a2a2a;border:2px solid #3a3a3a;border-radius:10px;
+  color:#fff;font-family:'Nunito',sans-serif;font-size:.95rem;font-weight:600;
+  padding:10px 44px 10px 16px;outline:none;transition:border-color .2s;
 }
-.header-search-wrap input {
-  width: 100%;
-  background: #2c2418;
-  border: 2px solid #3d3226;
-  border-radius: 12px;
-  color: #fff;
-  font-size: .9rem;
-  font-weight: 500;
-  padding: 9px 40px 9px 14px;
-  outline: none;
-  transition: border-color .2s;
-}
-.header-search-wrap input:focus { border-color: var(--accent); }
-.header-search-wrap input::placeholder { color: #5a5044; }
-.search-icon-btn {
-  position: absolute; right: 12px; top: 50%;
-  transform: translateY(-50%);
-  font-size: 15px; color: #5a5044; pointer-events: none;
-}
+.search-wrap input:focus{border-color:var(--accent)}
+.search-wrap input::placeholder{color:#555}
+.search-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:17px;color:#555;pointer-events:none}
+.header-count{color:#666;font-size:.82rem;font-weight:700;white-space:nowrap}
+.header-count b{color:var(--yellow)}
 
-/* HAMBURGER MENU BUTTON */
-.menu-btn {
-  width: 42px; height: 42px;
-  background: rgba(255,255,255,.08);
-  border: none;
-  border-radius: 10px;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 5px;
-  transition: background .2s;
-  flex-shrink: 0;
+.filter-bar{
+  padding:14px 32px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  border-bottom:1px solid var(--border);background:#faf6ef;
 }
-.menu-btn:hover { background: rgba(255,255,255,.16); }
-.menu-btn span {
-  display: block;
-  width: 20px; height: 2px;
-  background: #fff;
-  border-radius: 2px;
-  transition: all .25s;
+.filter-label{font-size:.75rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-right:4px}
+.chip{
+  padding:5px 14px;border-radius:100px;font-size:.78rem;font-weight:700;cursor:pointer;
+  border:2px solid var(--border);background:#fff;color:var(--ink);transition:all .15s;
 }
-/* Hamburger → X khi open */
-.menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.menu-btn.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
-.menu-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
 
-/* ════════════════════════════════════════════════════
-   DROPDOWN MENU
-════════════════════════════════════════════════════ */
-#dropdown-menu {
-  position: fixed;
-  top: var(--header-h);
-  right: 0;
-  width: 280px;
-  background: var(--ink);
-  border-left: 3px solid var(--accent);
-  border-bottom: 3px solid var(--accent);
-  border-radius: 0 0 0 var(--radius-lg);
-  box-shadow: -8px 8px 40px rgba(0,0,0,.45);
-  z-index: 199;
-  transform: translateX(100%);
-  transition: transform .3s cubic-bezier(.4,0,.2,1);
-  overflow: hidden;
-}
-#dropdown-menu.open { transform: translateX(0); }
+.list-main{max-width:1100px;margin:0 auto;padding:32px 24px 80px}
+#empty{text-align:center;padding:80px 20px;display:none}
+#empty .e-icon{font-size:52px;margin-bottom:16px}
+#empty h3{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--muted)}
+#empty p{color:var(--muted);font-size:.9rem;margin-top:8px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
 
-.menu-list { padding: 10px 0 16px; }
+.game-card{
+  background:var(--card);border:2px solid var(--border);border-radius:16px;
+  overflow:hidden;cursor:pointer;
+  transition:transform .18s,box-shadow .18s,border-color .18s;
+  animation:fadeUp .35s ease both;
+}
+.game-card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(0,0,0,.12);border-color:#ccc}
+.card-stripe{height:6px}
+.card-body{padding:20px 22px 14px}
+.card-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.card-emoji{font-size:30px;width:52px;height:52px;background:var(--tag-bg);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.card-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:1px;line-height:1.1;margin-bottom:6px}
+.card-meta{display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:.7rem;font-weight:800;padding:3px 9px;border-radius:100px;background:var(--tag-bg);color:var(--ink);text-transform:uppercase;letter-spacing:.4px}
+.tag.diff-easy{background:#d4edda;color:#1a5c2d}
+.tag.diff-medium{background:#fff3cd;color:#7d5a00}
+.tag.diff-hard{background:#fde8e8;color:#8b0000}
+.card-objective{font-size:.86rem;color:#555;line-height:1.55;border-top:1px solid var(--border);padding-top:12px;margin-top:4px}
+.card-objective strong{color:var(--ink);font-weight:800}
+.card-footer{padding:10px 22px 16px;display:flex;align-items:center;justify-content:space-between}
+.view-btn{font-size:.78rem;font-weight:800;color:var(--accent);display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
+.view-btn::after{content:'→';transition:transform .15s}
+.game-card:hover .view-btn::after{transform:translateX(5px)}
 
-/* Mỗi item menu */
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 15px 22px;
-  color: #c8bfb0;
-  font-size: .95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .15s, color .15s;
-  border-left: 3px solid transparent;
+/* ══════════════════════════════════════════════
+   DETAIL PAGE
+══════════════════════════════════════════════ */
+.detail-nav{
+  background:#111;padding:12px 32px;
+  display:flex;align-items:center;gap:14px;
+  border-bottom:3px solid var(--accent);
 }
-.menu-item:hover {
-  background: rgba(255,255,255,.07);
-  color: #fff;
-  border-left-color: var(--accent2);
+.back-btn{
+  display:flex;align-items:center;gap:7px;
+  color:#bbb;font-size:.82rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;
+  cursor:pointer;background:none;border:none;transition:color .15s;white-space:nowrap;
+  padding:0;
 }
-.menu-item.active-menu {
-  color: #fff;
-  background: rgba(200,57,43,.15);
-  border-left-color: var(--accent);
-}
-.menu-icon { font-size: 1.2rem; width: 24px; text-align: center; }
-.menu-divider {
-  height: 1px;
-  background: rgba(255,255,255,.08);
-  margin: 6px 22px;
-}
+.back-btn:hover{color:#fff}
+.breadcrumb-sep{color:#444}
+.breadcrumb-cur{color:#666;font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* Overlay để đóng menu khi click ngoài */
-#menu-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 198;
-}
-#menu-overlay.open { display: block; }
+/* HERO */
+.detail-hero{position:relative;overflow:hidden;min-height:280px;display:flex;align-items:flex-end}
+.hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.4)}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.2) 60%,transparent 100%)}
+.hero-content{position:relative;z-index:1;padding:40px 48px 36px;width:100%}
+.hero-emoji{font-size:52px;display:block;margin-bottom:10px}
+.hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.2rem,5vw,3.8rem);letter-spacing:2px;color:#fff;line-height:1;margin-bottom:16px}
+.hero-tags{display:flex;flex-wrap:wrap;gap:8px}
+.hero-tag{font-size:.74rem;font-weight:800;padding:5px 13px;border-radius:100px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);color:#fff;text-transform:uppercase;letter-spacing:.5px;backdrop-filter:blur(6px)}
+.hero-tag.hl{background:var(--accent);border-color:var(--accent)}
 
-/* ════════════════════════════════════════════════════
-   PAGE SYSTEM — mỗi màn là 1 div.page
-════════════════════════════════════════════════════ */
-.page { display: none; }
-.page.active { display: block; animation: pageFadeIn .3s ease; }
-@keyframes pageFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+/* BODY */
+.detail-body{max-width:860px;margin:0 auto;padding:44px 32px 60px}
 
-/* ════════════════════════════════════════════════════
-   ████ MÀN 1: DAILY QUEST ████
-════════════════════════════════════════════════════ */
-.daily-hero {
-  background: var(--ink);
-  padding: 36px 24px 28px;
-  text-align: center;
-}
-.daily-hero-label {
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-  color: var(--accent2);
-  margin-bottom: 8px;
-}
-.daily-hero-title {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(2rem, 5vw, 3rem);
-  color: #fff;
-  line-height: 1.15;
-  margin-bottom: 10px;
-}
-.daily-hero-title em { color: var(--accent); font-style: normal; }
-.daily-hero-sub {
-  color: #8a7e6e;
-  font-size: .9rem;
-  max-width: 420px;
-  margin: 0 auto;
-  line-height: 1.6;
-}
+.d-section{margin-bottom:38px}
+.d-head{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.d-head::after{content:'';flex:1;height:2px;background:linear-gradient(to right,rgba(230,57,70,.22),transparent)}
 
-/* Date strip */
-.daily-date-strip {
-  background: #241c12;
-  padding: 10px 24px;
-  text-align: center;
-  font-size: .8rem;
-  font-weight: 600;
-  color: #6b5f50;
-  letter-spacing: .5px;
-}
-.daily-date-strip b { color: var(--accent2); }
+.obj-box{background:#fff8f8;border-left:4px solid var(--accent);border-radius:0 12px 12px 0;padding:16px 20px;font-size:1rem;line-height:1.7;color:#333;font-weight:700}
+.win-box{background:#e8f8f0;border-left:4px solid var(--green);border-radius:0 12px 12px 0;padding:16px 20px;font-size:1rem;line-height:1.7;color:#1a5c2d;font-weight:700}
 
-/* Banner list */
-.banners-wrap {
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 28px 20px 80px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
+.steps-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.step-item{display:flex;gap:16px;background:#faf6ef;border:1px solid var(--border);border-radius:12px;padding:16px 18px;font-size:.92rem;line-height:1.65;color:#444;transition:border-color .2s,box-shadow .2s}
+.step-item:hover{border-color:#c8bfb0;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.step-num{width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;font-size:.78rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
 
-/* ────────────────────────────────
-   BANNER CARD
-   ĐỂ THÊM/SỬA BANNER:
-   1. Tìm div.banner-card trong HTML
-   2. Đổi src ảnh tại <img src="...">
-   3. Đổi tiêu đề .banner-title
-   4. Đổi mô tả .banner-desc
-   Xem hướng dẫn chi tiết cuối file
-──────────────────────────────── */
-.banner-card {
-  background: var(--card);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  border: 2px solid var(--border);
-  cursor: pointer;
-  transition: transform .2s, box-shadow .2s, border-color .2s;
-  animation: fadeUp .4s ease both;
-}
-.banner-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 16px 40px rgba(0,0,0,.14);
-  border-color: #d4c8b4;
-}
+.turn-list{display:flex;flex-direction:column;gap:8px}
+.turn-item{display:flex;align-items:flex-start;gap:12px;font-size:.92rem;color:#444;line-height:1.65;padding:12px 16px;background:#f0f7ff;border:1px solid #cde3f5;border-radius:10px}
+.turn-icon{font-size:16px;flex-shrink:0;margin-top:2px}
 
-/* ── ẢNH BANNER ── */
-.banner-img-wrap {
-  position: relative;
-  width: 100%;
-  height: 200px;
-  overflow: hidden;
-  background: #2a1f14;
-}
-/* 
-  ══════════════════════════════════════
-  HƯỚNG DẪN ĐỔI ẢNH BANNER:
-  
-  Cách 1 — Dùng ảnh từ Internet:
-  <img src="https://example.com/anh.jpg">
-  
-  Cách 2 — Dùng ảnh local (khuyên dùng):
-  1. Tạo thư mục: images/ cùng cấp index.html
-  2. Đặt ảnh vào thư mục đó
-     Ví dụ: images/banner1.jpg
-  3. Sửa src thành: src="images/banner1.jpg"
-  
-  Kích thước ảnh khuyến nghị: 780 x 400px
-  Định dạng: JPG, PNG, WebP đều được
-  ══════════════════════════════════════
-*/
-.banner-img-wrap img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  transition: transform .4s ease;
-}
-.banner-card:hover .banner-img-wrap img {
-  transform: scale(1.04);
-}
+.tips-list{display:flex;flex-direction:column;gap:8px}
+.tip-item{display:flex;align-items:flex-start;gap:12px;font-size:.9rem;color:#555;line-height:1.65;padding:12px 16px;background:#fffbf0;border:1px solid #f0e5b0;border-radius:10px}
 
-/* Gradient phủ lên ảnh */
-.banner-img-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(26,18,8,.6) 0%, transparent 60%);
-}
+/* ── IMAGES ── */
+.images-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.img-wrap{border-radius:12px;overflow:hidden;border:2px solid var(--border);background:#f0ebe0;cursor:zoom-in;transition:transform .2s,box-shadow .2s,border-color .2s}
+.img-wrap:hover{transform:scale(1.025);box-shadow:0 6px 20px rgba(0,0,0,.13);border-color:#bbb}
+.img-wrap img{width:100%;height:170px;object-fit:cover;display:block}
+.img-caption{padding:8px 12px;font-size:.76rem;font-weight:700;color:var(--muted);background:#f9f5ee;border-top:1px solid var(--border)}
+.no-images{padding:32px;background:var(--tag-bg);border:2px dashed var(--border);border-radius:12px;text-align:center;color:var(--muted);font-size:.88rem;line-height:1.7}
+.no-images code{background:#e8e0d4;padding:1px 6px;border-radius:4px;font-size:.82rem}
 
-/* Tag nổi trên ảnh */
-.banner-badge {
-  position: absolute;
-  top: 14px; left: 14px;
-  background: var(--accent);
-  color: #fff;
-  font-size: .68rem;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 5px 12px;
-  border-radius: 100px;
-}
+/* ── VIDEO ── */
+.video-frame{aspect-ratio:16/9;background:#111;border-radius:14px;overflow:hidden}
+.video-frame iframe{width:100%;height:100%;border:none}
+.no-video{aspect-ratio:16/9;background:var(--tag-bg);border:2px dashed var(--border);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-size:.9rem}
+.no-video .nv-icon{font-size:2.8rem}
+.no-video a{color:#457b9d;font-weight:700}
 
-/* Nội dung dưới ảnh */
-.banner-body {
-  padding: 20px 22px 18px;
-}
-.banner-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.banner-date {
-  font-size: .74rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-.banner-dot { color: var(--border); }
-.banner-category {
-  font-size: .74rem;
-  font-weight: 700;
-  color: var(--accent2);
-  text-transform: uppercase;
-  letter-spacing: .8px;
-}
-.banner-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--ink);
-  line-height: 1.3;
-  margin-bottom: 8px;
-}
-.banner-desc {
-  font-size: .88rem;
-  color: var(--muted);
-  line-height: 1.6;
-  margin-bottom: 14px;
-}
-.banner-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.banner-read {
-  font-size: .8rem;
-  font-weight: 700;
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-}
-.banner-read .arr { transition: transform .2s; }
-.banner-card:hover .banner-read .arr { transform: translateX(5px); }
-.banner-likes {
-  font-size: .8rem;
-  color: var(--muted);
-  font-weight: 600;
-}
+/* ── LIGHTBOX ── */
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:14px;animation:fadeIn .2s ease}
+#lightbox.open{display:flex}
+#lightbox img{max-width:92vw;max-height:80vh;border-radius:12px;object-fit:contain;box-shadow:0 0 60px rgba(0,0,0,.6)}
+#lb-caption{color:#bbb;font-size:.88rem;font-weight:700}
+#lb-close{position:absolute;top:18px;right:22px;font-size:30px;color:#fff;cursor:pointer;background:none;border:none;line-height:1;opacity:.7;transition:opacity .15s}
+#lb-close:hover{opacity:1}
 
-/* ════════════════════════════════════════════════════
-   ████ MÀN 2: LUẬT BOARDGAME ████
-════════════════════════════════════════════════════ */
+/* ── RELATED ── */
+.related-section{background:#faf6ef;border-top:3px solid var(--border);padding:44px 32px 64px}
+.related-inner{max-width:860px;margin:0 auto}
+.related-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:1px;color:var(--ink);margin-bottom:22px;display:flex;align-items:center;gap:12px}
+.related-title::after{content:'';flex:1;height:2px;background:var(--border)}
+.related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.rel-card{background:var(--card);border:2px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s}
+.rel-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.1);border-color:#ccc}
+.rel-stripe{height:5px}
+.rel-body{padding:16px}
+.rel-emoji{font-size:26px;display:block;margin-bottom:8px}
+.rel-name{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.8px;margin-bottom:8px}
+.rel-meta{display:flex;flex-wrap:wrap;gap:4px}
+.rel-tag{font-size:.67rem;font-weight:800;padding:2px 8px;border-radius:100px;background:var(--tag-bg);color:var(--ink)}
+.rel-go{padding:10px 16px;font-size:.75rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border)}
+.rel-go::after{content:'→';transition:transform .15s}
+.rel-card:hover .rel-go::after{transform:translateX(4px)}
 
-/* Filter bar */
-.filter-bar {
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  border-bottom: 1px solid var(--border);
-  background: #faf6ef;
-  position: sticky;
-  top: var(--header-h);
-  z-index: 10;
-}
-.filter-label {
-  font-size: .7rem;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  margin-right: 2px;
-}
-.chip {
-  padding: 6px 14px;
-  border-radius: 100px;
-  font-size: .78rem;
-  font-weight: 700;
-  cursor: pointer;
-  border: 2px solid var(--border);
-  background: #fff;
-  color: var(--ink);
-  transition: all .15s;
-  white-space: nowrap;
-}
-.chip:hover { border-color: var(--accent); color: var(--accent); }
-.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* ══════════════════════════════════════════════
+   FOOTER & ANIMATIONS
+══════════════════════════════════════════════ */
+.site-footer{text-align:center;padding:22px;border-top:1px solid var(--border);color:var(--muted);font-size:.8rem}
+.site-footer b{color:var(--accent)}
 
-/* Kết quả + empty */
-.list-main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
-#empty { text-align: center; padding: 80px 20px; display: none; }
-#empty .e-icon { font-size: 52px; margin-bottom: 16px; }
-#empty h3 { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--muted); }
-#empty p { color: var(--muted); font-size: .88rem; margin-top: 8px; }
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
-.game-count-bar {
-  margin-bottom: 18px;
-  font-size: .82rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-.game-count-bar b { color: var(--ink); }
-
-/* Grid cards */
-#grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-  gap: 18px;
-}
-
-/* ── GAME CARD (thiết kế mới) ── */
-.game-card {
-  background: var(--card);
-  border: 2px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform .2s, box-shadow .2s, border-color .2s;
-  animation: fadeUp .35s ease both;
-  display: flex;
-  flex-direction: column;
-}
-.game-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 32px rgba(0,0,0,.13);
-  border-color: #c8bfb0;
-}
-
-/* Dải màu trên cùng */
-.card-stripe { height: 5px; flex-shrink: 0; }
-
-/* Ảnh cover (hoặc gradient nếu không có ảnh) */
-.card-cover {
-  height: 130px;
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.card-cover-bg {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  filter: brightness(.55);
-  transition: transform .4s ease;
-}
-.game-card:hover .card-cover-bg { transform: scale(1.06); }
-.card-cover-emoji {
-  position: absolute;
-  bottom: 10px; left: 14px;
-  font-size: 2rem;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,.4));
-}
-.card-cover-diff {
-  position: absolute;
-  top: 10px; right: 10px;
-  font-size: .67rem;
-  font-weight: 800;
-  padding: 3px 10px;
-  border-radius: 100px;
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255,255,255,.2);
-}
-.diff-easy   { background: rgba(40,167,69,.75);  color: #fff; }
-.diff-medium { background: rgba(255,180,0,.75);  color: #1a1208; }
-.diff-hard   { background: rgba(220,53,69,.75);  color: #fff; }
-
-/* Body card */
-.card-body { padding: 16px 18px 12px; flex: 1; }
-.card-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.15rem;
-  font-weight: 700;
-  line-height: 1.2;
-  margin-bottom: 10px;
-  color: var(--ink);
-}
-
-/* Tags nhiều màu */
-.card-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
-.tag {
-  font-size: .68rem;
-  font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 100px;
-  background: var(--tag-bg);
-  color: var(--ink);
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  border: 1px solid var(--border);
-}
-/* Tag màu theo category */
-.tag-party     { background: #fde8ed; color: #c0392b; border-color: #f5c6cb; }
-.tag-family    { background: #e8f4fd; color: #1a6fa0; border-color: #bee5fb; }
-.tag-strategy  { background: #e8f8f0; color: #1a6648; border-color: #b8e0cd; }
-.tag-coop      { background: #fef3e2; color: #9a5b00; border-color: #fde0a8; }
-.tag-classic   { background: #f3e8fd; color: #6a1a9a; border-color: #dab8f8; }
-.tag-deduction { background: #e8ecfd; color: #1a2890; border-color: #b8c4f8; }
-.tag-race      { background: #e8fdec; color: #0a6f28; border-color: #b8f0c8; }
-
-.card-objective {
-  font-size: .84rem;
-  color: #5a4e3e;
-  line-height: 1.55;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Footer card */
-.card-footer {
-  padding: 10px 18px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid var(--border);
-}
-.view-btn {
-  font-size: .76rem;
-  font-weight: 700;
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-}
-.view-btn .arr { transition: transform .15s; }
-.game-card:hover .view-btn .arr { transform: translateX(5px); }
-.card-stat {
-  font-size: .74rem;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-/* ════════════════════════════════════════════════════
-   ████ MÀN DETAIL BOARDGAME ████
-════════════════════════════════════════════════════ */
-.detail-nav {
-  background: #111;
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border-bottom: 3px solid var(--accent);
-}
-.back-btn {
-  display: flex; align-items: center; gap: 7px;
-  color: #bbb; font-size: .82rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .5px;
-  cursor: pointer; background: none; border: none;
-  transition: color .15s; white-space: nowrap; padding: 0;
-}
-.back-btn:hover { color: #fff; }
-.breadcrumb-sep { color: #444; }
-.breadcrumb-cur { color: #666; font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* Hero */
-.detail-hero { position: relative; overflow: hidden; min-height: 280px; display: flex; align-items: flex-end; }
-.hero-bg { position: absolute; inset: 0; background-size: cover; background-position: center; filter: brightness(.4); }
-.hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.88) 0%, rgba(0,0,0,.2) 60%, transparent 100%); }
-.hero-content { position: relative; z-index: 1; padding: 40px 40px 32px; width: 100%; }
-.hero-emoji { font-size: 48px; display: block; margin-bottom: 10px; }
-.hero-title { font-family: 'Playfair Display', serif; font-size: clamp(2rem,5vw,3.4rem); font-weight: 900; color: #fff; line-height: 1.1; margin-bottom: 16px; }
-.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; }
-.hero-tag { font-size: .72rem; font-weight: 700; padding: 5px 13px; border-radius: 100px; background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.22); color: #fff; text-transform: uppercase; letter-spacing: .5px; backdrop-filter: blur(6px); }
-.hero-tag.hl { background: var(--accent); border-color: var(--accent); }
-
-/* Detail Body */
-.detail-body { max-width: 860px; margin: 0 auto; padding: 44px 24px 60px; }
-.d-section { margin-bottom: 38px; }
-.d-head { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
-.d-head::after { content: ''; flex: 1; height: 2px; background: linear-gradient(to right, rgba(200,57,43,.22), transparent); }
-.obj-box { background: #fff8f8; border-left: 4px solid var(--accent); border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 16px 20px; font-size: 1rem; line-height: 1.7; color: #3a2020; font-weight: 600; }
-.win-box { background: #e8f8f0; border-left: 4px solid var(--green); border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 16px 20px; font-size: 1rem; line-height: 1.7; color: #1a3c2d; font-weight: 600; }
-.steps-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.step-item { display: flex; gap: 16px; background: #faf6ef; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; font-size: .9rem; line-height: 1.65; color: #444; transition: border-color .2s, box-shadow .2s; }
-.step-item:hover { border-color: #c8bfb0; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-.step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: #fff; font-size: .75rem; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
-.turn-list { display: flex; flex-direction: column; gap: 8px; }
-.turn-item { display: flex; align-items: flex-start; gap: 12px; font-size: .9rem; color: #444; line-height: 1.65; padding: 12px 16px; background: #f0f7ff; border: 1px solid #cde3f5; border-radius: 10px; }
-.turn-icon { font-size: 15px; flex-shrink: 0; margin-top: 3px; }
-.tips-list { display: flex; flex-direction: column; gap: 8px; }
-.tip-item { display: flex; align-items: flex-start; gap: 12px; font-size: .88rem; color: #555; line-height: 1.65; padding: 12px 16px; background: #fffbf0; border: 1px solid #f0e5b0; border-radius: 10px; }
-.images-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-.img-wrap { border-radius: var(--radius-md); overflow: hidden; border: 2px solid var(--border); background: #f0ebe0; cursor: zoom-in; transition: transform .2s, box-shadow .2s, border-color .2s; }
-.img-wrap:hover { transform: scale(1.03); box-shadow: 0 6px 20px rgba(0,0,0,.13); border-color: #bbb; }
-.img-wrap img { width: 100%; height: 165px; object-fit: cover; display: block; }
-.img-caption { padding: 8px 12px; font-size: .74rem; font-weight: 600; color: var(--muted); background: #f9f5ee; border-top: 1px solid var(--border); }
-.no-images { padding: 32px; background: var(--tag-bg); border: 2px dashed var(--border); border-radius: var(--radius-md); text-align: center; color: var(--muted); font-size: .86rem; line-height: 1.7; }
-.no-images code { background: #e8e0d4; padding: 1px 6px; border-radius: 4px; font-size: .8rem; }
-.video-frame { aspect-ratio: 16/9; background: #111; border-radius: var(--radius-md); overflow: hidden; }
-.video-frame iframe { width: 100%; height: 100%; border: none; }
-.no-video { aspect-ratio: 16/9; background: var(--tag-bg); border: 2px dashed var(--border); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); font-size: .9rem; }
-.no-video .nv-icon { font-size: 2.8rem; }
-.no-video a { color: #457b9d; font-weight: 700; }
-
-/* Related */
-.related-section { background: #faf6ef; border-top: 3px solid var(--border); padding: 40px 24px 60px; }
-.related-inner { max-width: 860px; margin: 0 auto; }
-.related-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: var(--ink); margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
-.related-title::after { content: ''; flex: 1; height: 2px; background: var(--border); }
-.related-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 14px; }
-.rel-card { background: var(--card); border: 2px solid var(--border); border-radius: var(--radius-md); overflow: hidden; cursor: pointer; transition: transform .18s, box-shadow .18s, border-color .18s; }
-.rel-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,.1); border-color: #ccc; }
-.rel-stripe { height: 5px; }
-.rel-body { padding: 14px; }
-.rel-emoji { font-size: 24px; display: block; margin-bottom: 8px; }
-.rel-name { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-.rel-meta { display: flex; flex-wrap: wrap; gap: 4px; }
-.rel-tag { font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 100px; background: var(--tag-bg); color: var(--ink); border: 1px solid var(--border); }
-.rel-go { padding: 10px 14px; font-size: .73rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); }
-.rel-go::after { content: '→'; transition: transform .15s; }
-.rel-card:hover .rel-go::after { transform: translateX(4px); }
-
-/* ════════════════════════════════════════════════════
-   LIGHTBOX
-════════════════════════════════════════════════════ */
-#lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 999; align-items: center; justify-content: center; flex-direction: column; gap: 14px; animation: fadeIn .2s ease; }
-#lightbox.open { display: flex; }
-#lightbox img { max-width: 92vw; max-height: 80vh; border-radius: 12px; object-fit: contain; box-shadow: 0 0 60px rgba(0,0,0,.6); }
-#lb-caption { color: #bbb; font-size: .88rem; font-weight: 600; }
-#lb-close { position: absolute; top: 18px; right: 22px; font-size: 30px; color: #fff; cursor: pointer; background: none; border: none; line-height: 1; opacity: .7; transition: opacity .15s; }
-#lb-close:hover { opacity: 1; }
-
-/* ════════════════════════════════════════════════════
-   ████ MÀN 3: VỀ THE COFFEE QUEST ████
-════════════════════════════════════════════════════ */
-.about-page { max-width: 680px; margin: 0 auto; padding: 40px 20px 80px; }
-
-.about-hero {
-  background: linear-gradient(135deg, var(--ink) 0%, #3d2010 100%);
-  border-radius: var(--radius-lg);
-  padding: 48px 32px;
-  text-align: center;
-  margin-bottom: 32px;
-  position: relative;
-  overflow: hidden;
-}
-.about-hero::before {
-  content: '☕';
-  position: absolute;
-  font-size: 200px;
-  opacity: .05;
-  top: -40px; right: -40px;
-  line-height: 1;
-}
-.about-logo-icon {
-  width: 80px; height: 80px;
-  background: var(--accent);
-  border-radius: 22px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 38px;
-  margin: 0 auto 20px;
-  box-shadow: 0 12px 30px rgba(200,57,43,.4);
-}
-.about-shop-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 2rem;
-  font-weight: 900;
-  color: #fff;
-  margin-bottom: 8px;
-}
-.about-shop-name em { color: var(--accent2); font-style: normal; }
-.about-tagline { color: #8a7e6e; font-size: .9rem; line-height: 1.6; }
-
-/* Info cards */
-.about-section-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--ink);
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--border);
-  display: flex; align-items: center; gap: 8px;
-}
-
-.about-card {
-  background: var(--card);
-  border: 2px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  margin-bottom: 16px;
-}
-
-.about-info-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  transition: background .15s;
-}
-.about-info-row:last-child { border-bottom: none; }
-.about-info-row:hover { background: var(--bg); }
-.about-info-icon {
-  width: 40px; height: 40px;
-  border-radius: 11px;
-  background: var(--tag-bg);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.1rem;
-  flex-shrink: 0;
-}
-.about-info-label {
-  font-size: .74rem;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .8px;
-  margin-bottom: 2px;
-}
-.about-info-value {
-  font-size: .95rem;
-  font-weight: 600;
-  color: var(--ink);
-}
-.about-info-value a {
-  color: var(--accent);
-  transition: opacity .15s;
-}
-.about-info-value a:hover { opacity: .7; }
-
-/* Map placeholder */
-.about-map {
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 2px solid var(--border);
-  background: #e8dece;
-  height: 200px;
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 10px;
-  color: var(--muted);
-  font-size: .88rem;
-  margin-top: 14px;
-  font-weight: 600;
-}
-.about-map span { font-size: 2rem; }
-
-/* Giờ mở cửa */
-.hours-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-}
-.hours-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--border);
-  font-size: .88rem;
-}
-.hours-row:nth-child(odd) { background: #fdfaf6; }
-.hours-row:nth-child(even) { background: var(--card); }
-.hours-row:last-child, .hours-row:nth-last-child(2) { border-bottom: none; }
-.hours-day { font-weight: 600; color: var(--ink); }
-.hours-time { font-weight: 700; color: var(--accent2); }
-
-/* ════════════════════════════════════════════════════
-   ████ MÀN 4: CÀI ĐẶT CÁ NHÂN ████
-════════════════════════════════════════════════════ */
-.settings-page { max-width: 560px; margin: 0 auto; padding: 40px 20px 80px; }
-
-.settings-header-block {
-  text-align: center;
-  margin-bottom: 32px;
-}
-.settings-header-block h2 {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.8rem;
-  font-weight: 900;
-  color: var(--ink);
-  margin-bottom: 6px;
-}
-.settings-header-block p {
-  font-size: .88rem;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
-.settings-group {
-  background: var(--card);
-  border: 2px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-.settings-group-title {
-  padding: 14px 20px 10px;
-  font-size: .72rem;
-  font-weight: 800;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-}
-
-.setting-row {
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
-}
-.setting-row:last-child { border-bottom: none; }
-.setting-row-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.setting-icon {
-  width: 38px; height: 38px;
-  background: var(--tag-bg);
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-.setting-info { flex: 1; }
-.setting-label { font-size: .9rem; font-weight: 700; color: var(--ink); margin-bottom: 2px; }
-.setting-desc { font-size: .78rem; color: var(--muted); line-height: 1.4; }
-
-/* Input tên */
-.setting-input-wrap { position: relative; }
-.setting-input {
-  width: 100%;
-  background: var(--bg);
-  border: 2px solid var(--border);
-  border-radius: 12px;
-  color: var(--ink);
-  font-size: .95rem;
-  font-weight: 600;
-  padding: 12px 50px 12px 14px;
-  outline: none;
-  transition: border-color .2s, box-shadow .2s;
-}
-.setting-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(200,57,43,.1);
-}
-.setting-save-btn {
-  position: absolute;
-  right: 8px; top: 50%;
-  transform: translateY(-50%);
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: .78rem;
-  font-weight: 800;
-  transition: opacity .15s, transform .15s;
-}
-.setting-save-btn:hover { opacity: .88; transform: translateY(-50%) scale(1.03); }
-
-/* Save toast */
-#settings-toast {
-  position: fixed;
-  bottom: 90px; left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: var(--green);
-  color: #fff;
-  font-size: .86rem;
-  font-weight: 700;
-  padding: 10px 22px;
-  border-radius: 100px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .25s, transform .25s;
-  z-index: 9999;
-  white-space: nowrap;
-}
-#settings-toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-/* Font size slider */
-.font-slider-wrap {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.font-size-label {
-  font-size: .8rem;
-  font-weight: 700;
-  color: var(--muted);
-  width: 28px;
-  text-align: center;
-}
-input[type=range] {
-  flex: 1;
-  -webkit-appearance: none;
-  height: 6px;
-  background: var(--border);
-  border-radius: 4px;
-  outline: none;
-  cursor: pointer;
-}
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 2px 6px rgba(200,57,43,.35);
-  border: 2px solid #fff;
-  transition: transform .15s;
-}
-input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-
-.font-preview {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-top: 10px;
-  color: var(--ink);
-  line-height: 1.5;
-}
-
-/* User display in header */
-.user-badge {
-  display: flex; align-items: center; gap: 7px;
-  background: rgba(255,255,255,.1);
-  border: 1px solid rgba(255,255,255,.15);
-  border-radius: 100px;
-  padding: 5px 12px 5px 8px;
-  font-size: .78rem;
-  font-weight: 600;
-  color: #d4c8b4;
-  cursor: pointer;
-  transition: background .15s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.user-badge:hover { background: rgba(255,255,255,.15); }
-.user-avatar {
-  width: 22px; height: 22px;
-  background: var(--accent);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: .6rem;
-  font-weight: 800;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-/* ════════════════════════════════════════════════════
-   CHAT (giữ nguyên từ bản cũ, style nâng cấp nhẹ)
-════════════════════════════════════════════════════ */
-/* USERNAME MODAL */
-#username-modal {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.72);
-  z-index: 99999;
-  display: none; align-items: center; justify-content: center;
-  backdrop-filter: blur(6px); padding: 20px;
-}
-#username-modal.show { display: flex; }
-.username-card {
-  width: 100%; max-width: 420px;
-  background: #fff; border-radius: 28px; padding: 42px 34px;
-  text-align: center;
-  animation: userModal .25s ease;
-  box-shadow: 0 20px 70px rgba(0,0,0,.35);
-}
-@keyframes userModal { from { opacity: 0; transform: translateY(20px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.username-logo { width: 82px; height: 82px; border-radius: 24px; background: var(--accent); color: #fff; font-size: 40px; display: flex; align-items: center; justify-content: center; margin: 0 auto 22px; box-shadow: 0 12px 30px rgba(200,57,43,.35); }
-.username-card h2 { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 10px; color: #1a1a1a; font-weight: 900; }
-.username-card p { color: #777; line-height: 1.6; margin-bottom: 24px; font-size: .93rem; }
-#username-input { width: 100%; border: 2px solid #e0d8cc; border-radius: 16px; padding: 14px; font-size: 1rem; outline: none; transition: border-color .2s, box-shadow .2s; margin-bottom: 16px; }
-#username-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(200,57,43,.12); }
-#username-save { width: 100%; border: none; border-radius: 16px; padding: 14px; background: var(--accent); color: #fff; font-size: 1rem; font-weight: 800; cursor: pointer; transition: transform .15s, opacity .15s; }
-#username-save:hover { transform: translateY(-2px); opacity: .92; }
-
-/* CHAT BUTTON */
-#chat-toggle { position: fixed; bottom: 22px; right: 22px; width: 60px; height: 60px; border: none; border-radius: 50%; background: var(--accent); color: #fff; font-size: 26px; cursor: pointer; z-index: 9999; box-shadow: 0 8px 24px rgba(200,57,43,.4); transition: transform .2s, box-shadow .2s; }
-#chat-toggle:hover { transform: scale(1.08); box-shadow: 0 12px 30px rgba(200,57,43,.5); }
-
-/* CHAT WINDOW */
-#chat-window { position: fixed; bottom: 96px; right: 22px; width: 360px; height: 520px; background: #fff; border-radius: var(--radius-lg); overflow: hidden; display: none; flex-direction: column; z-index: 9999; border: 2px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,.25); animation: chatFade .25s ease; }
-#chat-window.open { display: flex; }
-@keyframes chatFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-.chat-header { background: var(--ink); color: #fff; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
-.chat-title { display: flex; align-items: center; gap: 10px; }
-.chat-title h3 { font-size: .95rem; font-weight: 700; }
-.online-dot { width: 9px; height: 9px; border-radius: 50%; background: #2ecc71; box-shadow: 0 0 6px rgba(46,204,113,.5); }
-#chat-close { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; opacity: .7; }
-#chat-close:hover { opacity: 1; }
-.chat-online { background: #faf6ef; border-bottom: 1px solid var(--border); padding: 8px 14px; font-size: .78rem; color: #666; font-weight: 600; }
-#chat-messages { flex: 1; overflow-y: auto; padding: 14px; background: #f5f0e8; }
-.chat-msg { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
-.chat-user { font-size: .7rem; font-weight: 800; color: #888; padding-left: 4px; }
-.chat-bubble { background: #fff; border-radius: 14px; padding: 10px 14px; font-size: .88rem; line-height: 1.5; color: #333; border: 1px solid var(--border); word-break: break-word; }
-.chat-input-wrap { border-top: 1px solid var(--border); background: #fff; padding: 12px; display: flex; gap: 10px; }
-#chat-input { flex: 1; border: 2px solid var(--border); border-radius: 12px; padding: 11px; font-size: .9rem; outline: none; }
-#chat-input:focus { border-color: var(--accent); }
-#chat-send { border: none; background: var(--accent); color: #fff; border-radius: 12px; padding: 0 16px; cursor: pointer; font-weight: 800; font-size: .88rem; transition: opacity .15s; }
-#chat-send:hover { opacity: .88; }
-
-/* ════════════════════════════════════════════════════
-   FOOTER
-════════════════════════════════════════════════════ */
-.site-footer { text-align: center; padding: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: .78rem; }
-.site-footer b { color: var(--accent); }
-
-/* ════════════════════════════════════════════════════
-   ANIMATIONS & UTILS
-════════════════════════════════════════════════════ */
-@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-/* ════════════════════════════════════════════════════
-   RESPONSIVE — MOBILE
-════════════════════════════════════════════════════ */
-@media (max-width: 660px) {
-  .site-header { padding: 0 14px; gap: 8px; }
-  .logo { font-size: 1.1rem; }
-  .user-badge span { display: none; }
-  .header-search-wrap { max-width: 100%; }
-  .filter-bar { padding: 10px 14px; }
-  .list-main { padding: 18px 12px 60px; }
-  #grid { grid-template-columns: 1fr; }
-  .detail-nav { padding: 10px 16px; }
-  .hero-content { padding: 24px 18px 22px; }
-  .detail-body { padding: 24px 14px 50px; }
-  .related-section { padding: 28px 14px 48px; }
-  .banners-wrap { padding: 20px 14px 70px; }
-  .about-page, .settings-page { padding: 24px 14px 70px; }
-  #chat-window { width: calc(100vw - 20px); right: 10px; bottom: 82px; height: 70vh; }
-  #chat-toggle { right: 14px; bottom: 14px; }
-  #dropdown-menu { width: 100%; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
-  .about-hero { padding: 36px 22px; }
+@media(max-width:660px){
+  .site-header{flex-wrap:wrap;gap:10px;padding:14px 16px}
+  .search-wrap{max-width:100%;order:3;width:100%}
+  .filter-bar{padding:12px 16px}
+  .list-main{padding:20px 12px 60px}
+  #grid{grid-template-columns:1fr}
+  .detail-nav{padding:10px 16px}
+  .hero-content{padding:28px 20px 24px}
+  .detail-body{padding:28px 16px 50px}
+  .related-section{padding:28px 16px 48px}
 }
 </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════════════
-     SHARED HEADER — hiện trên tất cả màn hình
-════════════════════════════════════════════════════ -->
-<header class="site-header" id="main-header">
+<!-- ══════════════════════════════════════════════
+     PAGE: LIST
+══════════════════════════════════════════════ -->
+<div id="page-list" class="page active">
 
-  <!-- LOGO — click về Daily Quest -->
-  <div class="logo" onclick="showScreen('daily')" id="header-logo">
-    ☕ The Coffee<em>Quest</em>
-  </div>
-
-  <!-- SEARCH (chỉ hiện khi ở màn boardgame) -->
-  <div class="header-search-wrap" id="header-search">
-    <input type="text" id="searchInput" placeholder="Tìm board game…" autocomplete="off"/>
-    <div class="search-icon-btn">🔍</div>
-  </div>
-
-  <!-- TÊN NGƯỜI DÙNG -->
-  <div class="user-badge" onclick="showScreen('settings')" id="user-badge-btn">
-    <div class="user-avatar" id="user-avatar-letter">?</div>
-    <span id="user-badge-name">Khách</span>
-  </div>
-
-  <!-- HAMBURGER MENU BUTTON -->
-  <button class="menu-btn" id="menu-btn" aria-label="Menu" onclick="toggleMenu()">
-    <span></span><span></span><span></span>
-  </button>
-
-</header>
-
-<!-- DROPDOWN MENU -->
-<nav id="dropdown-menu" role="navigation" aria-label="Menu chính">
-  <ul class="menu-list">
-    <!-- ── Menu item 1: Daily Quest ── -->
-    <li class="menu-item active-menu" id="menu-daily" onclick="showScreen('daily');closeMenu()">
-      <span class="menu-icon">🗓️</span> Daily Quest
-    </li>
-
-    <div class="menu-divider"></div>
-
-    <!-- ── Menu item 2: Luật Boardgame ── -->
-    <li class="menu-item" id="menu-boardgame" onclick="showScreen('boardgame');closeMenu()">
-      <span class="menu-icon">🎲</span> Luật chơi boardgame
-    </li>
-
-    <div class="menu-divider"></div>
-
-    <!-- ── Menu item 3: Về The Coffee Quest ── -->
-    <li class="menu-item" id="menu-about" onclick="showScreen('about');closeMenu()">
-      <span class="menu-icon">☕</span> Về The Coffee Quest
-    </li>
-
-    <div class="menu-divider"></div>
-
-    <!-- ── Menu item 4: Cài đặt cá nhân ── -->
-    <li class="menu-item" id="menu-settings" onclick="showScreen('settings');closeMenu()">
-      <span class="menu-icon">⚙️</span> Cài đặt cá nhân
-    </li>
-  </ul>
-</nav>
-<!-- Overlay đóng menu khi click ngoài -->
-<div id="menu-overlay" onclick="closeMenu()"></div>
-
-<!-- ════════════════════════════════════════════════════
-     ████ MÀN 1: DAILY QUEST ████
-════════════════════════════════════════════════════ -->
-<div class="page active" id="screen-daily">
-
-  <!-- Hero block -->
-  <div class="daily-hero">
-    <div class="daily-hero-label">☕ The Coffee Quest</div>
-    <h1 class="daily-hero-title">Daily <em>Quest</em></h1>
-    <p class="daily-hero-sub">Tin tức, sự kiện & nội dung mới nhất từ quán</p>
-  </div>
-
-  <!-- Date strip -->
-  <div class="daily-date-strip" id="daily-date-strip">
-    📅 Đang tải ngày...
-  </div>
-
-  <!-- ════════════════════════════════════════════════
-       BANNER CARDS
-       
-       CÁCH THÊM/SỬA BANNER:
-       ─────────────────────────────────────────────
-       1. Mỗi banner là 1 div.banner-card
-       2. Tìm comment "THAY ẢNH BANNER TẠI ĐÂY"
-       3. Đổi src="" thành đường dẫn ảnh mới
-       
-       📁 Dùng ảnh local:
-          → Tạo thư mục "images/" cùng cấp index.html
-          → Đặt file ảnh vào đó (vd: images/quest1.jpg)
-          → Đổi src="images/quest1.jpg"
-       
-       🌐 Dùng ảnh online:
-          → src="https://url-anh.com/anh.jpg"
-       
-       📐 Kích thước tốt nhất: 780 x 400px
-       ════════════════════════════════════════════ -->
-  <div class="banners-wrap">
-
-    <!-- ── BANNER MẪU 1 ── -->
-    <div class="banner-card" style="animation-delay: 0s">
-      <div class="banner-img-wrap">
-        <!-- THAY ẢNH BANNER TẠI ĐÂY (Banner 1) -->
-        <!-- Dùng ảnh local: src="images/banner1.jpg" -->
-        <!-- Dùng ảnh online: src="https://..." -->
-        <img
-          src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=780&h=400&fit=crop"
-          alt="Sự kiện Game Night"
-          loading="lazy"
-          onerror="this.src='https://placehold.co/780x400/1a1208/f7f3ec?text=The+Coffee+Quest'"
-        />
-        <div class="banner-img-overlay"></div>
-        <div class="banner-badge">🔥 Sự kiện</div>
-      </div>
-      <div class="banner-body">
-        <div class="banner-meta">
-          <span class="banner-date" id="banner-date-1">Hôm nay</span>
-          <span class="banner-dot">·</span>
-          <span class="banner-category">Game Night</span>
-        </div>
-        <!-- THAY TIÊU ĐỀ TẠI ĐÂY -->
-        <div class="banner-title">Game Night Thứ 6 — Chơi thoải mái, không giới hạn!</div>
-        <!-- THAY MÔ TẢ TẠI ĐÂY -->
-        <div class="banner-desc">
-          Mỗi tối thứ 6, quán mở cửa đến 12h đêm. Đến chơi board game cùng bạn bè, thưởng thức cà phê đặc biệt và gặp gỡ cộng đồng game thủ tại The Coffee Quest!
-        </div>
-        <div class="banner-footer">
-          <div class="banner-read">Xem thêm <span class="arr">→</span></div>
-          <div class="banner-likes">❤️ 42 quan tâm</div>
-        </div>
-      </div>
+  <header class="site-header">
+    <a class="logo" onclick="goList()">🎲 <span>The Coffee</span>Quest</a>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Tìm tên board game…" autocomplete="off"/>
+      <div class="search-icon">🔍</div>
     </div>
+    <div class="header-count">Hiển thị <b id="countNum">0</b> game</div>
+  </header>
 
-    <!-- ── BANNER MẪU 2 ── -->
-    <div class="banner-card" style="animation-delay: .08s">
-      <div class="banner-img-wrap">
-        <!-- THAY ẢNH BANNER TẠI ĐÂY (Banner 2) -->
-        <!-- Gợi ý: src="images/banner2.jpg" -->
-        <img
-          src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=780&h=400&fit=crop"
-          alt="Menu mới"
-          loading="lazy"
-          onerror="this.src='https://placehold.co/780x400/3d2010/f7f3ec?text=Menu+Moi'"
-        />
-        <div class="banner-img-overlay"></div>
-        <div class="banner-badge" style="background: var(--accent2)">☕ Menu mới</div>
-      </div>
-      <div class="banner-body">
-        <div class="banner-meta">
-          <span class="banner-date" id="banner-date-2">Tuần này</span>
-          <span class="banner-dot">·</span>
-          <span class="banner-category">Đồ uống</span>
-        </div>
-        <!-- THAY TIÊU ĐỀ TẠI ĐÂY -->
-        <div class="banner-title">Cold Brew Mùa Hè — Giải nhiệt cùng đến board game!</div>
-        <!-- THAY MÔ TẢ TẠI ĐÂY -->
-        <div class="banner-desc">
-          Ra mắt Cold Brew đặc biệt pha từ cà phê Cầu Đất Đà Lạt. Mỗi ly Cold Brew mua kèm 1 ván board game miễn phí trong tháng 5 này!
-        </div>
-        <div class="banner-footer">
-          <div class="banner-read">Xem thêm <span class="arr">→</span></div>
-          <div class="banner-likes">❤️ 28 quan tâm</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── BANNER MẪU 3 ── -->
-    <div class="banner-card" style="animation-delay: .16s">
-      <div class="banner-img-wrap">
-        <!-- THAY ẢNH BANNER TẠI ĐÂY (Banner 3) -->
-        <!-- Gợi ý: src="images/banner3.jpg" -->
-        <img
-          src="https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=780&h=400&fit=crop"
-          alt="Tournament"
-          loading="lazy"
-          onerror="this.src='https://placehold.co/780x400/2a9d6f/f7f3ec?text=Giai+Dau'"
-        />
-        <div class="banner-img-overlay"></div>
-        <div class="banner-badge" style="background: var(--green)">🏆 Giải đấu</div>
-      </div>
-      <div class="banner-body">
-        <div class="banner-meta">
-          <span class="banner-date" id="banner-date-3">Cuối tháng</span>
-          <span class="banner-dot">·</span>
-          <span class="banner-category">Tournament</span>
-        </div>
-        <!-- THAY TIÊU ĐỀ TẠI ĐÂY -->
-        <div class="banner-title">Giải UNO Mở Rộng — 20 suất, quà tặng hấp dẫn</div>
-        <!-- THAY MÔ TẢ TẠI ĐÂY -->
-        <div class="banner-desc">
-          Tham gia giải đấu UNO đầu tiên tại The Coffee Quest. Chỉ 20 suất đăng ký — giải thưởng: bộ board game, free drink cả tháng và danh hiệu "Quest Master"!
-        </div>
-        <div class="banner-footer">
-          <div class="banner-read">Đăng ký ngay <span class="arr">→</span></div>
-          <div class="banner-likes">❤️ 64 quan tâm</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════
-         THÊM BANNER MỚI:
-         Copy block từ "BANNER MẪU 1" ở trên,
-         dán vào đây, rồi sửa nội dung.
-    ══════════════════════════════════════════ -->
-
-  </div><!-- /banners-wrap -->
-
-  <footer class="site-footer"><b>The Coffee Quest</b> — Hệ thống coffee & boardgame</footer>
-</div><!-- /screen-daily -->
-
-
-<!-- ════════════════════════════════════════════════════
-     ████ MÀN 2: LUẬT BOARDGAME (LIST) ████
-════════════════════════════════════════════════════ -->
-<div class="page" id="screen-boardgame">
-
-  <!-- Filter chips -->
   <div class="filter-bar">
     <span class="filter-label">Lọc:</span>
     <div class="chip active" data-filter="all">Tất cả</div>
     <div class="chip" data-filter="Party">🎉 Party</div>
-    <div class="chip" data-filter="Party Game">🎉 Party Game</div>
+    <div class="chip" data-filter="abc">🎉 abc</div> 
     <div class="chip" data-filter="Family">👨‍👩‍👧 Gia đình</div>
     <div class="chip" data-filter="Strategy">♟️ Chiến lược</div>
     <div class="chip" data-filter="Cooperative">🤝 Hợp tác</div>
     <div class="chip" data-filter="Classic">👑 Cổ điển</div>
-    <div class="chip" data-filter="Suy luận">🔍 Suy luận</div>
-    <div class="chip" data-filter="abc">🃏 abc</div>
-    <div class="chip" data-filter="Gia đình">🏡 Gia đình VN</div>
   </div>
 
   <main class="list-main">
@@ -1320,21 +252,23 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
       <h3>Không tìm thấy game nào</h3>
       <p>Thử từ khóa khác hoặc xóa bộ lọc</p>
     </div>
-    <div class="game-count-bar">Hiển thị <b id="countNum">0</b> trò chơi</div>
     <div id="grid"></div>
   </main>
 
-  <footer class="site-footer"><b>The Coffee Quest</b> — Tra cứu luật chơi board game tiếng Việt</footer>
-</div><!-- /screen-boardgame -->
+  <footer class="site-footer"><b>The Coffee Quest</b> — Hệ thống coffee & boardgame thứ hai Việt Nam</footer>
+</div>
 
+<!-- ══════════════════════════════════════════════
+     PAGE: DETAIL
+══════════════════════════════════════════════ -->
+<div id="page-detail" class="page">
 
-<!-- ════════════════════════════════════════════════════
-     ████ MÀN DETAIL BOARDGAME ████
-════════════════════════════════════════════════════ -->
-<div class="page" id="screen-detail">
+  <header class="site-header">
+    <a class="logo" onclick="goList()">🎲 <span>Board</span>Rules</a>
+  </header>
 
   <div class="detail-nav">
-    <button class="back-btn" onclick="backToList()">← Tất cả game</button>
+    <button class="back-btn" onclick="goList()">← Tất cả game</button>
     <span class="breadcrumb-sep">/</span>
     <span class="breadcrumb-cur" id="d-crumb"></span>
   </div>
@@ -1399,261 +333,7 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
   </div>
 
   <footer class="site-footer"><b>The Coffee Quest</b> — Tra cứu luật chơi board game tiếng Việt</footer>
-</div><!-- /screen-detail -->
-
-
-<!-- ════════════════════════════════════════════════════
-     ████ MÀN 3: VỀ THE COFFEE QUEST ████
-════════════════════════════════════════════════════ -->
-<div class="page" id="screen-about">
-  <div class="about-page">
-
-    <!-- Hero giới thiệu -->
-    <div class="about-hero">
-      <div class="about-logo-icon">☕</div>
-      <div class="about-shop-name">The Coffee <em>Quest</em></div>
-      <div class="about-tagline">Không gian cà phê & board game ấm cúng,<br>nơi mỗi ngụm cà phê là một hành trình khám phá.</div>
-    </div>
-
-    <!-- THÔNG TIN LIÊN HỆ -->
-    <!-- ════════════════════════════════════════════
-         ĐỂ SỬA THÔNG TIN:
-         Tìm từng .about-info-value và sửa nội dung
-         Tìm từng .about-info-icon và đổi emoji
-    ════════════════════════════════════════════ -->
-    <div class="about-section-title">📋 Thông tin quán</div>
-    <div class="about-card">
-
-      <!-- Tên quán — SỬA TẠI ĐÂY -->
-      <div class="about-info-row">
-        <div class="about-info-icon">🏪</div>
-        <div>
-          <div class="about-info-label">Tên quán</div>
-          <div class="about-info-value">The Coffee Quest</div>
-        </div>
-      </div>
-
-      <!-- Hotline — SỬA TẠI ĐÂY -->
-      <div class="about-info-row">
-        <div class="about-info-icon">📞</div>
-        <div>
-          <div class="about-info-label">Hotline</div>
-          <!-- Thay số điện thoại vào href và text dưới đây -->
-          <div class="about-info-value">
-            <a href="tel:+84901234567">0901 234 567</a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Facebook — SỬA TẠI ĐÂY -->
-      <div class="about-info-row">
-        <div class="about-info-icon">📘</div>
-        <div>
-          <div class="about-info-label">Facebook</div>
-          <!-- Thay link Facebook của quán -->
-          <div class="about-info-value">
-            <a href="https://facebook.com/thecoffeequesst" target="_blank" rel="noopener">
-              facebook.com/thecoffeequesst
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Instagram — SỬA TẠI ĐÂY -->
-      <div class="about-info-row">
-        <div class="about-info-icon">📸</div>
-        <div>
-          <div class="about-info-label">Instagram</div>
-          <!-- Thay link Instagram của quán -->
-          <div class="about-info-value">
-            <a href="https://instagram.com/thecoffeequest" target="_blank" rel="noopener">
-              @thecoffeequest
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Địa chỉ — SỬA TẠI ĐÂY -->
-      <div class="about-info-row">
-        <div class="about-info-icon">📍</div>
-        <div>
-          <div class="about-info-label">Địa chỉ</div>
-          <!-- Thay địa chỉ thực tế của quán -->
-          <div class="about-info-value">123 Đường Nguyễn Văn Linh, Quận Hải Châu, Đà Nẵng</div>
-        </div>
-      </div>
-
-      <!-- Email — SỬA TẠI ĐÂY (hoặc xóa nếu không dùng) -->
-      <div class="about-info-row">
-        <div class="about-info-icon">📧</div>
-        <div>
-          <div class="about-info-label">Email</div>
-          <div class="about-info-value">
-            <a href="mailto:hello@coffeequesst.com">hello@coffeequesst.com</a>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /about-card contact -->
-
-    <!-- GIỜ MỞ CỬA — SỬA TẠI ĐÂY -->
-    <div class="about-section-title">🕐 Giờ mở cửa</div>
-    <div class="about-card">
-      <div class="hours-grid">
-        <div class="hours-row"><span class="hours-day">Thứ 2 - Thứ 5</span><span class="hours-time">8:00 – 22:00</span></div>
-        <div class="hours-row"><span class="hours-day">Thứ 6</span><span class="hours-time">8:00 – 00:00</span></div>
-        <div class="hours-row"><span class="hours-day">Thứ 7</span><span class="hours-time">8:00 – 00:00</span></div>
-        <div class="hours-row"><span class="hours-day">Chủ nhật</span><span class="hours-time">9:00 – 22:00</span></div>
-      </div>
-    </div>
-
-    <!-- BẢN ĐỒ — SỬA TẠI ĐÂY -->
-    <!-- Để nhúng Google Maps thực:
-         1. Vào maps.google.com → tìm địa chỉ quán
-         2. Nhấn Share → Embed a map → Copy HTML
-         3. Thay div.about-map bằng <iframe> đó
-    -->
-    <div class="about-map">
-      <span>🗺️</span>
-      <div style="font-weight:700;">Bản đồ sẽ hiện ở đây</div>
-      <div style="font-size:.78rem;text-align:center;padding:0 20px;">
-        Nhúng Google Maps bằng cách thay thẻ div này bằng iframe từ Google Maps
-      </div>
-    </div>
-
-    <!-- MÔ TẢ QUÁN — SỬA TẠI ĐÂY -->
-    <div style="height:24px"></div>
-    <div class="about-section-title">💬 Về chúng tôi</div>
-    <div class="about-card">
-      <div style="padding:20px;font-size:.9rem;line-height:1.75;color:#5a4e3e;">
-        <!-- Thay đoạn mô tả quán tại đây -->
-        <p style="margin-bottom:12px;">
-          <b>The Coffee Quest</b> là không gian cà phê kết hợp board game độc đáo tại Đà Nẵng. 
-          Chúng tôi tin rằng một tách cà phê ngon và một ván board game thú vị là công thức hoàn hảo để kết nối con người.
-        </p>
-        <p style="margin-bottom:12px;">
-          Với bộ sưu tập hơn <b>50+ board game</b> và menu đồ uống đặc biệt, The Coffee Quest là điểm hẹn lý tưởng 
-          cho bạn bè, gia đình và những ai yêu thích khám phá.
-        </p>
-        <p>
-          ☕ <b>Sứ mệnh:</b> Mang lại những trải nghiệm vui vẻ, ý nghĩa qua mỗi ván chơi và mỗi tách cà phê.
-        </p>
-      </div>
-    </div>
-
-  </div><!-- /about-page -->
-
-  <footer class="site-footer"><b>The Coffee Quest</b> — Hệ thống coffee & boardgame</footer>
-</div><!-- /screen-about -->
-
-
-<!-- ════════════════════════════════════════════════════
-     ████ MÀN 4: CÀI ĐẶT CÁ NHÂN ████
-════════════════════════════════════════════════════ -->
-<div class="page" id="screen-settings">
-  <div class="settings-page">
-
-    <div class="settings-header-block">
-      <h2>⚙️ Cài đặt</h2>
-      <p>Tùy chỉnh trải nghiệm của bạn tại The Coffee Quest</p>
-    </div>
-
-    <!-- NHÓM 1: TÀI KHOẢN -->
-    <div class="settings-group">
-      <div class="settings-group-title">👤 Tài khoản</div>
-
-      <!-- Tên người dùng -->
-      <div class="setting-row">
-        <div class="setting-row-top">
-          <div class="setting-icon">✏️</div>
-          <div class="setting-info">
-            <div class="setting-label">Tên hiển thị</div>
-            <div class="setting-desc">Tên dùng trong chat cộng đồng</div>
-          </div>
-        </div>
-        <div class="setting-input-wrap">
-          <input
-            type="text"
-            class="setting-input"
-            id="setting-username"
-            placeholder="Nhập tên của bạn…"
-            maxlength="20"
-          />
-          <button class="setting-save-btn" onclick="saveUsername()">Lưu</button>
-        </div>
-      </div>
-
-    </div><!-- /group tài khoản -->
-
-    <!-- NHÓM 2: HIỂN THỊ -->
-    <div class="settings-group">
-      <div class="settings-group-title">🎨 Hiển thị</div>
-
-      <!-- Kích thước chữ -->
-      <div class="setting-row">
-        <div class="setting-row-top">
-          <div class="setting-icon">🔤</div>
-          <div class="setting-info">
-            <div class="setting-label">Kích thước chữ</div>
-            <div class="setting-desc">Điều chỉnh cỡ chữ toàn trang</div>
-          </div>
-        </div>
-        <div class="font-slider-wrap">
-          <span class="font-size-label" id="font-size-min">A</span>
-          <input
-            type="range"
-            id="font-size-slider"
-            min="13"
-            max="20"
-            value="16"
-            step="1"
-            oninput="applyFontSize(this.value)"
-          />
-          <span class="font-size-label" style="font-size:1.1rem" id="font-size-max">A</span>
-        </div>
-        <!-- Preview chữ -->
-        <div class="font-preview" id="font-preview">
-          ☕ The Coffee Quest — Xem trước kích thước chữ tại đây. Đây là ví dụ về cách chữ sẽ hiển thị trên toàn trang.
-        </div>
-      </div>
-
-    </div><!-- /group hiển thị -->
-
-    <!-- NHÓM 3: THÔNG TIN ỨNG DỤNG -->
-    <div class="settings-group">
-      <div class="settings-group-title">ℹ️ Ứng dụng</div>
-
-      <div class="setting-row" style="padding:14px 20px;">
-        <div style="font-size:.86rem;color:var(--muted);line-height:1.7;">
-          <div style="margin-bottom:4px;"><b style="color:var(--ink);">The Coffee Quest App</b></div>
-          <div>Phiên bản: 2.0.0</div>
-          <div>Dữ liệu lưu bằng: localStorage</div>
-          <div>Designed for: ☕ Coffee Quest Community</div>
-        </div>
-      </div>
-
-      <!-- Nút xóa dữ liệu -->
-      <div class="setting-row" style="padding:14px 20px;">
-        <button
-          onclick="clearAllData()"
-          style="background:none;border:2px solid #fde8e8;border-radius:10px;padding:10px 18px;font-size:.86rem;font-weight:700;color:#c0392b;width:100%;cursor:pointer;transition:all .15s;"
-          onmouseover="this.style.background='#fde8e8'"
-          onmouseout="this.style.background='none'"
-        >
-          🗑️ Xóa toàn bộ dữ liệu cài đặt
-        </button>
-      </div>
-
-    </div><!-- /group thông tin -->
-
-  </div><!-- /settings-page -->
-
-  <footer class="site-footer"><b>The Coffee Quest</b> — Hệ thống coffee & boardgame</footer>
-</div><!-- /screen-settings -->
-
-
-<!-- TOAST thông báo lưu thành công -->
-<div id="settings-toast">✓ Đã lưu!</div>
+</div>
 
 <!-- LIGHTBOX -->
 <div id="lightbox">
@@ -1662,77 +342,37 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
   <div id="lb-caption"></div>
 </div>
 
-
-<!-- ════════════════════════════════════════════════════
-     CHAT ONLINE REALTIME (giữ nguyên từ bản cũ)
-════════════════════════════════════════════════════ -->
-
-<!-- CHAT BUTTON -->
-<button id="chat-toggle">💬</button>
-
-<!-- CHAT WINDOW -->
-<div id="chat-window">
-  <div class="chat-header">
-    <div class="chat-title">
-      <div class="online-dot"></div>
-      <h3>Boardgame Community</h3>
-    </div>
-    <button id="chat-close">✕</button>
-  </div>
-  <div class="chat-online">👥 Online: <span id="online-count">0</span> người</div>
-  <div id="chat-messages"></div>
-  <div class="chat-input-wrap">
-    <input type="text" id="chat-input" placeholder="Nhập tin nhắn..." maxlength="300"/>
-    <button id="chat-send">Gửi</button>
-  </div>
-</div>
-
-<!-- USERNAME MODAL (lần đầu vào) -->
-<div id="username-modal">
-  <div class="username-card">
-    <div class="username-logo">🎲</div>
-    <h2>Boardgame Community</h2>
-    <p>Chọn tên hiển thị để bắt đầu trò chuyện cùng mọi người</p>
-    <input type="text" id="username-input" maxlength="20" placeholder="Ví dụ: Vương, Admin, WerewolfKing..."/>
-    <button id="username-save">Vào phòng chat</button>
-  </div>
-</div>
-
-
-<!-- ════════════════════════════════════════════════════
-     JAVASCRIPT CHÍNH
-════════════════════════════════════════════════════ -->
 <script>
-
-// ════════════════════════════════════════════════════
-//  DỮ LIỆU BOARD GAME — THÊM GAME MỚI VÀO ĐÂY
+// ═══════════════════════════════════════════════════════════════════
+//  📌 DỮ LIỆU BOARD GAME — THÊM GAME MỚI VÀO ĐÂY
 //
 //  Mỗi game là 1 object. Các trường:
+//
 //  name       — Tên game (bắt buộc)
-//  category   — "Party" | "Family" | "Strategy" | "Cooperative" | "Classic" | v.v.
-//  tags       — Mảng tag thêm. VD: ["2-4 người", "Nhẹ nhàng"]
+//  category   — "Party" | "Family" | "Strategy" | "Cooperative" | "Classic"
 //  emoji      — 1 emoji đại diện
 //  players    — VD: "2-6"
 //  time       — VD: "30-45 phút"
 //  difficulty — "Dễ" | "Trung bình" | "Khó"
-//  color      — Màu hex
-//  heroBg     — URL ảnh nền hero (hoặc null)
-//  objective  — Mục tiêu (1 câu)
-//  setup      — Mảng bước chuẩn bị
-//  turn       — Mảng hành động lượt chơi
-//  win        — Điều kiện thắng
-//  tips       — (Tùy chọn) Mảng mẹo chơi
-//  images     — (Tùy chọn) [{ url: "...", caption: "..." }]
-//  youtubeUrl — (Tùy chọn) Link YouTube
-// ════════════════════════════════════════════════════
+//  color      — Màu hex, VD: "#e63946"
+//  heroBg     — URL ảnh nền trang chi tiết (hoặc null)
+//  objective  — Mục tiêu thắng (1 câu)
+//  setup      — Mảng string: các bước chuẩn bị
+//  turn       — Mảng string: các hành động 1 lượt
+//  win        — Điều kiện chiến thắng
+//  tips       — (Tuỳ chọn) Mảng mẹo chơi
+//  images     — (Tuỳ chọn) Mảng ảnh hướng dẫn:
+//               [{ url: "https://...", caption: "Mô tả" }]
+//               url có thể là link web, base64, hoặc đường dẫn file
+//  youtubeUrl — (Tuỳ chọn) Link YouTube đầy đủ (hoặc null)
+// ═══════════════════════════════════════════════════════════════════
 
 const GAMES = [
 
-  // ── GAME 1: UNO ──────────────────────────────────────────────────
+  // ── GAME 1: UNO ───────────────────────────────────────────────────────────
   {
     name: "Uno",
     category: "Party",
-    tags: ["Vui vẻ", "Dễ học"],
     emoji: "🃏",
     players: "2-10",
     time: "15 phút",
@@ -1752,497 +392,630 @@ const GAMES = [
     ],
     win: "Người đánh hết bài đầu tiên thắng ván. Tích điểm từ bài còn lại của đối thủ — đủ 500 điểm thắng cả trận.",
     tips: [
-      "Giữ lá +4 Wild cho tình huống nguy cấp.",
-      "Hô UNO muộn sẽ bị phạt rút 2 lá nếu bị phát hiện.",
-      "Đổi màu sang màu bạn có nhiều nhất khi dùng Wild."
+      "Giữ lại Wild Draw Four làm át chủ bài, chỉ dùng khi cần thiết.",
+      "Khi đối thủ còn 1 lá (đã hô UNO), dùng Draw Two hoặc Wild Draw Four để phá họ.",
+      "Quên hô UNO và bị bắt → phạt rút 2 lá!"
     ],
-    images: [],
-    youtubeUrl: null
+    images: [
+      { url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Baraja_de_UNO.JPG/640px-Baraja_de_UNO.JPG", caption: "Bộ bài Uno đầy đủ 108 lá" },
+      { url: "https://upload.wikimedia.org/wikipedia/commons/9/9f/UNO_cards_deck.svg", caption: "Các loại lá bài đặc biệt trong Uno" }
+    ],
+    youtubeUrl: "https://www.youtube.com/watch?v=ZHXuav5okgc"
   },
 
-  // ── GAME 2: CATAN ─────────────────────────────────────────────────
+  // ── GAME 2: TICKET TO RIDE ────────────────────────────────────────────────
+  {
+    name: "Ticket to Ride",
+    category: "Family",
+    emoji: "🚂",
+    players: "2-5",
+    time: "45-75 phút",
+    difficulty: "Trung bình",
+    color: "#457b9d",
+    heroBg: null,
+    objective: "Hoàn thành các tuyến đường sắt bí mật và xây mạng lưới đường sắt dài nhất.",
+    setup: [
+      "Trải bản đồ Bắc Mỹ ra giữa bàn",
+      "Mỗi người nhận 45 toa tàu và 4 thẻ Tàu ngẫu nhiên",
+      "Rút 3 Vé Nhiệm Vụ — giữ ít nhất 2, có thể giữ cả 3",
+      "Lật 5 thẻ Tàu lên mặt bàn"
+    ],
+    turn: [
+      "HÀNH ĐỘNG A: Rút 2 thẻ Tàu (từ 5 thẻ ngửa hoặc chồng úp)",
+      "HÀNH ĐỘNG B: Xây tuyến đường (bỏ thẻ đúng màu và đủ số lượng)",
+      "HÀNH ĐỘNG C: Rút thêm Vé Nhiệm Vụ (rút 3, giữ ít nhất 1)"
+    ],
+    win: "Cộng điểm tuyến + điểm vé hoàn thành - điểm vé chưa xong + 10đ cho đường dài nhất. Người nhiều điểm nhất thắng.",
+    tips: [
+      "Giữ bí Vé Nhiệm Vụ — đừng lộ bạn cần đường nào để đối thủ chặn.",
+      "Tuyến 5-6 ô cho 10-15đ — ưu tiên xây sớm.",
+      "Thu thập đủ thẻ màu TRƯỚC khi xây tuyến quan trọng."
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=QbM85mJmRKs"
+  },
+
+  // ── GAME 3: CATAN ─────────────────────────────────────────────────────────
   {
     name: "Catan",
     category: "Strategy",
-    tags: ["Chiến lược", "Giao thương"],
     emoji: "🏝️",
     players: "3-4",
-    time: "60-90 phút",
+    time: "60-120 phút",
     difficulty: "Trung bình",
     color: "#e9c46a",
-    heroBg: "https://cf.geekdo-images.com/W3Bsga_uLP9kO91gZ7H8yw__imagepagezoom/img/M9e9QJqVGCQf9ywJ8bAnvBenRx0=/fit-in/1024x1024/filters:no_upscale():strip_icc()/pic2419375.jpg",
-    objective: "Phát triển vùng đất Catan, xây dựng thành phố và thu thập tài nguyên để đạt 10 điểm chiến thắng.",
+    heroBg: null,
+    objective: "Đạt 10 điểm chiến thắng đầu tiên bằng cách xây dựng khu định cư và thành phố.",
     setup: [
-      "Lắp ghép bản đồ hex ngẫu nhiên theo hướng dẫn",
-      "Mỗi người đặt 2 làng + 2 đường ở vị trí ban đầu",
-      "Chia bài tài nguyên theo vị trí làng ban đầu",
-      "Người xếp cuối chọn vị trí đầu tiên"
+      "Xếp ngẫu nhiên 19 ô địa hình thành bản đồ lục giác",
+      "Đặt số xúc xắc theo thứ tự chữ cái lên các ô (bỏ qua sa mạc)",
+      "Mỗi người đặt 2 khu định cư và 2 đường ban đầu (miễn phí)"
     ],
     turn: [
-      "Gieo 2 xúc xắc → tất cả thu tài nguyên từ hex tương ứng",
-      "Giao thương với người chơi khác hoặc cảng 4:1/3:1/2:1",
-      "Xây đường (gạch + gỗ), làng (gạch+gỗ+lúa+len), thành phố (2 lúa+3 quặng), hoặc mua thẻ phát triển"
+      "Tung 2 xúc xắc — ô có số đó sản xuất tài nguyên cho mọi người kề ô",
+      "Trao đổi tài nguyên với người chơi khác hoặc ngân hàng",
+      "Dùng tài nguyên để xây đường, định cư, thành phố hoặc mua thẻ phát triển"
     ],
-    win: "Người đầu tiên đạt 10 điểm chiến thắng (làng=1đ, thành phố=2đ, đường dài nhất=2đ, quân đội mạnh nhất=2đ).",
+    win: "Người đầu tiên đạt đúng 10 điểm trong lượt của mình thắng ngay. Điểm từ: định cư(1đ), thành phố(2đ), Longest Road(2đ), Largest Army(2đ), thẻ VP(1đ/thẻ).",
     tips: [
-      "Đặt làng ban đầu gần nhiều loại tài nguyên khác nhau.",
-      "Kiểm soát cảng 2:1 để trao đổi hiệu quả.",
-      "Tập trung 1 chiến lược: tốc độ (đường dài) hoặc điểm (thành phố)."
+      "Chọn vị trí kề nhiều số xuất hiện thường (6, 8, 5, 9) và đa dạng tài nguyên.",
+      "Đừng tích hơn 7 tài nguyên — mất một nửa khi ai đó tung số 7.",
+      "Xây đường hướng về cảng để tối ưu tỷ lệ trao đổi 2:1."
     ],
-    images: [],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=UN8Pu7EhDpI"
+  },
+
+  // ── GAME 4: PANDEMIC ──────────────────────────────────────────────────────
+  {
+    name: "Pandemic",
+    category: "Cooperative",
+    emoji: "🦠",
+    players: "2-4",
+    time: "45-60 phút",
+    difficulty: "Trung bình",
+    color: "#2a9d8f",
+    heroBg: null,
+    objective: "Cả nhóm cùng tìm vaccine cho 4 loại dịch bệnh trước khi thế giới sụp đổ.",
+    setup: [
+      "Đặt Trạm Nghiên cứu đầu tiên tại Atlanta",
+      "Rút 9 thẻ Nhiễm: 3 thành phố đầu 3 khối, 3 thành phố tiếp 2 khối, 3 thành phố cuối 1 khối",
+      "Xáo 4 thẻ Epidemic vào chồng thẻ Player, chia đều thành 4 phần",
+      "Mỗi người nhận vai trò đặc biệt ngẫu nhiên"
+    ],
+    turn: [
+      "Thực hiện 4 hành động: di chuyển, xây Trạm, xử lý bệnh, chữa bệnh, cho/nhận thẻ",
+      "Rút 2 thẻ Player (nếu rút Epidemic → xử lý ngay)",
+      "Rút thẻ Nhiễm theo mức hiện tại — nguy cơ bùng phát dây chuyền"
+    ],
+    win: "TẤT CẢ CÙNG THẮNG khi tìm được vaccine cho cả 4 loại bệnh. CÙNG THUA nếu bùng phát 8 lần, hết thẻ rút, hoặc hết khối bệnh bất kỳ màu nào.",
+    tips: [
+      "Giao tiếp và lên kế hoạch cùng nhau — đây là game hợp tác!",
+      "Ưu tiên dập bùng phát (Outbreak) hơn chữa bệnh lẻ tẻ.",
+      "Nhớ rằng sau Epidemic, các thành phố đã nhiễm SẼ bị lại sớm!"
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=ojt0lPlMxHs"
+  },
+
+  // ── GAME 5: CỜ VUA ────────────────────────────────────────────────────────
+  {
+    name: "Cờ Vua",
+    category: "Classic",
+    emoji: "♟️",
+    players: "2",
+    time: "15-180 phút",
+    difficulty: "Khó",
+    color: "#1a1a1a",
+    heroBg: null,
+    objective: "Chiếu bí (Checkmate) Vua đối phương.",
+    setup: [
+      "Đặt bàn cờ sao cho góc PHẢI của mỗi người là ô SÁNG",
+      "Hàng 1: Xe-Mã-Tượng-Hậu-Vua-Tượng-Mã-Xe. Hàng 2: 8 Tốt",
+      "Đen đối xứng ở hàng 7-8. Hậu đứng ô cùng màu với mình. Trắng đi trước"
+    ],
+    turn: [
+      "Di chuyển 1 quân theo luật di chuyển của quân đó",
+      "Không được để Vua mình bị chiếu sau nước đi",
+      "Đặc biệt: Nhập thành, En Passant, Phong cấp Tốt"
+    ],
+    win: "Chiếu bí Vua đối phương. Hòa khi: Pat, lặp nước 3 lần, 50 nước không ăn quân/đi tốt.",
+    tips: [
+      "Kiểm soát 4 ô trung tâm (e4, d4, e5, d5) trong khai cuộc.",
+      "Nhập thành sớm để bảo vệ Vua.",
+      "Phát triển Mã và Tượng trước, không đi Hậu sớm."
+    ],
+    images: null,
     youtubeUrl: null
   },
 
-  // ── GAME 3: NO THANKS! ────────────────────────────────────────────
+  // ── GAME 6: MONOPOLY ──────────────────────────────────────────────────────
+  {
+    name: "Monopoly",
+    category: "Classic",
+    emoji: "🏦",
+    players: "2-8",
+    time: "60-180 phút",
+    difficulty: "Trung bình",
+    color: "#2d6a4f",
+    heroBg: null,
+    objective: "Khiến tất cả đối thủ phá sản bằng cách độc quyền bất động sản.",
+    setup: [
+      "Mỗi người nhận $1,500 từ ngân hàng",
+      "Xếp thẻ Community Chest và Chance thành 2 chồng úp",
+      "Người tung xúc xắc cao nhất đi đầu"
+    ],
+    turn: [
+      "Tung 2 xúc xắc và di chuyển theo số điểm",
+      "Dừng ở đất trống: mua hoặc từ chối (ngân hàng đấu giá)",
+      "Dừng ở đất có chủ: trả tiền thuê (x2 nếu độc quyền, tăng mạnh nếu có nhà/khách sạn)"
+    ],
+    win: "Người duy nhất còn tiền khi tất cả đối thủ đã phá sản.",
+    tips: [
+      "Nhóm đất màu cam (St. James, Tennessee, New York) được dừng vào nhiều nhất!",
+      "Xây đến 3 nhà/ô là 'điểm ngọt' — chi phí hợp lý, tiền thuê vọt mạnh.",
+      "Đàm phán trao đổi đất để hoàn thành nhóm màu sớm."
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=L5BeVWmNpSE"
+  },
+
+  // ── GAME 7: DIXIT ─────────────────────────────────────────────────────────
+  {
+    name: "Dixit",
+    category: "Party",
+    emoji: "🎨",
+    players: "3-6",
+    time: "30 phút",
+    difficulty: "Dễ",
+    color: "#9b5de5",
+    heroBg: null,
+    objective: "Đoán đúng bài của Người Kể Chuyện và đánh lừa người khác chọn bài của mình.",
+    setup: [
+      "Xáo bài, chia mỗi người 6 lá",
+      "Đặt con thỏ tất cả vào ô xuất phát trên bảng điểm"
+    ],
+    turn: [
+      "Người Kể: chọn 1 lá bí mật, đưa ra gợi ý (từ, câu, âm thanh, cử chỉ…)",
+      "Người còn lại: chọn 1 lá trong tay mô tả nhất với gợi ý, đặt úp",
+      "Xáo tất cả bài, lật ngửa. Mọi người bỏ phiếu bí mật chọn bài của Người Kể"
+    ],
+    win: "Đầu tiên đạt 30 điểm thắng. Người Kể +3đ nếu có người đoán đúng nhưng không phải tất cả. Quá rõ hoặc quá tối: Người Kể 0đ!",
+    tips: [
+      "Gợi ý vừa đủ mơ hồ — không quá rõ (tất cả đoán đúng = 0đ) cũng không quá tối.",
+      "Bẫy người khác chọn bài của mình bằng cách chọn lá 'gần giống' gợi ý.",
+      "Dixit hay nhất khi gợi ý mang tính cá nhân hoặc văn hóa chung của nhóm."
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=aVGUMKrAqUA"
+  },
+
+  // ── GAME 8: CARCASSONNE ───────────────────────────────────────────────────
+  {
+    name: "Carcassonne",
+    category: "Family",
+    emoji: "🏰",
+    players: "2-5",
+    time: "30-45 phút",
+    difficulty: "Dễ",
+    color: "#e07b39",
+    heroBg: null,
+    objective: "Xây dựng bản đồ và ghi điểm từ thành phố, đường, tu viện và đồng cỏ.",
+    setup: [
+      "Đặt 1 ô gạch bắt đầu ở giữa bàn",
+      "Mỗi người nhận 8 quân Meeple cùng màu",
+      "Trộn phần còn lại thành chồng gạch úp"
+    ],
+    turn: [
+      "Lật 1 gạch ngẫu nhiên, đặt vào bản đồ (các cạnh tiếp giáp phải khớp)",
+      "Tùy chọn: đặt 1 Meeple lên ô vừa đặt (trong vùng CHƯA có Meeple)",
+      "Thu điểm nếu có công trình hoàn chỉnh — Meeple trả về tay"
+    ],
+    win: "Khi hết gạch: tổng điểm thành phố+đường+tu viện + công trình chưa xong (1đ/gạch) + đồng cỏ (3đ/thành phố hoàn chỉnh kề). Người nhiều nhất thắng.",
+    tips: [
+      "Đặt Meeple vào thành phố lớn sớm — điểm cao nhất nhưng cần kiên nhẫn.",
+      "Nối gạch vào thành phố đối thủ và đặt Meeple vào — cả hai chia điểm đầy đủ!",
+      "Meeple Farmer (nằm xuống) ở lại đến cuối ván — rất mạnh nhưng khóa Meeple lâu."
+    ],
+    images: null,
+    youtubeUrl: "https://www.youtube.com/watch?v=I3_BejHOXkA"
+  },
+
+// ── GAME 9: NO THANKS ───────────────────────────────────────────────────
   {
     name: "NO THANKS!",
     category: "abc",
-    tags: ["Chiến thuật", "Nhanh"],
     emoji: "🏰",
     players: "2-5",
     time: "10-15 phút",
     difficulty: "Dễ",
     color: "#e07b39",
     heroBg: "https://m.media-amazon.com/images/S/aplus-media/vc/1e9bb57d-eaf6-4564-8259-f77aa1daeaaf._CR0,0,970,300_PT0_SX970__.jpg",
-    objective: "No Thanks là một tựa game thẻ bài chiến thuật đơn giản nhưng đầy hại não. Mục tiêu của bạn là có ít điểm phạt nhất khi trò chơi kết thúc.",
+    objective: "No Thanks là một tựa game thẻ bài chiến thuật đơn giản nhưng đầy hại não. Mục tiêu của bạn là có ít điểm phạt nhất khi trò chơi kết thúc. Điểm số được tính bằng tổng các lá bài bạn đã lấy, tuy nhiên các lá bài liên tiếp nhau chỉ tính điểm lá nhỏ nhất. ",
     setup: [
       "Bộ bài: Gồm các lá bài được đánh số từ 3 đến 35.",
-      "Chip: Mỗi người chơi nhận số lượng chip bằng nhau (tùy số người).",
-      "Loại bỏ ngẫu nhiên 9 lá bài khỏi bộ bài và bắt đầu."
+      "Chip: Mỗi người chơi nhận số lượng chip bằng nhau (số lượng tùy thuộc vào số người chơi).",
+      "Loại bỏ bài: Bỏ ngẫu nhiên 9 lá bài khỏi bộ bài (không ai được xem) và đặt phần còn lại vào giữa bàn. Lật lá đầu tiên lên để bắt đầu. "
     ],
     turn: [
-      "Ở mỗi lượt, người chơi đối mặt với lá bài đang lật ngửa và có 2 lựa chọn:",
-      "Lấy lá bài: Bạn nhận lá bài cùng toàn bộ chip đang đặt trên đó.",
-      "Từ chối (No Thanks!): Đặt 1 chip của mình lên lá bài, lượt chuyển tiếp."
+      "Ở mỗi lượt, người chơi hiện tại sẽ đối mặt với lá bài đang được lật ngửa trên bàn và có 2 lựa chọn:",
+      "Lấy lá bài: Bạn nhận lá bài đó (cùng toàn bộ chip đang đặt trên lá bài) và đặt vào khu vực của mình. Bạn sẽ là người lật lá bài tiếp theo.",
+      "Từ chối (No Thanks!): Bạn đặt 111 chip của mình lên lá bài và nói 'No Thanks!'. Lượt chơi chuyển cho người tiếp theo bên trái. "
     ],
-    win: "Khi hết bài: tổng điểm = tổng các lá bài bạn nắm giữ (trừ chip). Các lá bài liên tiếp chỉ tính lá nhỏ nhất. Ít điểm nhất thắng.",
+    win: "Khi hết gạch: tổng điểm thành phố+đường+tu viện + công trình chưa xong (1đ/gạch) + đồng cỏ (3đ/thành phố hoàn chỉnh kề). Người nhiều nhất thắng.",
     tips: [
-      "Giữ chip để từ chối những lá bài điểm cao.",
-      "Cố tạo chuỗi liên tiếp để giảm điểm.",
-      "Đôi khi cố tình nhặt lá bài để lấy chip là chiến thuật tốt."
+      "Đặt Meeple vào thành phố lớn sớm — điểm cao nhất nhưng cần kiên nhẫn.",
+      "Nối gạch vào thành phố đối thủ và đặt Meeple vào — cả hai chia điểm đầy đủ!",
+      "Meeple Farmer (nằm xuống) ở lại đến cuối ván — rất mạnh nhưng khóa Meeple lâu."
     ],
     images: [
-       { url: "https://i.ytimg.com/vi/wA3LdhgA8BE/hq720.jpg", caption: "Mô tả ảnh" }
+       { url: "https://i.ytimg.com/vi/wA3LdhgA8BE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCjbNGUF-qNuMUaXwLR8Xxn5QzCYA", caption: "Mô tả ảnh" }
     ],
     youtubeUrl: "https://www.youtube.com/watch?v=I3_BejHOXkA"
   },
 
-  // ── GAME 4: WEREWOLF ──────────────────────────────────────────────
-  {
-    name: "WEREWOLF",
-    category: "Party Game",
-    tags: ["Nhập vai", "Suy luận", "Nhiều người"],
-    emoji: "🐺",
-    players: "6-20",
-    time: "20-45 phút",
-    difficulty: "Trung bình",
-    color: "#7a1f1f",
-    heroBg: "https://cdn.shopify.com/s/files/1/0559/3053/5686/files/werewolf-party-game.jpg",
-    objective: "Dân làng tìm ra và loại bỏ toàn bộ Ma sói. Ma sói bí mật giết hết dân làng để chiếm quyền kiểm soát.",
-    setup: [
-      "6-8 người: 2 Ma sói, 1 Tiên tri, 1 Bảo vệ, còn lại là Dân làng.",
-      "9-12 người: 3 Ma sói, 1 Tiên tri, 1 Bảo vệ, 1 Phù thủy, còn lại là Dân làng.",
-      "Mỗi người nhận ngẫu nhiên 1 lá vai trò và giữ bí mật tuyệt đối.",
-      "Chọn 1 Quản trò để điều khiển trò chơi.",
-      "Tất cả ngồi thành vòng tròn, Quản trò yêu cầu nhắm mắt bắt đầu."
-    ],
-    turn: [
-      "Ban đêm: tất cả nhắm mắt, Quản trò gọi từng vai thức dậy hành động. Ma sói chọn nạn nhân. Tiên tri/Bảo vệ/Phù thủy hành động.",
-      "Ban ngày: Quản trò thông báo ai chết. Mọi người tranh luận, suy luận tìm Ma sói.",
-      "Bỏ phiếu treo cổ 1 người nghi ngờ nhất. Người nhiều phiếu bị loại và lật vai trò.",
-      "Tiên tri: soi 1 người mỗi đêm để biết có phải Ma sói không.",
-      "Bảo vệ: chọn 1 người để bảo vệ khỏi đòn tấn công của Ma sói."
-    ],
-    win: "Phe Dân làng thắng khi toàn bộ Ma sói bị loại. Phe Ma sói thắng khi số lượng Ma sói bằng hoặc nhiều hơn dân còn sống.",
-    tips: [
-      "Quan sát biểu cảm và cách phản ứng của người chơi khi bị nghi ngờ.",
-      "Nếu là Ma sói, hãy tham gia tranh luận tự nhiên để tránh bị phát hiện.",
-      "Tiên tri nên tiết lộ thông tin đúng thời điểm thay vì lộ sớm.",
-      "Đừng bỏ phiếu theo cảm tính, hãy chú ý logic và hành động."
-    ],
-    images: [
-      { url: "https://i.ytimg.com/vi/9CkqA7W2M5A/maxresdefault.jpg", caption: "Các vai trò phổ biến trong Werewolf" }
-    ],
-    youtubeUrl: "https://www.youtube.com/watch?v=6qy0ROzEWco"
-  },
+   // ── GAME: WEREWOLF ───────────────────────────────────────────────────
+{
+  name: "WEREWOLF",
+  category: "Party Game",
+  emoji: "🐺",
+  players: "6-20",
+  time: "20-45 phút",
+  difficulty: "Trung bình",
+  color: "#7a1f1f",
+  heroBg: "https://cdn.shopify.com/s/files/1/0559/3053/5686/files/werewolf-party-game.jpg",
+  
+  objective: "Werewolf là trò chơi suy luận và nhập vai nổi tiếng, nơi người chơi được chia thành 2 phe chính: Dân làng và Ma sói. Mục tiêu của Dân làng là tìm ra và loại bỏ toàn bộ Ma sói trước khi bị tiêu diệt. Mục tiêu của Ma sói là bí mật giết hết dân làng để chiếm quyền kiểm soát ngôi làng.",
+  
+  setup: [
+    "6-8 người chơi: Khuyên dùng 2 Ma sói, 1 Tiên tri, 1 Bảo vệ, còn lại là Dân làng.",
+    "9-12 người chơi: Khuyên dùng 3 Ma sói, 1 Tiên tri, 1 Bảo vệ, 1 Phù thủy, còn lại là Dân làng.",
+    "13-16 người chơi: Có thể thêm Thợ săn, Cupid hoặc Già làng để tăng độ hấp dẫn.",
+    "17-20 người chơi: Có thể bổ sung thêm nhiều vai trò đặc biệt như Cô bé, Kẻ phản bội hoặc Sói trắng.",
+    "Mỗi người chơi nhận ngẫu nhiên 1 lá vai trò và giữ bí mật tuyệt đối.",
+    "Chọn 1 người làm Quản trò để điều khiển trò chơi. Quản trò không tham gia vào bất kỳ phe nào.",
+    "Tất cả người chơi ngồi thành vòng tròn để dễ quan sát biểu cảm và thảo luận.",
+    "Quản trò yêu cầu mọi người nhắm mắt để bắt đầu đêm đầu tiên."
+  ],
 
-  // ── GAME 5: CLUE ──────────────────────────────────────────────────
-  {
-    name: "CLUE",
-    category: "Suy luận",
-    tags: ["Trinh thám", "Suy luận"],
-    emoji: "🕵️",
-    players: "3-6",
-    time: "30-60 phút",
-    difficulty: "Trung bình",
-    color: "#6b3fa0",
-    heroBg: "https://images.ctfassets.net/r3qu44etwf9a/5k3r2O7k9lKzQ9A7nQv8mK/9fbc7f8a1b6a3c0f7d3a6a0f0d2f8f5e/clue-board-game-hero.jpg",
-    objective: "Tìm ra 3 bí mật: Ai là hung thủ, hung khí là gì và vụ án xảy ra ở căn phòng nào.",
-    setup: [
-      "Rút ngẫu nhiên 1 thẻ từ mỗi nhóm (Nhân vật, Hung khí, Căn phòng) rồi bỏ vào phong bì bí mật.",
-      "Chia đều các thẻ còn lại cho người chơi.",
-      "Mỗi người nhận 1 bảng ghi chú để đánh dấu thông tin.",
-      "Đặt quân cờ vào vị trí bắt đầu, hung khí vào các phòng ngẫu nhiên."
-    ],
-    turn: [
-      "Gieo xúc xắc, di chuyển vào căn phòng và đưa ra suy luận về 1 nghi phạm + 1 hung khí trong phòng đó.",
-      "Người bên trái bí mật cho xem 1 lá bài liên quan nếu có.",
-      "Ghi chú thông tin và loại trừ dần các khả năng.",
-      "Khi tự tin, đưa ra cáo buộc chính thức — mở phong bì kiểm tra. Đúng thắng, sai bị loại."
-    ],
-    win: "Người đầu tiên đưa ra cáo buộc chính xác về Hung thủ, Hung khí và Căn phòng.",
-    tips: [
-      "Luôn ghi chú cẩn thận vì chỉ cần quên 1 thông tin nhỏ cũng hỏng suy luận.",
-      "Quan sát phản ứng người khác khi một nghi phạm được nhắc đến.",
-      "Đôi khi đưa ra suy luận giả để đánh lạc hướng đối thủ.",
-      "Đừng vội cáo buộc cuối nếu chưa thật sự chắc chắn."
-    ],
-    images: [
-      { url: "https://i.ytimg.com/vi/KEXdWfsKZ1k/maxresdefault.jpg", caption: "Bản đồ biệt thự trong Clue" }
-    ],
-    youtubeUrl: "https://www.youtube.com/watch?v=OuM0P8SZQF4"
-  },
+  turn: [
+    "Trò chơi diễn ra theo vòng lặp gồm Ban đêm và Ban ngày. Trong Ban đêm, tất cả người chơi nhắm mắt và Quản trò lần lượt gọi từng vai trò thức dậy để thực hiện kỹ năng bí mật. Ma sói sẽ chọn 1 người để giết. Sau đó các vai trò đặc biệt như Tiên tri, Bảo vệ hoặc Phù thủy sẽ lần lượt hành động rồi tiếp tục đi ngủ.",
+    
+    "Khi trời sáng, Quản trò thông báo ai đã chết trong đêm. Người bị loại không được tiếp tục tham gia thảo luận. Những người còn sống bắt đầu tranh luận, suy luận và buộc tội lẫn nhau để tìm ra Ma sói đang ẩn nấp.",
+    
+    "Sau thời gian thảo luận, tất cả người chơi tiến hành bỏ phiếu treo cổ 1 người bị nghi ngờ nhiều nhất. Người có nhiều phiếu nhất sẽ bị loại và công khai vai trò. Nếu người đó là Ma sói thì phe Dân làng có lợi thế lớn hơn.",
+    
+    "Ví dụ: Trong đêm, Ma sói chọn người A để giết nhưng Bảo vệ đã bảo vệ A nên không ai chết. Sáng hôm sau, cả làng nghi ngờ người B vì liên tục đổ tội vô lý cho người khác. Sau khi bỏ phiếu, B bị treo cổ và lật ra đúng là Ma sói.",
+    
+    "Tiên tri là vai trò có khả năng soi 1 người mỗi đêm để biết họ có phải Ma sói hay không. Đây là nguồn thông tin rất quan trọng nhưng dễ bị Ma sói nhắm tới nếu lộ thân phận.",
+    
+    "Bảo vệ có thể chọn 1 người để bảo vệ mỗi đêm khỏi đòn tấn công của Ma sói. Một số luật mở rộng không cho phép bảo vệ cùng 1 người liên tiếp nhiều đêm.",
+    
+    "Phù thủy sở hữu 2 bình thuốc gồm 1 thuốc cứu và 1 thuốc độc. Thuốc cứu có thể hồi sinh người bị Ma sói giết trong đêm, còn thuốc độc có thể tiêu diệt bất kỳ ai mà Phù thủy nghi ngờ.",
+    
+    "Thợ săn khi chết sẽ được quyền kéo theo 1 người khác chết cùng. Đây là vai trò rất nguy hiểm khiến Ma sói phải dè chừng.",
+    
+    "Cupid có thể ghép 2 người thành cặp đôi. Nếu một người chết thì người còn lại cũng sẽ chết theo vì đau buồn. Điều này tạo ra nhiều tình huống bất ngờ và hài hước."
+  ],
 
-  // ── GAME 6: ĐUA RÙA ──────────────────────────────────────────────
-  {
-    name: "ĐUA RÙA",
-    category: "Gia đình",
-    tags: ["Gia đình", "Nhanh", "Vui"],
-    emoji: "🐢",
-    players: "2-5",
-    time: "15-25 phút",
-    difficulty: "Dễ",
-    color: "#3ca55c",
-    heroBg: null,
-    objective: "Bí mật điều khiển một chú rùa và đưa rùa của mình về đích đầu tiên.",
-    setup: [
-      "Đặt bàn đua ở giữa và xếp tất cả rùa tại ô xuất phát.",
-      "Mỗi người bí mật rút 1 màu rùa — không tiết lộ cho người khác.",
-      "Chia đều bài di chuyển cho mỗi người chơi.",
-      "Người nhỏ tuổi nhất đi trước."
-    ],
-    turn: [
-      "Chọn 1 lá bài và di chuyển chú rùa được chỉ định tiến hoặc lùi.",
-      "Nếu rùa ở dưới cùng di chuyển, toàn bộ rùa đang chồng phía trên cũng di chuyển theo.",
-      "Người chơi có thể hỗ trợ rùa bất kỳ để đánh lạc hướng đối thủ.",
-      "Rút thêm bài để giữ đủ số trên tay rồi chuyển lượt."
-    ],
-    win: "Người chơi thắng nếu rùa bí mật của mình về đích đầu tiên.",
-    tips: [
-      "Đừng quá lộ việc liên tục hỗ trợ rùa của mình.",
-      "Tận dụng cơ chế chồng rùa để kéo nhiều rùa đi cùng.",
-      "Giữ lại các lá bài mạnh cho thời điểm gần đích.",
-      "Quan sát xem người khác thường hỗ trợ màu nào."
-    ],
-    images: [],
-    youtubeUrl: "https://www.youtube.com/watch?v=V7Xq1k6g0mM"
-  }
+  win: "Phe Dân làng thắng khi toàn bộ Ma sói bị loại bỏ. Phe Ma sói thắng khi số lượng Ma sói bằng hoặc nhiều hơn số dân còn sống.",
 
-  // ═══════════════════════════════════════════════════
-  //  THÊM GAME MỚI — COPY BLOCK NÀY VÀO TRÊN DÒNG ]
-  //  Nhớ thêm dấu PHẨY sau } của game trước!
+  tips: [
+    "Quan sát biểu cảm và cách phản ứng của người chơi khi bị nghi ngờ.",
+    "Nếu là Ma sói, hãy tham gia tranh luận tự nhiên để tránh bị phát hiện.",
+    "Tiên tri nên tiết lộ thông tin đúng thời điểm thay vì lộ thân phận quá sớm.",
+    "Đừng bỏ phiếu theo cảm tính, hãy chú ý logic và hành động của từng người.",
+    "Ma sói thường cố thao túng cuộc trò chuyện để hướng nghi ngờ sang người vô tội."
+  ],
+
+  images: [
+    {
+      url: "https://cdn.shopify.com/s/files/1/0559/3053/5686/files/werewolf-night-phase.jpg",
+      caption: "Ban đêm: Ma sói bí mật chọn nạn nhân"
+    },
+    {
+      url: "https://i.ytimg.com/vi/9CkqA7W2M5A/maxresdefault.jpg",
+      caption: "Các vai trò phổ biến trong Werewolf"
+    }
+  ],
+
+  youtubeUrl: "https://www.youtube.com/watch?v=6qy0ROzEWco"
+},
+
+   // ── GAME: CLUE ───────────────────────────────────────────────────
+{
+  name: "CLUE",
+  category: "Suy luận",
+  emoji: "🕵️",
+  players: "3-6",
+  time: "30-60 phút",
+  difficulty: "Trung bình",
+  color: "#6b3fa0",
+  heroBg: "https://images.ctfassets.net/r3qu44etwf9a/5k3r2O7k9lKzQ9A7nQv8mK/9fbc7f8a1b6a3c0f7d3a6a0f0d2f8f5e/clue-board-game-hero.jpg",
+
+  objective: "Clue là trò chơi suy luận phá án nổi tiếng, nơi người chơi phải tìm ra 3 bí mật của vụ án mạng: Ai là hung thủ, hung khí gây án là gì và vụ án xảy ra ở căn phòng nào. Người chiến thắng là người đầu tiên đưa ra kết luận chính xác về cả 3 yếu tố.",
+
+  setup: [
+    "Chuẩn bị 3 nhóm thẻ gồm: Nhân vật, Hung khí và Căn phòng.",
+    "Rút ngẫu nhiên 1 thẻ từ mỗi nhóm rồi đặt bí mật vào phong bì án mạng. Đây chính là lời giải cuối cùng.",
+    "Xào toàn bộ các thẻ còn lại và chia đều cho người chơi.",
+    "Mỗi người nhận 1 bảng ghi chú để đánh dấu các thông tin đã biết.",
+    "Mỗi người chọn 1 nhân vật và đặt quân cờ vào vị trí bắt đầu tương ứng trên bản đồ.",
+    "Các hung khí được đặt ngẫu nhiên trong các căn phòng trên bàn chơi.",
+    "Nếu chơi 3-4 người: sử dụng toàn bộ vai trò cơ bản. Nếu chơi đủ 5-6 người, tất cả nhân vật sẽ xuất hiện giúp game hỗn loạn và khó đoán hơn."
+  ],
+
+  turn: [
+    "Trong lượt chơi, người chơi gieo xúc xắc để di chuyển qua các hành lang và tiến vào những căn phòng trong biệt thự. Khi vào được một căn phòng, người chơi có thể đưa ra suy luận về vụ án bằng cách chỉ định 1 nghi phạm và 1 hung khí trong chính căn phòng hiện tại.",
+    
+    "Ví dụ: Người chơi bước vào Phòng Bếp và nói Tôi nghi ngờ Đại tá Mustard đã dùng Dao trong Phòng Bếp. Lúc này quân Đại tá Mustard và vũ khí Dao sẽ được di chuyển vào căn phòng đó.",
+    
+    "Sau khi một lời suy luận được đưa ra, người chơi bên trái phải bí mật cho xem 1 lá bài liên quan nếu họ sở hữu ít nhất 1 trong các lá được nhắc tới. Nếu không có, lượt kiểm tra tiếp tục sang người kế tiếp cho tới khi có người chứng minh được suy luận đó sai.",
+    
+    "Ví dụ: Nếu người chơi nghi ngờ Giáo sư Plum dùng Dây thừng tại Phòng Khách và người bên cạnh có lá Dây thừng, họ sẽ bí mật cho xem lá đó. Điều này giúp người suy luận biết rằng Dây thừng không nằm trong phong bì án mạng.",
+    
+    "Người chơi cần liên tục ghi chú các thông tin đã xem để loại trừ dần nghi phạm, hung khí và địa điểm. Đây là phần quan trọng nhất của game vì mọi dữ kiện đều phải được suy luận từ logic và trí nhớ.",
+    
+    "Bất kỳ lúc nào trong lượt của mình, nếu tin rằng đã tìm ra đáp án cuối cùng, người chơi có thể đưa ra cáo buộc chính thức. Người đó sẽ bí mật mở phong bì án mạng để kiểm tra.",
+    
+    "Nếu cáo buộc chính xác cả 3 yếu tố gồm Hung thủ, Hung khí và Căn phòng, người chơi chiến thắng ngay lập tức.",
+    
+    "Nếu cáo buộc sai, người chơi bị loại khỏi việc chiến thắng nhưng vẫn phải tiếp tục cho người khác xem bài khi bị hỏi. Điều này khiến việc đoán liều rất rủi ro."
+  ],
+
+  win: "Người đầu tiên đưa ra cáo buộc chính xác về Hung thủ, Hung khí và Căn phòng trong phong bì án mạng sẽ chiến thắng.",
+
+  tips: [
+    "Luôn ghi chú cẩn thận vì chỉ cần quên 1 thông tin nhỏ cũng có thể làm hỏng toàn bộ suy luận.",
+    "Ưu tiên di chuyển vào các phòng mà bạn chưa kiểm tra.",
+    "Quan sát phản ứng của người khác khi một nghi phạm hoặc hung khí được nhắc đến.",
+    "Đôi khi nên đưa ra suy luận giả để đánh lạc hướng đối thủ.",
+    "Đừng vội cáo buộc cuối cùng nếu chưa thật sự chắc chắn."
+  ],
+
+  images: [
+    {
+      url: "https://i.ytimg.com/vi/KEXdWfsKZ1k/maxresdefault.jpg",
+      caption: "Bản đồ biệt thự trong Clue"
+    },
+    {
+      url: "https://cf.geekdo-images.com/original/img/clue-cards-example.jpg",
+      caption: "Ví dụ các thẻ nghi phạm, hung khí và căn phòng"
+    },
+    {
+      url: "https://i.ytimg.com/vi/cvF0pWc5Taw/maxresdefault.jpg",
+      caption: "Người chơi ghi chú để suy luận hung thủ"
+    }
+  ],
+
+  youtubeUrl: "https://www.youtube.com/watch?v=OuM0P8SZQF4"
+},
+
+   // ── GAME: ĐUA RÙA ───────────────────────────────────────────────────
+{
+  name: "ĐUA RÙA",
+  category: "Gia đình",
+  emoji: "🐢",
+  players: "2-5",
+  time: "15-25 phút",
+  difficulty: "Dễ",
+  color: "#3ca55c",
+  heroBg: "https://cf.geekdo-images.com/original/img/turtle-race-banner.jpg",
+
+  objective: "Đua Rùa là trò chơi gia đình vui nhộn và đầy bất ngờ, nơi mỗi người chơi bí mật điều khiển một chú rùa với mục tiêu đưa rùa của mình về đích đầu tiên. Điều thú vị là người chơi không chỉ di chuyển rùa của bản thân mà còn có thể điều khiển tất cả các rùa khác trên đường đua.",
+
+  setup: [
+    "Đặt bàn đua ở giữa bàn chơi và xếp tất cả rùa tại ô xuất phát.",
+    "Mỗi người chơi bí mật rút hoặc chọn 1 màu rùa đại diện cho mình. Không được tiết lộ màu rùa cho người khác.",
+    "Mỗi người chơi nhận số lá bài di chuyển bằng nhau.",
+    "Nếu chơi 2-3 người: dùng ít màu rùa hơn để tăng khả năng suy luận.",
+    "Nếu chơi 4-5 người: sử dụng đủ các màu rùa để cuộc đua hỗn loạn và khó đoán hơn.",
+    "Xào bộ bài di chuyển và chia bài cho người chơi.",
+    "Người nhỏ tuổi nhất hoặc người thích rùa nhất sẽ đi trước."
+  ],
+
+  turn: [
+    "Trong lượt chơi, người chơi chọn 1 lá bài trên tay và thực hiện hành động ghi trên lá bài đó. Các lá bài thường cho phép di chuyển 1 chú rùa tiến lên hoặc lùi lại một số ô nhất định.",
+    
+    "Điểm đặc biệt của Đua Rùa là các chú rùa có thể chồng lên nhau. Nếu một chú rùa ở dưới cùng di chuyển, toàn bộ chồng rùa nằm phía trên sẽ được kéo đi cùng.",
+    
+    "Ví dụ: Rùa đỏ đang nằm dưới rùa xanh và rùa vàng. Khi rùa đỏ tiến lên 2 ô, cả rùa xanh và rùa vàng cũng di chuyển theo vì đang đứng trên lưng rùa đỏ.",
+    
+    "Người chơi có thể sử dụng bài để hỗ trợ rùa của mình hoặc cố tình giúp rùa khác nhằm đánh lạc hướng đối thủ. Điều này khiến việc đoán màu rùa của nhau trở nên rất khó.",
+    
+    "Ví dụ: Người chơi liên tục đẩy rùa xanh lên đầu đoàn đua khiến mọi người nghĩ đó là rùa của họ, nhưng thực tế họ đang bí mật điều khiển rùa vàng đang bám ngay phía sau.",
+    
+    "Một số phiên bản có thêm lá bài đặc biệt như di chuyển bất kỳ rùa nào, đổi vị trí hoặc khiến rùa đi lùi để tạo thêm hỗn loạn.",
+    
+    "Sau khi thực hiện hành động, người chơi rút thêm bài để giữ đủ số lượng bài trên tay rồi chuyển lượt cho người tiếp theo.",
+    
+    "Trò chơi tiếp tục cho tới khi có ít nhất 1 chú rùa cán đích. Nếu nhiều rùa cùng về đích do đang chồng lên nhau, rùa nằm dưới cùng sẽ được tính là về trước."
+  ],
+
+  win: "Người chơi chiến thắng nếu chú rùa bí mật của mình về đích đầu tiên. Nếu nhiều rùa cùng tới đích, thứ tự được tính từ dưới lên trên của chồng rùa.",
+
+  tips: [
+    "Đừng quá lộ việc liên tục hỗ trợ rùa của mình.",
+    "Tận dụng cơ chế chồng rùa để kéo nhiều rùa đi cùng.",
+    "Đôi khi giúp rùa đối thủ dẫn đầu sẽ khiến mọi người nghi ngờ sai.",
+    "Giữ lại các lá bài mạnh cho thời điểm gần đích.",
+    "Quan sát xem người khác thường hỗ trợ màu nào để suy luận bí mật của họ."
+  ],
+
+  images: [
+    {
+      url: "https://i.ytimg.com/vi/turtle-race-boardgame-maxresdefault.jpg",
+      caption: "Các chú rùa chồng lên nhau trong cuộc đua"
+    },
+    {
+      url: "https://cf.geekdo-images.com/original/img/turtle-race-gameplay.jpg",
+      caption: "Ví dụ bàn chơi Đua Rùa"
+    },
+    {
+      url: "https://i.ytimg.com/vi/turtle-race-cards.jpg",
+      caption: "Các lá bài di chuyển trong game"
+    }
+  ],
+
+  youtubeUrl: "https://www.youtube.com/watch?v=V7Xq1k6g0mM"
+}
+
+  // ═══════════════════════════════════════════════════════════════
+  //  THÊM GAME MỚI — COPY BLOCK NÀY, DÁN TRƯỚC DẤU ] CUỐI MẢNG
+  //  và thêm dấu PHẨY sau } của game trước đó.
   //
   // ,{
   //   name: "Tên Game",
   //   category: "Party",
-  //   tags: ["Tag1", "Tag2"],
   //   emoji: "🎲",
   //   players: "2-4",
   //   time: "30 phút",
   //   difficulty: "Dễ",
   //   color: "#e63946",
-  //   heroBg: null,
+  //   heroBg: null,            // URL ảnh nền hero, hoặc null
   //   objective: "Mục tiêu thắng.",
   //   setup: ["Bước 1", "Bước 2"],
-  //   turn:  ["Hành động 1"],
+  //   turn:  ["Hành động 1", "Hành động 2"],
   //   win:   "Điều kiện chiến thắng.",
-  //   tips:  ["Mẹo 1"],
-  //   images: [{ url: "https://...", caption: "Mô tả" }],
+  //   tips:  ["Mẹo 1", "Mẹo 2"],
+  //   images: [
+  //     { url: "https://...", caption: "Mô tả ảnh" }
+  //   ],
   //   youtubeUrl: "https://www.youtube.com/watch?v=..."
   // }
-  // ═══════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
 ];
 
-// ════════════════════════════════════════════════════
-//  ENGINE — NAVIGATION, RENDER, FILTERS
-// ════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────────
+//  ENGINE — không cần chỉnh sửa phần dưới
+// ────────────────────────────────────────────────────────────────
 
-// Trạng thái hiện tại
-let activeFilter = 'all';
-let searchQ = '';
-let currentGameIdx = -1;
+let activeFilter = 'all', searchQ = '', currentIdx = -1;
 
-// ── Escape HTML để tránh XSS ──
-function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// ── Lấy class difficulty ──
-function diffClass(d) {
-  return d === 'Dễ' ? 'diff-easy' : d === 'Khó' ? 'diff-hard' : 'diff-medium';
-}
-
-// ── Lấy YouTube ID từ URL ──
-function getYtId(url) {
-  if (!url || url.includes('/None')) return null;
-  const pp = [
-    /[?&]v=([a-zA-Z0-9_-]{11})/,
-    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
-    /embed\/([a-zA-Z0-9_-]{11})/,
-    /shorts\/([a-zA-Z0-9_-]{11})/
-  ];
-  for (const p of pp) { const m = url.match(p); if (m) return m[1]; }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function diffClass(d){ return d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium' }
+function getYtId(url){
+  if(!url||url.includes('/None')) return null;
+  const pp=[/[?&]v=([a-zA-Z0-9_-]{11})/,/youtu\.be\/([a-zA-Z0-9_-]{11})/,/embed\/([a-zA-Z0-9_-]{11})/,/shorts\/([a-zA-Z0-9_-]{11})/];
+  for(const p of pp){ const m=url.match(p); if(m) return m[1]; }
   return null;
 }
 
-// ── Lấy class tag theo category ──
-function tagClass(cat) {
-  const map = {
-    'Party':     'tag-party',
-    'Party Game':'tag-party',
-    'Family':    'tag-family',
-    'Gia đình':  'tag-family',
-    'Strategy':  'tag-strategy',
-    'Cooperative':'tag-coop',
-    'Classic':   'tag-classic',
-    'Suy luận':  'tag-deduction',
-    'abc':       'tag-race'
-  };
-  return map[cat] || '';
+// ── PAGES ──
+function showPage(id){ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.getElementById('page-'+id).classList.add('active'); window.scrollTo(0,0); }
+
+function goList(){
+  showPage('list');
+  history.pushState(null,'','#');
+  const v=document.getElementById('d-video'); if(v) v.innerHTML='';
 }
 
-// ════════════════════════════════════════════════════
-//  SCREEN NAVIGATION
-// ════════════════════════════════════════════════════
-
-// Danh sách màn hình hợp lệ
-const SCREENS = ['daily', 'boardgame', 'detail', 'about', 'settings'];
-
-function showScreen(name) {
-  // Ẩn tất cả màn
-  SCREENS.forEach(s => {
-    const el = document.getElementById('screen-' + s);
-    if (el) el.classList.remove('active');
-  });
-
-  // Hiện màn được chọn
-  const target = document.getElementById('screen-' + name);
-  if (target) target.classList.add('active');
-
-  // Cập nhật trạng thái menu
-  ['daily','boardgame','about','settings'].forEach(s => {
-    const mi = document.getElementById('menu-' + s);
-    if (mi) mi.classList.toggle('active-menu', s === name);
-  });
-
-  // Toggle search bar (chỉ hiện khi ở boardgame/detail)
-  const searchEl = document.getElementById('header-search');
-  if (searchEl) {
-    searchEl.style.display = (name === 'boardgame') ? 'block' : 'none';
-  }
-
-  // Scroll lên trên
-  window.scrollTo(0, 0);
-
-  // Xóa video khi rời detail
-  if (name !== 'detail') {
-    const v = document.getElementById('d-video');
-    if (v) v.innerHTML = '';
-  }
-}
-
-// ── Back từ detail về boardgame ──
-function backToList() {
-  showScreen('boardgame');
-  history.pushState(null, '', '#');
-}
-
-// ── Mở detail game ──
-function goDetail(idx) {
-  currentGameIdx = idx;
+function goDetail(idx){
+  currentIdx=idx;
   renderDetail(idx);
-  showScreen('detail');
-  history.pushState(null, '', '#game-' + idx);
+  showPage('detail');
+  history.pushState(null,'','#game-'+idx);
 }
 
-// ── Xử lý hash URL ──
 window.addEventListener('popstate', handleHash);
-function handleHash() {
-  const h = window.location.hash;
-  if (h.startsWith('#game-')) {
-    const i = parseInt(h.slice(6));
-    if (!isNaN(i) && i >= 0 && i < GAMES.length) {
-      currentGameIdx = i;
-      renderDetail(i);
-      showScreen('detail');
-      return;
-    }
-  }
-  showScreen('daily');
+function handleHash(){
+  const h=window.location.hash;
+  if(h.startsWith('#game-')){ const i=parseInt(h.slice(6)); if(!isNaN(i)&&i>=0&&i<GAMES.length){ currentIdx=i; renderDetail(i); showPage('detail'); return; } }
+  showPage('list');
 }
 
-// ════════════════════════════════════════════════════
-//  HAMBURGER MENU
-// ════════════════════════════════════════════════════
+// ── LIST ──
+function filteredGames(){ return GAMES.filter(g=>{ const mc=activeFilter==='all'||g.category===activeFilter; const q=searchQ.toLowerCase(); const mq=!q||g.name.toLowerCase().includes(q)||(g.category||'').toLowerCase().includes(q); return mc&&mq; }); }
 
-function toggleMenu() {
-  const menu = document.getElementById('dropdown-menu');
-  const overlay = document.getElementById('menu-overlay');
-  const btn = document.getElementById('menu-btn');
-  const isOpen = menu.classList.contains('open');
-
-  menu.classList.toggle('open', !isOpen);
-  overlay.classList.toggle('open', !isOpen);
-  btn.classList.toggle('open', !isOpen);
-}
-
-function closeMenu() {
-  document.getElementById('dropdown-menu').classList.remove('open');
-  document.getElementById('menu-overlay').classList.remove('open');
-  document.getElementById('menu-btn').classList.remove('open');
-}
-
-// ════════════════════════════════════════════════════
-//  BOARDGAME LIST
-// ════════════════════════════════════════════════════
-
-function filteredGames() {
-  return GAMES.filter(g => {
-    const mc = activeFilter === 'all' || g.category === activeFilter;
-    const q = searchQ.toLowerCase();
-    const mq = !q || g.name.toLowerCase().includes(q) || (g.category || '').toLowerCase().includes(q);
-    return mc && mq;
-  });
-}
-
-function renderGrid() {
-  const games = filteredGames();
-  document.getElementById('countNum').textContent = games.length;
-  const grid = document.getElementById('grid');
-  const empty = document.getElementById('empty');
-
-  if (!games.length) {
-    grid.innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-
-  grid.innerHTML = games.map((g, i) => {
-    const ri = GAMES.indexOf(g);
-    const coverBg = g.heroBg
-      ? `url('${g.heroBg}')`
-      : `linear-gradient(135deg, ${g.color}cc, ${g.color}44)`;
-
-    // Xây tags HTML (category + extra tags)
-    const allTags = [g.category, ...(g.tags || [])];
-    const tagsHtml = allTags.slice(0, 4).map(t =>
-      `<span class="tag ${tagClass(t)}">${esc(t)}</span>`
-    ).join('');
-
-    return `
-      <div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i * 0.04}s">
-        <div class="card-stripe" style="background:${g.color}"></div>
-        <div class="card-cover">
-          <div class="card-cover-bg" style="background-image:${coverBg}"></div>
-          <div class="card-cover-emoji">${g.emoji}</div>
-          <div class="card-cover-diff ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</div>
-        </div>
-        <div class="card-body">
-          <div class="card-title">${esc(g.name)}</div>
-          <div class="card-meta">
-            ${tagsHtml}
-            <span class="tag">👥 ${esc(g.players)}</span>
-            <span class="tag">⏱ ${esc(g.time)}</span>
+function renderGrid(){
+  const games=filteredGames();
+  document.getElementById('countNum').textContent=games.length;
+  const grid=document.getElementById('grid'), empty=document.getElementById('empty');
+  if(!games.length){ grid.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  grid.innerHTML=games.map((g,i)=>{
+    const ri=GAMES.indexOf(g);
+    return `<div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i*0.04}s">
+      <div class="card-stripe" style="background:${g.color}"></div>
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-emoji">${g.emoji}</div>
+          <div>
+            <div class="card-title">${esc(g.name)}</div>
+            <div class="card-meta">
+              <span class="tag">${esc(g.category)}</span>
+              <span class="tag">👥 ${esc(g.players)}</span>
+              <span class="tag">⏱ ${esc(g.time)}</span>
+              <span class="tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>
+            </div>
           </div>
-          <div class="card-objective">${esc(g.objective)}</div>
         </div>
-        <div class="card-footer">
-          <div class="view-btn">Xem luật chơi <span class="arr">→</span></div>
-          <div class="card-stat">👥 ${esc(g.players)} người</div>
-        </div>
+        <div class="card-objective"><strong>Mục tiêu:</strong> ${esc(g.objective)}</div>
       </div>
-    `;
+      <div class="card-footer"><div class="view-btn">Xem luật chơi</div></div>
+    </div>`;
   }).join('');
 }
 
-// ════════════════════════════════════════════════════
-//  BOARDGAME DETAIL
-// ════════════════════════════════════════════════════
+// ── DETAIL ──
+function renderDetail(idx){
+  const g=GAMES[idx];
+  document.getElementById('d-crumb').textContent=g.name;
 
-function renderDetail(idx) {
-  const g = GAMES[idx];
+  // hero
+  const bg=document.getElementById('d-hero-bg');
+  bg.style.backgroundImage = g.heroBg ? `url('${g.heroBg}')` : `linear-gradient(135deg,${g.color}cc,${g.color}44)`;
 
-  // Breadcrumb
-  document.getElementById('d-crumb').textContent = g.name;
+  document.getElementById('d-emoji').textContent=g.emoji;
+  document.getElementById('d-title').textContent=g.name;
+  document.getElementById('d-tags').innerHTML=`
+    <span class="hero-tag hl">${esc(g.category)}</span>
+    <span class="hero-tag">👥 ${esc(g.players)} người</span>
+    <span class="hero-tag">⏱ ${esc(g.time)}</span>
+    <span class="hero-tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>`;
 
-  // Hero background
-  const bg = document.getElementById('d-hero-bg');
-  bg.style.backgroundImage = g.heroBg
-    ? `url('${g.heroBg}')`
-    : `linear-gradient(135deg, ${g.color}cc, ${g.color}44)`;
+  document.getElementById('d-objective').textContent=g.objective;
 
-  document.getElementById('d-emoji').textContent = g.emoji;
-  document.getElementById('d-title').textContent = g.name;
-
-  // Hero tags
-  const allTags = [g.category, ...(g.tags || [])];
-  const heroTagsHtml = allTags.map((t, i) =>
-    `<span class="hero-tag ${i === 0 ? 'hl' : ''}">${esc(t)}</span>`
-  ).join('') +
-  `<span class="hero-tag">👥 ${esc(g.players)} người</span>
-   <span class="hero-tag">⏱ ${esc(g.time)}</span>
-   <span class="hero-tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>`;
-  document.getElementById('d-tags').innerHTML = heroTagsHtml;
-
-  // Objective
-  document.getElementById('d-objective').textContent = g.objective;
-
-  // Images
-  const imgEl = document.getElementById('d-images');
-  if (g.images && g.images.length) {
-    imgEl.innerHTML = `<div class="images-grid">${g.images.map(im => `
+  // images
+  const imgEl=document.getElementById('d-images');
+  if(g.images&&g.images.length){
+    imgEl.innerHTML=`<div class="images-grid">${g.images.map(im=>`
       <div class="img-wrap" onclick="openLb('${im.url.replace(/'/g,"\\'")}','${esc(im.caption)}')">
         <img src="${im.url}" alt="${esc(im.caption)}" loading="lazy" onerror="this.parentElement.style.display='none'"/>
         <div class="img-caption">${esc(im.caption)}</div>
       </div>`).join('')}</div>`;
   } else {
-    imgEl.innerHTML = `<div class="no-images">
-      🖼️ Chưa có ảnh hướng dẫn.<br>
-      Thêm bằng cách điền trường <code>images</code> trong dữ liệu game.
+    imgEl.innerHTML=`<div class="no-images">
+      <b>🖼️</b>Chưa có ảnh hướng dẫn cho game này.<br>
+      Thêm ảnh bằng cách điền trường <code>images</code> trong dữ liệu game:<br>
+      <code>images: [{ url: "https://...", caption: "Mô tả" }]</code>
     </div>`;
   }
 
-  // Setup
-  document.getElementById('d-setup').innerHTML = (g.setup || []).map((s, i) =>
-    `<li class="step-item"><div class="step-num">${i + 1}</div><div>${esc(s)}</div></li>`
-  ).join('');
+  // setup
+  document.getElementById('d-setup').innerHTML=(g.setup||[]).map((s,i)=>`
+    <li class="step-item"><div class="step-num">${i+1}</div><div>${esc(s)}</div></li>`).join('');
 
-  // Turn
-  document.getElementById('d-turn').innerHTML = (g.turn || []).map(t =>
-    `<div class="turn-item"><div class="turn-icon">▸</div><div>${esc(t)}</div></div>`
-  ).join('');
+  // turn
+  document.getElementById('d-turn').innerHTML=(g.turn||[]).map(t=>`
+    <div class="turn-item"><div class="turn-icon">▸</div><div>${esc(t)}</div></div>`).join('');
 
-  // Win
-  document.getElementById('d-win').textContent = g.win;
+  // win
+  document.getElementById('d-win').textContent=g.win;
 
-  // Tips
-  const tw = document.getElementById('d-tips-wrap');
-  if (g.tips && g.tips.length) {
-    tw.style.display = 'block';
-    document.getElementById('d-tips').innerHTML = g.tips.map(t =>
-      `<div class="tip-item"><div class="turn-icon">💡</div><div>${esc(t)}</div></div>`
-    ).join('');
-  } else {
-    tw.style.display = 'none';
-  }
+  // tips
+  const tw=document.getElementById('d-tips-wrap');
+  if(g.tips&&g.tips.length){
+    tw.style.display='block';
+    document.getElementById('d-tips').innerHTML=g.tips.map(t=>`
+      <div class="tip-item"><div class="turn-icon">💡</div><div>${esc(t)}</div></div>`).join('');
+  } else { tw.style.display='none'; }
 
-  // Video
-  const vw = document.getElementById('d-video-wrap');
-  const ytId = getYtId(g.youtubeUrl);
-  vw.style.display = 'block';
-  if (ytId) {
-    document.getElementById('d-video').innerHTML = `
+  // video
+  const vw=document.getElementById('d-video-wrap'), ytId=getYtId(g.youtubeUrl);
+  vw.style.display='block';
+  if(ytId){
+    document.getElementById('d-video').innerHTML=`
       <div class="video-frame">
         <iframe src="https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1"
           title="Hướng dẫn ${esc(g.name)}"
@@ -2250,20 +1023,20 @@ function renderDetail(idx) {
           allowfullscreen></iframe>
       </div>`;
   } else {
-    document.getElementById('d-video').innerHTML = `
+    document.getElementById('d-video').innerHTML=`
       <div class="no-video">
         <div class="nv-icon">📽️</div>
         <p>Chưa có video hướng dẫn.</p>
-        <a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to play ' + g.name)}" target="_blank" rel="noopener">Tìm trên YouTube →</a>
+        <a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to play '+g.name)}" target="_blank" rel="noopener">Tìm trên YouTube →</a>
       </div>`;
   }
 
-  // Related games (cùng category, loại game hiện tại, tối đa 4)
-  const related = GAMES.filter((_, i) => i !== idx && GAMES[i].category === g.category).slice(0, 4);
-  const relEl = document.getElementById('d-related');
-  if (related.length) {
-    relEl.innerHTML = related.map(r => {
-      const ri = GAMES.indexOf(r);
+  // related — same category, exclude current, max 4
+  const related=GAMES.filter((_,i)=>i!==idx&&GAMES[i].category===g.category).slice(0,4);
+  const relEl=document.getElementById('d-related');
+  if(related.length){
+    relEl.innerHTML=related.map(r=>{
+      const ri=GAMES.indexOf(r);
       return `<div class="rel-card" onclick="goDetail(${ri})">
         <div class="rel-stripe" style="background:${r.color}"></div>
         <div class="rel-body">
@@ -2279,197 +1052,423 @@ function renderDetail(idx) {
       </div>`;
     }).join('');
   } else {
-    relEl.innerHTML = `<p style="color:var(--muted);font-size:.9rem;grid-column:1/-1">Chưa có game cùng thể loại.</p>`;
+    relEl.innerHTML=`<p style="color:var(--muted);font-size:.9rem;grid-column:1/-1">Chưa có game cùng thể loại "${esc(g.category)}".</p>`;
   }
 }
 
-// ════════════════════════════════════════════════════
-//  LIGHTBOX
-// ════════════════════════════════════════════════════
-
-function openLb(url, cap) {
-  document.getElementById('lb-img').src = url;
-  document.getElementById('lb-caption').textContent = cap;
+// ── LIGHTBOX ──
+function openLb(url,cap){
+  document.getElementById('lb-img').src=url;
+  document.getElementById('lb-caption').textContent=cap;
   document.getElementById('lightbox').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  document.body.style.overflow='hidden';
 }
+function closeLb(){ document.getElementById('lightbox').classList.remove('open'); document.body.style.overflow=''; }
+document.getElementById('lightbox').addEventListener('click',e=>{ if(e.target.id==='lightbox') closeLb(); });
 
-function closeLb() {
-  document.getElementById('lightbox').classList.remove('open');
-  document.body.style.overflow = '';
-}
+// ── FILTERS ──
+document.getElementById('searchInput').addEventListener('input',e=>{ searchQ=e.target.value; renderGrid(); });
+document.querySelectorAll('.chip').forEach(c=>{ c.addEventListener('click',()=>{ document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); activeFilter=c.dataset.filter; renderGrid(); }); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLb(); });
 
-document.getElementById('lightbox').addEventListener('click', e => {
-  if (e.target.id === 'lightbox') closeLb();
-});
-
-// ════════════════════════════════════════════════════
-//  FILTERS & SEARCH
-// ════════════════════════════════════════════════════
-
-document.getElementById('searchInput').addEventListener('input', e => {
-  searchQ = e.target.value;
-  renderGrid();
-});
-
-document.querySelectorAll('.chip').forEach(c => {
-  c.addEventListener('click', () => {
-    document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
-    c.classList.add('active');
-    activeFilter = c.dataset.filter;
-    renderGrid();
-  });
-});
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeLb();
-});
-
-// ════════════════════════════════════════════════════
-//  SETTINGS — localStorage
-// ════════════════════════════════════════════════════
-
-const STORAGE_KEYS = {
-  username:  'tcq_username',
-  fontSize:  'tcq_font_size'
-};
-
-// Đọc và áp dụng settings khi load
-function loadSettings() {
-  // Font size
-  const savedSize = localStorage.getItem(STORAGE_KEYS.fontSize);
-  if (savedSize) {
-    document.getElementById('font-size-slider').value = savedSize;
-    applyFontSize(savedSize, false);
-  }
-
-  // Username
-  const savedName = localStorage.getItem(STORAGE_KEYS.username);
-  if (savedName) {
-    document.getElementById('setting-username').value = savedName;
-    updateUserBadge(savedName);
-  }
-}
-
-// Lưu username từ màn Settings
-function saveUsername() {
-  const val = document.getElementById('setting-username').value.trim();
-  if (!val) {
-    document.getElementById('setting-username').focus();
-    document.getElementById('setting-username').style.borderColor = 'var(--accent)';
-    return;
-  }
-  localStorage.setItem(STORAGE_KEYS.username, val);
-  updateUserBadge(val);
-  showToast('✓ Đã lưu tên: ' + val);
-
-  // Cập nhật biến username cho chat
-  if (typeof username !== 'undefined') {
-    // username được dùng trong Firebase chat (khai báo ở dưới)
-  }
-}
-
-// Cập nhật user badge ở header
-function updateUserBadge(name) {
-  const badge = document.getElementById('user-badge-name');
-  const avatar = document.getElementById('user-avatar-letter');
-  if (badge) badge.textContent = name;
-  if (avatar) avatar.textContent = name.charAt(0).toUpperCase();
-}
-
-// Áp dụng font size
-function applyFontSize(size, save = true) {
-  document.documentElement.style.fontSize = size + 'px';
-  const preview = document.getElementById('font-preview');
-  if (preview) {
-    preview.style.fontSize = size + 'px';
-  }
-  if (save) {
-    localStorage.setItem(STORAGE_KEYS.fontSize, size);
-  }
-}
-
-// Xóa toàn bộ settings
-function clearAllData() {
-  if (confirm('Xóa toàn bộ cài đặt? (Tên người dùng, kích thước chữ)')) {
-    localStorage.removeItem(STORAGE_KEYS.username);
-    localStorage.removeItem(STORAGE_KEYS.fontSize);
-    document.getElementById('setting-username').value = '';
-    document.getElementById('font-size-slider').value = 16;
-    document.documentElement.style.fontSize = '16px';
-    updateUserBadge('Khách');
-    showToast('✓ Đã xóa dữ liệu!');
-  }
-}
-
-// Toast thông báo
-function showToast(msg) {
-  const t = document.getElementById('settings-toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-// ════════════════════════════════════════════════════
-//  DAILY DATE STRIP
-// ════════════════════════════════════════════════════
-
-function updateDateStrip() {
-  const now = new Date();
-  const days = ['Chủ nhật','Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];
-  const d = days[now.getDay()];
-  const dd = now.getDate().toString().padStart(2, '0');
-  const mm = (now.getMonth() + 1).toString().padStart(2, '0');
-  const yyyy = now.getFullYear();
-  const strip = document.getElementById('daily-date-strip');
-  if (strip) strip.innerHTML = `📅 <b>${d}</b>, ngày ${dd}/${mm}/${yyyy}`;
-
-  // Cập nhật ngày các banner
-  ['1','2','3'].forEach(n => {
-    const el = document.getElementById('banner-date-' + n);
-    if (el && el.textContent === 'Hôm nay' || el && el.textContent === 'Tuần này') return;
-  });
-  const el1 = document.getElementById('banner-date-1');
-  if (el1) el1.textContent = `${dd}/${mm}/${yyyy}`;
-}
-
-// ════════════════════════════════════════════════════
-//  KHỞI TẠO
-// ════════════════════════════════════════════════════
-
-function init() {
-  loadSettings();
-  updateDateStrip();
-  renderGrid();
-  handleHash();
-
-  // Nếu không có hash, về Daily Quest
-  if (!window.location.hash || window.location.hash === '#') {
-    showScreen('daily');
-  }
-}
-
-init();
-
+// ── INIT ──
+renderGrid();
+handleHash();
 </script>
 
+<!-- ══════════════════════════════════════════════
+     CHAT ONLINE REALTIME
+     DÁN TOÀN BỘ PHẦN NÀY TRƯỚC </body>
+══════════════════════════════════════════════ -->
 
-<!-- ════════════════════════════════════════════════════
-     FIREBASE CHAT — Giữ nguyên từ bản cũ
-════════════════════════════════════════════════════ -->
+<style>
+/* ═════════ USERNAME MODAL ═════════ */
+
+#username-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  z-index:999999;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  backdrop-filter:blur(6px);
+  padding:20px;
+}
+
+#username-modal.show{
+  display:flex;
+}
+
+.username-card{
+  width:100%;
+  max-width:420px;
+  background:#fff;
+  border-radius:28px;
+  padding:42px 34px;
+  text-align:center;
+  animation:userModal .25s ease;
+  box-shadow:0 20px 70px rgba(0,0,0,.35);
+}
+
+@keyframes userModal{
+  from{
+    opacity:0;
+    transform:translateY(20px) scale(.96);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
+.username-logo{
+  width:82px;
+  height:82px;
+  border-radius:24px;
+  background:#e63946;
+  color:#fff;
+  font-size:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0 auto 22px;
+  box-shadow:0 12px 30px rgba(230,57,70,.35);
+}
+
+.username-card h2{
+  font-family:'Bebas Neue',sans-serif;
+  letter-spacing:1px;
+  font-size:2rem;
+  margin-bottom:10px;
+  color:#1a1a1a;
+}
+
+.username-card p{
+  color:#777;
+  line-height:1.6;
+  margin-bottom:24px;
+  font-size:.95rem;
+}
+
+#username-input{
+  width:100%;
+  border:2px solid #e0d8cc;
+  border-radius:16px;
+  padding:16px;
+  font-size:1rem;
+  outline:none;
+  transition:border-color .2s, box-shadow .2s;
+  margin-bottom:18px;
+}
+
+#username-input:focus{
+  border-color:#e63946;
+  box-shadow:0 0 0 4px rgba(230,57,70,.12);
+}
+
+#username-save{
+  width:100%;
+  border:none;
+  border-radius:16px;
+  padding:16px;
+  background:#e63946;
+  color:#fff;
+  font-size:1rem;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform .15s, opacity .15s;
+}
+
+#username-save:hover{
+  transform:translateY(-2px);
+  opacity:.95;
+}
+
+@media(max-width:600px){
+
+  .username-card{
+    padding:34px 24px;
+    border-radius:24px;
+  }
+
+  .username-card h2{
+    font-size:1.7rem;
+  }
+
+}
+
+   
+/* ═════════ CHAT BUTTON ═════════ */
+#chat-toggle{
+  position:fixed;
+  bottom:22px;
+  right:22px;
+  width:64px;
+  height:64px;
+  border:none;
+  border-radius:50%;
+  background:#e63946;
+  color:#fff;
+  font-size:28px;
+  cursor:pointer;
+  z-index:99999;
+  box-shadow:0 10px 25px rgba(0,0,0,.25);
+  transition:transform .2s, box-shadow .2s;
+}
+#chat-toggle:hover{
+  transform:scale(1.08);
+  box-shadow:0 14px 30px rgba(0,0,0,.35);
+}
+
+/* ═════════ CHAT WINDOW ═════════ */
+#chat-window{
+  position:fixed;
+  bottom:100px;
+  right:22px;
+  width:360px;
+  height:520px;
+  background:#fff;
+  border-radius:22px;
+  overflow:hidden;
+  display:none;
+  flex-direction:column;
+  z-index:99999;
+  border:2px solid #e0d8cc;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
+  animation:chatFade .25s ease;
+}
+
+#chat-window.open{
+  display:flex;
+}
+
+@keyframes chatFade{
+  from{
+    opacity:0;
+    transform:translateY(20px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+/* HEADER */
+.chat-header{
+  background:#1a1a1a;
+  color:#fff;
+  padding:16px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.chat-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.chat-title h3{
+  font-size:1rem;
+  font-weight:800;
+}
+
+.online-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:#2ecc71;
+}
+
+#chat-close{
+  background:none;
+  border:none;
+  color:#fff;
+  font-size:22px;
+  cursor:pointer;
+  opacity:.7;
+}
+#chat-close:hover{
+  opacity:1;
+}
+
+/* ONLINE */
+.chat-online{
+  background:#faf6ef;
+  border-bottom:1px solid #e0d8cc;
+  padding:8px 14px;
+  font-size:.8rem;
+  color:#666;
+  font-weight:700;
+}
+
+/* MESSAGES */
+#chat-messages{
+  flex:1;
+  overflow-y:auto;
+  padding:14px;
+  background:#f5f0e8;
+}
+
+.chat-msg{
+  margin-bottom:12px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.chat-user{
+  font-size:.72rem;
+  font-weight:800;
+  color:#888;
+  padding-left:4px;
+}
+
+.chat-bubble{
+  background:#fff;
+  border-radius:14px;
+  padding:10px 14px;
+  font-size:.9rem;
+  line-height:1.5;
+  color:#333;
+  border:1px solid #e0d8cc;
+  word-break:break-word;
+}
+
+/* INPUT */
+.chat-input-wrap{
+  border-top:1px solid #e0d8cc;
+  background:#fff;
+  padding:12px;
+  display:flex;
+  gap:10px;
+}
+
+#chat-input{
+  flex:1;
+  border:2px solid #e0d8cc;
+  border-radius:12px;
+  padding:12px;
+  font-size:.92rem;
+  outline:none;
+}
+
+#chat-input:focus{
+  border-color:#e63946;
+}
+
+#chat-send{
+  border:none;
+  background:#e63946;
+  color:#fff;
+  border-radius:12px;
+  padding:0 18px;
+  cursor:pointer;
+  font-weight:800;
+}
+
+#chat-send:hover{
+  opacity:.9;
+}
+
+@media(max-width:600px){
+  #chat-window{
+    width:calc(100vw - 24px);
+    right:12px;
+    bottom:84px;
+    height:70vh;
+  }
+
+  #chat-toggle{
+    right:14px;
+    bottom:14px;
+  }
+}
+</style>
+
+<!-- CHAT BUTTON -->
+<button id="chat-toggle">💬</button>
+
+<!-- CHAT WINDOW -->
+<div id="chat-window">
+
+  <div class="chat-header">
+    <div class="chat-title">
+      <div class="online-dot"></div>
+      <h3>Boardgame Community</h3>
+    </div>
+
+    <button id="chat-close">✕</button>
+  </div>
+
+  <div class="chat-online">
+    👥 Online: <span id="online-count">0</span>
+  </div>
+
+  <div id="chat-messages"></div>
+
+  <div class="chat-input-wrap">
+    <input
+      type="text"
+      id="chat-input"
+      placeholder="Nhập tin nhắn..."
+      maxlength="300"
+    />
+
+    <button id="chat-send">Gửi</button>
+  </div>
+
+</div>
+<!-- USERNAME MODAL -->
+<div id="username-modal">
+
+  <div class="username-card">
+
+    <div class="username-logo">
+      🎲
+    </div>
+
+    <h2>Boardgame Community</h2>
+
+    <p>
+      Chọn tên hiển thị để bắt đầu trò chuyện cùng mọi người
+    </p>
+
+    <input
+      type="text"
+      id="username-input"
+      maxlength="20"
+      placeholder="Ví dụ: Vương, Admin, WerewolfKing..."
+    />
+
+    <button id="username-save">
+      Vào phòng chat
+    </button>
+
+  </div>
+
+</div>
+   
 <script type="module">
 
 import { initializeApp }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
-  getDatabase, ref, push, onChildAdded,
-  set, onValue, onDisconnect
+  getDatabase,
+  ref,
+  push,
+  onChildAdded,
+  set,
+  onValue,
+  onDisconnect
 }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 /* ═════════ FIREBASE CONFIG ═════════ */
-/* Thay bằng config Firebase của bạn nếu cần */
+
 const firebaseConfig = {
   apiKey: "AIzaSyBIn1bj6ndt8Yy5AiPFdeKtI5MrZnaNugc",
   authDomain: "doublevcute.firebaseapp.com",
@@ -2481,103 +1480,210 @@ const firebaseConfig = {
   measurementId: "G-EKGL5TN6NY"
 };
 
+/* ═════════ INIT FIREBASE ═════════ */
+
 const app = initializeApp(firebaseConfig);
+
 const db = getDatabase(app);
 
 /* ═════════ USERNAME SYSTEM ═════════ */
-let username = localStorage.getItem('tcq_username');
 
-const usernameModal  = document.getElementById('username-modal');
-const usernameInput  = document.getElementById('username-input');
-const usernameSave   = document.getElementById('username-save');
+let username =
+  localStorage.getItem("tcq_username");
 
-/* Lần đầu chưa có tên */
-if (!username) {
-  usernameModal.classList.add('show');
-  setTimeout(() => usernameInput.focus(), 100);
+const usernameModal =
+  document.getElementById("username-modal");
+
+const usernameInput =
+  document.getElementById("username-input");
+
+const usernameSave =
+  document.getElementById("username-save");
+
+/* CHƯA CÓ TÊN */
+
+if(!username){
+
+  usernameModal.classList.add("show");
+
+  setTimeout(()=>{
+    usernameInput.focus();
+  },100);
+
 }
 
-function saveUsernameForChat() {
-  const val = usernameInput.value.trim();
-  if (!val) {
-    usernameInput.style.borderColor = '#e63946';
+/* SAVE USERNAME */
+
+function saveUsername(){
+
+  const val =
+    usernameInput.value.trim();
+
+  if(!val){
+
+    usernameInput.focus();
+
+    usernameInput.style.borderColor = "#e63946";
+
     return;
   }
+
   username = val;
-  localStorage.setItem('tcq_username', username);
-  usernameModal.classList.remove('show');
-  // Cập nhật badge header
-  if (typeof updateUserBadge === 'function') updateUserBadge(username);
-  // Cập nhật input ở màn settings
-  const si = document.getElementById('setting-username');
-  if (si) si.value = username;
+
+  localStorage.setItem(
+    "tcq_username",
+    username
+  );
+
+  usernameModal.classList.remove("show");
 }
 
-usernameSave.addEventListener('click', saveUsernameForChat);
-usernameInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter') saveUsernameForChat();
-});
+/* BUTTON */
+
+usernameSave.addEventListener(
+  "click",
+  saveUsername
+);
+
+/* ENTER */
+
+usernameInput.addEventListener(
+  "keydown",
+  e=>{
+
+    if(e.key==="Enter"){
+      saveUsername();
+    }
+
+  }
+);
 
 /* ═════════ CHAT OPEN/CLOSE ═════════ */
-const toggleBtn  = document.getElementById('chat-toggle');
-const chatWindow = document.getElementById('chat-window');
-const closeBtn   = document.getElementById('chat-close');
 
-toggleBtn.addEventListener('click', () => chatWindow.classList.toggle('open'));
-closeBtn.addEventListener('click',  () => chatWindow.classList.remove('open'));
+const toggleBtn = document.getElementById("chat-toggle");
+
+const chatWindow = document.getElementById("chat-window");
+
+const closeBtn = document.getElementById("chat-close");
+
+toggleBtn.addEventListener("click", ()=>{
+
+  chatWindow.classList.toggle("open");
+
+});
+
+closeBtn.addEventListener("click", ()=>{
+
+  chatWindow.classList.remove("open");
+
+});
 
 /* ═════════ ONLINE USERS ═════════ */
-const userId   = Date.now() + '_' + Math.random().toString(36).slice(2);
-const onlineRef = ref(db, 'onlineUsers/' + userId);
 
-set(onlineRef, { name: username, online: true });
+const userId =
+  Date.now() + "_" + Math.random().toString(36).slice(2);
+
+const onlineRef =
+  ref(db, "onlineUsers/" + userId);
+
+set(onlineRef,{
+  name: username,
+  online: true
+});
+
+/* QUAN TRỌNG */
 onDisconnect(onlineRef).remove();
 
-onValue(ref(db, 'onlineUsers'), snapshot => {
+onValue(ref(db,"onlineUsers"), snapshot=>{
+
   const data = snapshot.val();
-  const count = data ? Object.keys(data).length : 0;
-  document.getElementById('online-count').textContent = count;
+
+  const count =
+    data ? Object.keys(data).length : 0;
+
+  document.getElementById("online-count")
+    .textContent = count;
+
 });
 
 /* ═════════ CHAT MESSAGES ═════════ */
-const msgRef = ref(db, 'communityChat');
 
-function sendMessage() {
-  const input = document.getElementById('chat-input');
-  const text  = input.value.trim();
-  if (!text) return;
-  push(msgRef, {
-    user: username || 'Ẩn danh',
+const msgRef = ref(db, "communityChat");
+
+/* SEND */
+
+function sendMessage(){
+
+  const input =
+    document.getElementById("chat-input");
+
+  const text = input.value.trim();
+
+  if(!text) return;
+
+  push(msgRef,{
+    user: username,
     text: text,
     time: Date.now()
   });
-  input.value = '';
+
+  input.value = "";
 }
 
-document.getElementById('chat-send').addEventListener('click', sendMessage);
-document.getElementById('chat-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendMessage();
+/* BUTTON SEND */
+
+document.getElementById("chat-send")
+.addEventListener("click", sendMessage);
+
+/* ENTER SEND */
+
+document.getElementById("chat-input")
+.addEventListener("keydown", e=>{
+
+  if(e.key === "Enter"){
+    sendMessage();
+  }
+
 });
 
-onChildAdded(msgRef, snapshot => {
+/* RECEIVE */
+
+onChildAdded(msgRef, snapshot=>{
+
   const msg = snapshot.val();
-  const wrap = document.createElement('div');
-  wrap.className = 'chat-msg';
+
+  const wrap = document.createElement("div");
+
+  wrap.className = "chat-msg";
+
   wrap.innerHTML = `
-    <div class="chat-user">${escapeHtml(msg.user)}</div>
-    <div class="chat-bubble">${escapeHtml(msg.text)}</div>
+    <div class="chat-user">
+      ${escapeHtml(msg.user)}
+    </div>
+
+    <div class="chat-bubble">
+      ${escapeHtml(msg.text)}
+    </div>
   `;
-  const container = document.getElementById('chat-messages');
+
+  const container =
+    document.getElementById("chat-messages");
+
   container.appendChild(wrap);
-  container.scrollTop = container.scrollHeight;
+
+  container.scrollTop =
+    container.scrollHeight;
+
 });
 
 /* ═════════ ESCAPE HTML ═════════ */
-function escapeHtml(str) {
+
+function escapeHtml(str){
+
   return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;');
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
 }
 
 </script>
