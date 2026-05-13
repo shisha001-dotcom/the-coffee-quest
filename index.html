@@ -125,14 +125,59 @@
   <footer class="site-footer"><b>The Coffee Quest</b> — Tra cứu luật chơi board game tiếng Việt</footer>
 </div>
 
-<!-- LIGHTBOX -->
+<!-- ══════════════════════════════════════════════
+     LIGHTBOX
+══════════════════════════════════════════════ -->
 <div id="lightbox">
   <button id="lb-close" onclick="closeLb()">✕</button>
   <img id="lb-img" src="" alt=""/>
   <div id="lb-caption"></div>
 </div>
+
+<!-- ══════════════════════════════════════════════
+     USERNAME MODAL
+══════════════════════════════════════════════ -->
+<div id="username-modal">
+  <div class="username-card">
+    <div class="username-logo">💬</div>
+    <h2>Tên của bạn là gì?</h2>
+    <p>Nhập tên để tham gia chat cộng đồng</p>
+    <input type="text" id="username-input" placeholder="Nhập tên..." maxlength="30"/>
+    <button id="username-save">Bắt đầu</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     CHAT BUTTON & WINDOW
+══════════════════════════════════════════════ -->
+<button id="chat-toggle">💬</button>
+
+<div id="chat-window">
+  <div class="chat-header">
+    <div class="chat-title">
+      <div class="online-dot"></div>
+      <h3>Cộng đồng</h3>
+    </div>
+    <button id="chat-close">✕</button>
+  </div>
+  
+  <div class="chat-online">
+    👥 Đang online: <span id="online-count">0</span> người
+  </div>
+  
+  <div id="chat-messages"></div>
+  
+  <div class="chat-input-wrap">
+    <input type="text" id="chat-input" placeholder="Nhập tin nhắn..."/>
+    <button id="chat-send">Gửi</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SCRIPTS
+══════════════════════════════════════════════ -->
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
-<script src="js/chat.js"></script>
+<script type="module" src="js/chat.js"></script>
 </body>
 </html>
