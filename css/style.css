@@ -397,39 +397,6 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
   padding-left:28px;
 }
 
-/* ═════════ NEWS PAGE ═════════ */
-
-.news-container{
-  max-width:1200px;
-  margin:auto;
-  padding:24px;
-  display:flex;
-  flex-direction:column;
-  gap:20px;
-}
-
-.news-banner{
-  border-radius:22px;
-  overflow:hidden;
-  height:420px;
-  background:#ddd;
-}
-
-.news-banner img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  display:block;
-}
-
-/* GHI CHÚ:
-   Chỉ cần thêm ảnh vào:
-   assets/news/
-
-   rồi sửa:
-   banner1.jpg
-   banner2.jpg
-*/
 
 /* ═════════ CONTACT ═════════ */
 
