@@ -411,7 +411,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
 .news-banner{
   border-radius:22px;
   overflow:hidden;
-  height:260px;
+  height:420px;
   background:#ddd;
 }
 
