@@ -308,15 +308,22 @@ function updateHeader(type){
   const count =
     document.getElementById('header-count-wrap');
 
+  const header =
+    document.querySelector('.site-header');
+
   if(type === 'boardgame'){
 
     search.style.display = 'block';
     count.style.display = 'block';
 
+    header.classList.remove('news-mode');
+
   }else{
 
     search.style.display = 'none';
     count.style.display = 'none';
+
+    header.classList.add('news-mode');
 
   }
 
