@@ -11,47 +11,37 @@
 </head>
 <body>
 
+<header class="site-header">
+
+  <button id="menu-toggle">☰</button>
+
+  <a class="logo" onclick="goNews()">
+    🎲 <span>The Coffee</span>Quest
+  </a>
+
+  <div class="search-wrap" id="header-search">
+
+    <input
+      type="text"
+      id="searchInput"
+      placeholder="Tìm tên board game…"
+      autocomplete="off"
+    />
+
+    <div class="search-icon">🔍</div>
+
+  </div>
+
+  <div class="header-count" id="header-count-wrap">
+    Hiển thị <b id="countNum">0</b> game
+  </div>
+
+</header>
+
 <!-- ══════════════════════════════════════════════
      PAGE: LIST
 ══════════════════════════════════════════════ -->
 <div id="page-list" class="page">
-
-  <header class="site-header">
-<button id="menu-toggle">☰</button>
-
-<div id="side-menu">
-
-  <div class="menu-header">
-    <h2>THE COFFEE QUEST</h2>
-  </div>
-
-  <div class="menu-item" onclick="goNews()">
-    📰 Tin tức - Daily Quest
-  </div>
-
-  <div class="menu-item" onclick="goBoardgame()">
-    🎲 Luật boardgame
-  </div>
-
-  <div class="menu-item" onclick="goContact()">
-    ☕ Thông tin liên hệ
-  </div>
-
-  <div class="menu-item" onclick="goSettings()">
-    ⚙️ Cài đặt cá nhân
-  </div>
-
-</div>
-
-<div id="menu-overlay"></div>
-       
-    <a class="logo" onclick="goList()">🎲 <span>The Coffee</span>Quest</a>
-    <div class="search-wrap">
-      <input type="text" id="searchInput" placeholder="Tìm tên board game…" autocomplete="off"/>
-      <div class="search-icon">🔍</div>
-    </div>
-    <div class="header-count">Hiển thị <b id="countNum">0</b> game</div>
-  </header>
 
   <div class="filter-bar">
     <span class="filter-label">Lọc:</span>
@@ -80,10 +70,6 @@
      PAGE: DETAIL
 ══════════════════════════════════════════════ -->
 <div id="page-detail" class="page">
-
-  <header class="site-header">
-    <a class="logo" onclick="goList()">🎲 <span>Board</span>Rules</a>
-  </header>
 
   <div class="detail-nav">
     <button class="back-btn" onclick="goList()">← Tất cả game</button>
@@ -156,11 +142,6 @@
 <!-- ═════════ NEWS PAGE ═════════ -->
 <div id="page-news" class="page active">
 
-  <header class="site-header">
-    <button id="menu-toggle-news">☰</button>
-    <a class="logo">📰 <span>Daily</span>Quest</a>
-  </header>
-
   <div class="news-container">
 
     <div class="news-banner">
@@ -181,10 +162,6 @@
 
 <!-- ═════════ CONTACT PAGE ═════════ -->
 <div id="page-contact" class="page">
-
-  <header class="site-header">
-    <button class="back-btn" onclick="goNews()">← Quay lại</button>
-  </header>
 
   <div class="contact-page">
 
@@ -222,9 +199,6 @@
 <!-- ═════════ SETTINGS PAGE ═════════ -->
 <div id="page-settings" class="page">
 
-  <header class="site-header">
-    <button class="back-btn" onclick="goNews()">← Quay lại</button>
-  </header>
 
   <div class="settings-page">
 
