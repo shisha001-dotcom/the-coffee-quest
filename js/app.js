@@ -44,7 +44,8 @@ function updateHeader(type){
 async function loadPage(pageName){
   const app = document.getElementById('app');
   try {
-    const res  = await fetch('pages/' + pageName + '.html');
+    const res = await fetch('pages/' + pageName + '.html');
+    if(!res.ok) throw new Error('HTTP ' + res.status + ' — pages/' + pageName + '.html');
     const html = await res.text();
     app.innerHTML = html;
     window.scrollTo(0, 0);
@@ -53,10 +54,10 @@ async function loadPage(pageName){
   } catch(e){
     app.innerHTML = '<div style="padding:60px 24px;text-align:center">'
       + '<div style="font-size:3rem;margin-bottom:12px">⚠️</div>'
-      + '<h2 style="font-family:Bebas Neue,sans-serif">Không thể tải trang</h2>'
-      + '<p style="color:#888;margin-top:8px">Cần chạy qua local server (Live Server / http-server).<br>Không thể mở file:// trực tiếp.</p>'
+      + '<h2 style="font-family:Bebas Neue,sans-serif">Lỗi tải trang</h2>'
+      + '<p style="color:#888;margin-top:8px">' + e.message + '</p>'
       + '</div>';
-    console.error('loadPage:', e);
+    console.error('loadPage error:', e);
   }
 }
 
