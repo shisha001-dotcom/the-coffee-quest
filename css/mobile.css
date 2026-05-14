@@ -1,48 +1,147 @@
-/* ═════════ MOBILE BANNER═════════ */
+/* ═══════════════════════════════════════
+   MOBILE RESPONSIVE
+═══════════════════════════════════════ */
 
 @media(max-width:768px){
 
+  /* HEADER */
+
+  .site-header{
+    flex-wrap:wrap;
+    gap:10px;
+    padding:14px 16px;
+  }
+
+  .search-wrap{
+    max-width:100%;
+    width:100%;
+    order:3;
+  }
+
+  .header-count{
+    display:none;
+  }
+
+  /* FILTER */
+
+  .filter-bar{
+    padding:12px 16px;
+    overflow-x:auto;
+    white-space:nowrap;
+  }
+
+  /* LIST */
+
+  .list-main{
+    padding:20px 12px 60px;
+  }
+
+  #grid{
+    grid-template-columns:1fr;
+  }
+
+  .game-card{
+    border-radius:14px;
+  }
+
+  .card-body{
+    padding:16px;
+  }
+
+  .card-title{
+    font-size:1.2rem;
+  }
+
+  /* DETAIL */
+
+  .detail-nav{
+    padding:10px 16px;
+  }
+
+  .hero-content{
+    padding:28px 20px 24px;
+  }
+
+  .detail-body{
+    padding:28px 16px 50px;
+  }
+
+  .related-section{
+    padding:28px 16px 48px;
+  }
+
+  /* HERO BANNER */
+
   .news-banner{
+
     height:58vh;
-    min-height:420px;
+
+    min-height:360px;
+
+    max-height:520px;
+  }
+
+  .banner-safe{
+
+    align-items:flex-end;
+
+    padding:
+      32px
+      18px;
   }
 
   .banner-content h1{
-    font-size:2.2rem;
+
+    font-size:
+      clamp(1.8rem,8vw,3rem);
+
+    line-height:1;
+
+    letter-spacing:2px;
+
+    margin-bottom:10px;
   }
 
-}
+  .banner-content p{
 
+    font-size:.9rem;
 
-/* ═════════ MOBILE CHAT COMUNITY═════════ */
-@media(max-width:600px){
-  #chat-window{
-    width:calc(100vw - 24px);
-    right:12px;
-    bottom:84px;
-    height:70vh;
+    line-height:1.5;
+
+    max-width:100%;
   }
 
-  #chat-toggle{
-    right:14px;
-    bottom:14px;
+  /* NEWS */
+
+  .news-container{
+    padding:16px;
   }
-}
 
+  /* CONTACT */
 
-@media(max-width:660px){
-  .site-header{flex-wrap:wrap;gap:10px;padding:14px 16px}
-  .search-wrap{max-width:100%;order:3;width:100%}
-  .filter-bar{padding:12px 16px}
-  .list-main{padding:20px 12px 60px}
-  #grid{grid-template-columns:1fr}
-  .detail-nav{padding:10px 16px}
-  .hero-content{padding:28px 20px 24px}
-  .detail-body{padding:28px 16px 50px}
-  .related-section{padding:28px 16px 48px}
-}
+  .contact-page{
+    padding:24px 16px 60px;
+  }
 
-@media(max-width:600px){
+  .contact-gallery{
+    grid-template-columns:1fr;
+  }
+
+  .contact-gallery img{
+    height:220px;
+  }
+
+  /* SETTINGS */
+
+  .settings-page{
+    padding:24px 16px;
+  }
+
+  .setting-box{
+    padding:18px;
+  }
+
+  /* USERNAME MODAL */
 
   .username-card{
     padding:34px 24px;
@@ -51,6 +150,41 @@
 
   .username-card h2{
     font-size:1.7rem;
+  }
+
+  /* MENU */
+
+  #side-menu{
+    width:260px;
+  }
+
+}
+
+
+/* ═══════════════════════════════════════
+   SMALL PHONES
+═══════════════════════════════════════ */
+
+@media(max-width:480px){
+
+  .banner-content h1{
+    font-size:1.6rem;
+  }
+
+  .banner-content p{
+    font-size:.82rem;
+  }
+
+  .hero-title{
+    font-size:2rem;
+  }
+
+  .card-meta{
+    gap:4px;
+  }
+
+  .tag{
+    font-size:.62rem;
   }
 
 }
