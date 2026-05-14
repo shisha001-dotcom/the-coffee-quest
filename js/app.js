@@ -183,16 +183,24 @@ function openLb(url,cap){
   document.body.style.overflow='hidden';
 }
 function closeLb(){ document.getElementById('lightbox').classList.remove('open'); document.body.style.overflow=''; }
-document.getElementById('lightbox').addEventListener('click',e=>{ if(e.target.id==='lightbox') closeLb(); });
+
+const lightbox = document.getElementById('lightbox');
+
+if(lightbox){
+
+  lightbox.addEventListener('click', e=>{
+
+    if(e.target.id === 'lightbox'){
+      closeLb();
+    }
+
+  });
+}
 
 // ── FILTERS ──
 document.getElementById('searchInput').addEventListener('input',e=>{ searchQ=e.target.value; renderGrid(); });
 document.querySelectorAll('.chip').forEach(c=>{ c.addEventListener('click',()=>{ document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); activeFilter=c.getAttribute('data-filter'); renderGrid(); }); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLb(); });
-
-// ── INIT ──
-renderGrid();
-handleHash();
 
 /* ═════════ MENU ═════════ */
 
@@ -283,4 +291,44 @@ function updateHeader(type){
     header.classList.add('news-mode');
 
   }
+}
+
+function initBoardgame(){
+
+  renderGrid();
+
+  handleHash();
+
+  const searchInput =
+    document.getElementById('searchInput');
+
+  if(searchInput){
+
+    searchInput.addEventListener('input', e=>{
+
+      searchQ = e.target.value;
+
+      renderGrid();
+
+    });
+
+  }
+
+  document.querySelectorAll('.chip').forEach(c=>{
+
+    c.addEventListener('click', ()=>{
+
+      document
+        .querySelectorAll('.chip')
+        .forEach(x=>x.classList.remove('active'));
+
+      c.classList.add('active');
+
+      activeFilter = c.getAttribute('data-filter');
+
+      renderGrid();
+
+    });
+
+  });
 }
