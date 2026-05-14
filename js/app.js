@@ -213,35 +213,8 @@ function closeMenu(){
   menuOverlay.classList.remove('show');
 }
 
-/* ═════════ PAGE SWITCH ═════════ */
-
-function hideAllPages(){
-  document.querySelectorAll('.page').forEach(p=>{
-    p.classList.remove('active');
-  });
-}
-
-function goNews(){
-
-  hideAllPages();
-
-  document
-    .getElementById('page-news')
-    .classList.add('active');
-
-  updateHeader('news');
-
-  closeMenu();
-
-}
-
-function goBoardgame(){
-
-  hideAllPages();
-
-  document
-    .getElementById('page-list')
-    .classList.add('active');
+/* ═════════ PAGE ROUTER ═════════ */
+  loadPage('boardgame');
 
   updateHeader('boardgame');
 
@@ -251,11 +224,7 @@ function goBoardgame(){
 
 function goContact(){
 
-  hideAllPages();
-
-  document
-    .getElementById('page-contact')
-    .classList.add('active');
+  loadPage('contact');
 
   updateHeader('contact');
 
@@ -265,40 +234,28 @@ function goContact(){
 
 function goSettings(){
 
-  hideAllPages();
-
-  document
-    .getElementById('page-settings')
-    .classList.add('active');
+  loadPage('settings');
 
   updateHeader('settings');
 
   closeMenu();
 
-  const currentName =
-    localStorage.getItem('tcq_username') || '';
+  setTimeout(()=>{
 
-  document.getElementById(
-    'settings-username'
-  ).value = currentName;
+    const input = document.getElementById('settings-username');
+
+    if(input){
+
+      input.value =
+        localStorage.getItem('tcq_username') || '';
+
+    }
+
+  }, 100);
 
 }
 
-/* ═════════ SETTINGS ═════════ */
-
-function saveUsernameSettings(){
-
-  const value =
-    document.getElementById('settings-username')
-    .value
-    .trim();
-
-  if(!value) return;
-
-  localStorage.setItem('tcq_username', value);
-
-  alert('Đã cập nhật tên hiển thị!');
-}
+/* ═════════ HEADER ═════════ */
 
 function updateHeader(type){
 
@@ -326,5 +283,4 @@ function updateHeader(type){
     header.classList.add('news-mode');
 
   }
-
 }
