@@ -355,6 +355,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
   z-index: 999;
 
   transition: .3s;
+
+  background: #111;
+
+  overflow-y: auto;
 }
 
 #side-menu.open{
