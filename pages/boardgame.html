@@ -1,182 +1,85 @@
-<!-- PAGE LIST -->
-<div id="page-list" class="page">
+<!-- PAGE: LIST -->
+<div id="page-list" class="page active">
 
   <div class="filter-bar">
     <span class="filter-label">Lọc:</span>
-
-    <div class="chip active" data-filter="all">
-      Tất cả
-    </div>
-
-    <div class="chip" data-filter="Party">
-      🎉 Party
-    </div>
-
-    <div class="chip" data-filter="abc">
-      🎉 abc
-    </div>
-
-    <div class="chip" data-filter="Family">
-      👨‍👩‍👧 Gia đình
-    </div>
-
-    <div class="chip" data-filter="Strategy">
-      ♟️ Chiến lược
-    </div>
-
-    <div class="chip" data-filter="Cooperative">
-      🤝 Hợp tác
-    </div>
-
-    <div class="chip" data-filter="Classic">
-      👑 Cổ điển
-    </div>
-
+    <div class="chip active" data-filter="all">Tất cả</div>
+    <div class="chip" data-filter="Party">🎉 Party</div>
+    <div class="chip" data-filter="abc">🎉 abc</div>
+    <div class="chip" data-filter="Family">👨‍👩‍👧 Gia đình</div>
+    <div class="chip" data-filter="Strategy">♟️ Chiến lược</div>
+    <div class="chip" data-filter="Cooperative">🤝 Hợp tác</div>
+    <div class="chip" data-filter="Classic">👑 Cổ điển</div>
   </div>
 
   <main class="list-main">
-
     <div id="empty">
-
       <div class="e-icon">🔍</div>
-
       <h3>Không tìm thấy game nào</h3>
-
       <p>Thử từ khóa khác hoặc xóa bộ lọc</p>
-
     </div>
-
     <div id="grid"></div>
-
   </main>
 
-  <footer class="site-footer">
-    <b>The Coffee Quest</b>
-    — Hệ thống coffee & boardgame thứ hai Việt Nam
-  </footer>
-
+  <footer class="site-footer"><b>The Coffee Quest</b> — Hệ thống coffee & boardgame thứ hai Việt Nam</footer>
 </div>
 
-<!-- PAGE DETAIL -->
+<!-- PAGE: DETAIL -->
 <div id="page-detail" class="page">
 
   <div class="detail-nav">
-
-    <button class="back-btn" onclick="goList()">
-      ← Tất cả game
-    </button>
-
+    <button class="back-btn" onclick="goList()">← Tất cả game</button>
     <span class="breadcrumb-sep">/</span>
-
     <span class="breadcrumb-cur" id="d-crumb"></span>
-
   </div>
 
-  <!-- HERO -->
   <div class="detail-hero" id="d-hero">
-
     <div class="hero-bg" id="d-hero-bg"></div>
-
     <div class="hero-overlay"></div>
-
     <div class="hero-content">
-
       <span class="hero-emoji" id="d-emoji"></span>
-
       <div class="hero-title" id="d-title"></div>
-
       <div class="hero-tags" id="d-tags"></div>
-
     </div>
-
   </div>
 
-  <!-- DETAIL BODY -->
   <div class="detail-body">
-
     <div class="d-section">
-
       <div class="d-head">🏆 Mục Tiêu</div>
-
       <div class="obj-box" id="d-objective"></div>
-
     </div>
-
     <div class="d-section">
-
       <div class="d-head">🖼️ Ảnh Hướng Dẫn</div>
-
       <div id="d-images"></div>
-
     </div>
-
     <div class="d-section">
-
       <div class="d-head">🎯 Chuẩn Bị</div>
-
       <ul class="steps-list" id="d-setup"></ul>
-
     </div>
-
     <div class="d-section">
-
       <div class="d-head">🔄 Lượt Chơi</div>
-
       <div class="turn-list" id="d-turn"></div>
-
     </div>
-
     <div class="d-section">
-
       <div class="d-head">🥇 Điều Kiện Thắng</div>
-
       <div class="win-box" id="d-win"></div>
-
     </div>
-
     <div class="d-section" id="d-tips-wrap">
-
       <div class="d-head">💡 Mẹo Chơi</div>
-
       <div class="tips-list" id="d-tips"></div>
-
     </div>
-
     <div class="d-section" id="d-video-wrap">
-
       <div class="d-head">🎬 Video Hướng Dẫn</div>
-
       <div id="d-video"></div>
-
     </div>
-
   </div>
 
-  <!-- RELATED -->
   <div class="related-section">
-
     <div class="related-inner">
-
-      <div class="related-title">
-        ✨ Có Thể Bạn Sẽ Thích
-      </div>
-
+      <div class="related-title">✨ Có Thể Bạn Sẽ Thích</div>
       <div class="related-grid" id="d-related"></div>
-
     </div>
-
   </div>
 
-  <footer class="site-footer">
-    <b>The Coffee Quest</b>
-    — Tra cứu luật chơi board game tiếng Việt
-  </footer>
-
-</div>
-
-<!-- LIGHTBOX -->
-<div id="lightbox">
-  <button id="lb-close" onclick="closeLb()">✕</button>
-  <img id="lb-img" src="" alt=""/>
-  <div id="lb-caption"></div>
+  <footer class="site-footer"><b>The Coffee Quest</b> — Tra cứu luật chơi board game tiếng Việt</footer>
 </div>
