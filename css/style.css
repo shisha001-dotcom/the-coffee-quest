@@ -341,33 +341,52 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
 }
 
 #side-menu{
-  position:fixed;
-  top:0;
-  left:-320px;
-  width:280px;
-  height:100vh;
-  background:#111;
-  z-index:999999;
-  transition:left .25s ease;
-  display:flex;
-  flex-direction:column;
-  box-shadow:0 0 40px rgba(0,0,0,.35);
+
+  position: fixed;
+
+  top: 0;
+
+  left: -280px;
+
+  width: 280px;
+
+  height: 100vh;
+
+  z-index: 999;
+
+  transition: .3s;
 }
 
 #side-menu.open{
-  left:0;
+  left: 0;
 }
 
 #menu-overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.45);
-  z-index:999998;
-  display:none;
+
+  position: fixed;
+
+  inset: 0;
+
+  background: rgba(0,0,0,.45);
+
+  opacity: 0;
+
+  visibility: hidden;
+
+  pointer-events: none;
+
+  transition: .25s;
+
+  z-index: 998;
 }
 
 #menu-overlay.show{
-  display:block;
+
+  opacity: 1;
+
+  visibility: visible;
+
+  pointer-events: auto;
 }
 
 .menu-header{
