@@ -1,14 +1,4 @@
-/* ══════════════════════════════════════════════
-   RESET & ROOT 
-Đây là “xương sống” của toàn website.
-Chứa:
-màu sắc
-font
-reset CSS
-animation dùng chung
-body
-biến global
-══════════════════════════════════════════════ */
+/* ROOT */
 
 :root{
   --bg:#f5f0e8;
@@ -22,51 +12,21 @@ biến global
   --tag-bg:#f0ebe0;
 }
 
+/* RESET */
+
 *,*::before,*::after{
   box-sizing:border-box;
   margin:0;
-  padding:0;
+  padding:0
 }
 
 html{
-  scroll-behavior:smooth;
+  scroll-behavior:smooth
 }
 
 body{
   font-family:'Nunito',sans-serif;
   background:var(--bg);
   color:var(--ink);
-  min-height:100vh;
-}
-
-/* PAGE */
-
-.page{
-  display:none;
-}
-
-.page.active{
-  display:block;
-}
-
-/* ANIMATIONS */
-
-@keyframes fadeUp{
-  from{
-    opacity:0;
-    transform:translateY(16px);
-  }
-  to{
-    opacity:1;
-    transform:translateY(0);
-  }
-}
-
-@keyframes fadeIn{
-  from{
-    opacity:0;
-  }
-  to{
-    opacity:1;
-  }
+  min-height:100vh
 }
