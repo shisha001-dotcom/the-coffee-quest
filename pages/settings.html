@@ -1,42 +1,25 @@
-<!DOCTYPE html>
-<html lang="vi">
+<div id="page-settings" class="page">
 
-<head>
+  <div class="settings-page">
 
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <h1>⚙️ Cài đặt cá nhân</h1>
 
-  <title>Cài đặt</title>
+    <div class="setting-box">
 
-  <link rel="stylesheet" href="../assets/css/base.css">
-  <link rel="stylesheet" href="../assets/css/mobile.css">
+      <label>Tên hiển thị cộng đồng</label>
 
-</head>
+      <input
+        type="text"
+        id="settings-username"
+        placeholder="Nhập tên mới..."
+      >
 
-<body>
+      <button onclick="saveUsernameSettings()">
+        Lưu tên
+      </button>
 
-<div class="settings-page">
-
-  <div class="setting-box">
-
-    <label>
-      Tên hiển thị
-    </label>
-
-    <input
-      id="settings-username"
-      placeholder="Nhập tên..."
-    >
-
-    <button onclick="saveUsernameSettings()">
-      Lưu
-    </button>
+    </div>
 
   </div>
 
 </div>
-
-<script src="../assets/js/settings.js"></script>
-
-</body>
-</html>
