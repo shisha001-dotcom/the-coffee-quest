@@ -757,3 +757,274 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
 /* ══ HEADER COUNT INLINE ══ */
 .header-count { color: #666; font-size: .8rem; font-weight: 700; white-space: nowrap; }
 .header-count b { color: #e9c46a; }
+
+/* ══════════════════════════════════════════════
+   FIX: BANNER FULL-SCREEN
+   Ghi đè các rule cuối file đã override sai
+══════════════════════════════════════════════ */
+
+/* Container bao ngoài banners — chỉ là wrapper thông thường */
+.news-container {
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Mỗi banner = full viewport width, chiều cao 100vh trên desktop */
+.banner-slide {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #111;
+  display: block;
+}
+
+.banner-slide .banner-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: block;
+}
+
+/* Overlay text trong banner */
+.banner-slide .banner-safe {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px min(10vw, 120px);
+}
+
+/* Mobile: banner hiển thị 2/3 viewport */
+@media (max-width: 768px) {
+  .banner-slide {
+    height: 67vw;       /* ~ 2/3 của chiều rộng màn hình */
+    min-height: 240px;
+    max-height: 520px;
+  }
+
+  .banner-slide .banner-safe {
+    align-items: flex-end;
+    padding: 28px 16px;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   FIX: HEADER LOGO LUÔN BÊN TRÁI CẠNH NÚT MENU
+══════════════════════════════════════════════ */
+
+.site-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 20px !important;
+}
+
+/* Logo không được flex-grow hay tự đẩy sang phải */
+.logo {
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  margin-right: auto;  /* đẩy mọi thứ sau nó sang phải */
+}
+
+/* Khi news-mode: search/count đã display:none → logo vẫn sát menu */
+.site-header.news-mode .logo {
+  margin-right: 0;
+}
+
+/* ══════════════════════════════════════════════
+   "HÔM NAY CHƠI GÌ" — DAILY PICK SECTION
+══════════════════════════════════════════════ */
+
+.daily-pick-section {
+  padding: 40px 24px 60px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.daily-pick-heading {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 2px;
+  color: var(--ink);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.daily-pick-heading::after {
+  content: '';
+  flex: 1;
+  height: 3px;
+  background: linear-gradient(to right, var(--accent), transparent);
+  border-radius: 2px;
+}
+
+.daily-pick-sub {
+  color: var(--muted);
+  font-size: .85rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+  letter-spacing: .5px;
+}
+
+.daily-pick-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  gap: 0;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+}
+
+.daily-pick-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0,0,0,.12);
+  border-color: #ccc;
+}
+
+.daily-pick-color-bar {
+  width: 8px;
+  flex-shrink: 0;
+}
+
+.daily-pick-body {
+  padding: 28px 28px 22px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.daily-pick-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.daily-pick-emoji {
+  font-size: 48px;
+  width: 72px;
+  height: 72px;
+  background: var(--tag-bg);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.daily-pick-info {
+  flex: 1;
+}
+
+.daily-pick-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.8rem;
+  letter-spacing: 1.5px;
+  line-height: 1.1;
+  margin-bottom: 10px;
+}
+
+.daily-pick-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.daily-pick-objective {
+  font-size: .92rem;
+  color: #555;
+  line-height: 1.6;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.daily-pick-objective strong {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.daily-pick-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+}
+
+.daily-pick-cta {
+  font-size: .82rem;
+  font-weight: 800;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.daily-pick-cta::after {
+  content: '→';
+  transition: transform .15s;
+}
+
+.daily-pick-card:hover .daily-pick-cta::after {
+  transform: translateX(5px);
+}
+
+.daily-reroll-btn {
+  background: var(--tag-bg);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: .8rem;
+  font-weight: 800;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.daily-reroll-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+@media (max-width: 660px) {
+  .daily-pick-section {
+    padding: 28px 16px 48px;
+  }
+
+  .daily-pick-card {
+    flex-direction: column;
+  }
+
+  .daily-pick-color-bar {
+    width: 100%;
+    height: 6px;
+  }
+
+  .daily-pick-emoji {
+    width: 56px;
+    height: 56px;
+    font-size: 36px;
+  }
+
+  .daily-pick-name {
+    font-size: 1.5rem;
+  }
+}
