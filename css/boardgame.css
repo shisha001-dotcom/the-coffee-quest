@@ -1,0 +1,44 @@
+/* ═════════ BOARDGAME LIST
+grid game
+card game
+hover animation
+═════════ */
+
+.list-main{
+  max-width:1100px;
+  margin:0 auto;
+  padding:32px 24px 80px;
+}
+
+#grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:20px;
+}
+
+.game-card{
+  background:var(--card);
+  border:2px solid var(--border);
+  border-radius:16px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:.18s;
+  animation:fadeUp .35s ease both;
+}
+
+.game-card:hover{
+  transform:translateY(-4px);
+}
+
+.card-body{
+  padding:20px 22px 14px;
+}
+
+.card-title{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.4rem;
+}
+
+.card-footer{
+  padding:10px 22px 16px;
+}
