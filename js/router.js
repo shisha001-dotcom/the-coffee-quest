@@ -31,3 +31,4 @@ async function loadPage(pageName) {
 
 // LOAD DEFAULT PAGE
 loadPage("news");
+updateHeader("news");
