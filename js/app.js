@@ -51,6 +51,7 @@ async function loadPage(pageName){
     window.scrollTo(0, 0);
     if(pageName === 'boardgame') initBoardgame();
     if(pageName === 'settings')  initSettings();
+    if(pageName === 'news')       renderDailyPick();
   } catch(e){
     app.innerHTML = '<div style="padding:60px 24px;text-align:center">'
       + '<div style="font-size:3rem;margin-bottom:12px">⚠️</div>'
@@ -68,7 +69,7 @@ function setActive(fn){
   });
 }
 
-function goNews(){      loadPage('news');      updateHeader('news');      closeMenu(); setActive('goNews'); }
+function goNews(){      loadPage('news'); updateHeader('news'); closeMenu(); setActive('goNews'); }
 function goBoardgame(){ loadPage('boardgame'); updateHeader('boardgame'); closeMenu(); setActive('goBoardgame'); }
 function goContact(){   loadPage('contact');   updateHeader('contact');   closeMenu(); setActive('goContact'); }
 function goSettings(){  loadPage('settings');  updateHeader('settings');  closeMenu(); setActive('goSettings'); }
@@ -270,3 +271,41 @@ if(staticLb) staticLb.addEventListener('click', e=>{ if(e.target.id==='lightbox'
 
 /* ═══ BOOT ═══ */
 goNews();
+
+/* ═══ DAILY PICK — Hôm nay chơi gì ═══ */
+function renderDailyPick(){
+  const wrap = document.getElementById('daily-pick-card');
+  if(!wrap || !GAMES || !GAMES.length) return;
+
+  const pick = GAMES[Math.floor(Math.random() * GAMES.length)];
+  const idx  = GAMES.indexOf(pick);
+  const dc   = (d) => d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium';
+
+  wrap.innerHTML = `
+    <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
+      <div class="daily-pick-color-bar" style="background:${pick.color}"></div>
+      <div class="daily-pick-body">
+        <div class="daily-pick-top">
+          <div class="daily-pick-emoji">${pick.emoji}</div>
+          <div class="daily-pick-info">
+            <div class="daily-pick-name">${esc(pick.name)}</div>
+            <div class="daily-pick-tags">
+              <span class="tag">${esc(pick.category)}</span>
+              <span class="tag">👥 ${esc(pick.players)}</span>
+              <span class="tag">⏱ ${esc(pick.time)}</span>
+              <span class="tag ${dc(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="daily-pick-objective">
+          <strong>Mục tiêu:</strong> ${esc(pick.objective)}
+        </div>
+        <div class="daily-pick-footer">
+          <div class="daily-pick-cta">Xem luật chơi ngay</div>
+          <button class="daily-reroll-btn" onclick="event.stopPropagation(); renderDailyPick()">
+            🎲 Thử game khác
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
