@@ -40,7 +40,7 @@ function updateHeader(type){
   }
 }
 
-/* ═══ ROUTER ═══ */
+/* ═══ ROUTER — load page vào #app ═══ */
 async function loadPage(pageName){
   const app = document.getElementById('app');
   try {
@@ -61,15 +61,38 @@ async function loadPage(pageName){
 }
 
 /* ═══ NAVIGATION ═══ */
+function setActive(fn){
+  document.querySelectorAll('.menu-item').forEach(el=>{
+    el.classList.toggle('active', (el.getAttribute('onclick')||'').includes(fn));
+  });
+}
+
 function goNews(){      loadPage('news');      updateHeader('news');      closeMenu(); setActive('goNews'); }
 function goBoardgame(){ loadPage('boardgame'); updateHeader('boardgame'); closeMenu(); setActive('goBoardgame'); }
 function goContact(){   loadPage('contact');   updateHeader('contact');   closeMenu(); setActive('goContact'); }
 function goSettings(){  loadPage('settings');  updateHeader('settings');  closeMenu(); setActive('goSettings'); }
 
-function setActive(fn){
-  document.querySelectorAll('.menu-item').forEach(el=>{
-    el.classList.toggle('active', (el.getAttribute('onclick')||'').includes(fn));
-  });
+/* ═══ BOARDGAME — List & Detail dùng classList.active (khớp CSS) ═══ */
+function showInApp(id){
+  document.querySelectorAll('#app .page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById(id);
+  if(el) el.classList.add('active');
+}
+
+function goList(){
+  showInApp('page-list');
+  const v = document.getElementById('d-video');
+  if(v) v.innerHTML = '';
+  window.scrollTo(0,0);
+  history.pushState(null,'','#');
+}
+
+function goDetail(idx){
+  currentIdx = idx;
+  showInApp('page-detail');
+  renderDetail(idx);
+  window.scrollTo(0,0);
+  history.pushState(null,'','#game-'+idx);
 }
 
 /* ═══ BOARDGAME LIST ═══ */
@@ -92,47 +115,33 @@ function renderGrid(){
   if(empty) empty.style.display='none';
   grid.innerHTML = games.map((g,i)=>{
     const ri = GAMES.indexOf(g);
-    return '<div class="game-card" onclick="goDetail('+ri+')" style="animation-delay:'+i*0.04+'s">'
-      +'<div class="card-stripe" style="background:'+g.color+'"></div>'
-      +'<div class="card-body"><div class="card-top">'
-      +'<div class="card-emoji">'+g.emoji+'</div><div>'
-      +'<div class="card-title">'+esc(g.name)+'</div>'
-      +'<div class="card-meta">'
-      +'<span class="tag">'+esc(g.category)+'</span>'
-      +'<span class="tag">👥 '+esc(g.players)+'</span>'
-      +'<span class="tag">⏱ '+esc(g.time)+'</span>'
-      +'<span class="tag '+diffClass(g.difficulty)+'">⚡ '+esc(g.difficulty)+'</span>'
-      +'</div></div></div>'
-      +'<div class="card-objective"><strong>Mục tiêu:</strong> '+esc(g.objective)+'</div>'
-      +'</div><div class="card-footer"><div class="view-btn">Xem luật chơi</div></div></div>';
+    return `<div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i*0.04}s">
+      <div class="card-stripe" style="background:${g.color}"></div>
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-emoji">${g.emoji}</div>
+          <div>
+            <div class="card-title">${esc(g.name)}</div>
+            <div class="card-meta">
+              <span class="tag">${esc(g.category)}</span>
+              <span class="tag">👥 ${esc(g.players)}</span>
+              <span class="tag">⏱ ${esc(g.time)}</span>
+              <span class="tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-objective"><strong>Mục tiêu:</strong> ${esc(g.objective)}</div>
+      </div>
+      <div class="card-footer"><div class="view-btn">Xem luật chơi</div></div>
+    </div>`;
   }).join('');
-}
-
-function goDetail(idx){
-  currentIdx = idx;
-  const lp = document.getElementById('page-list');
-  const dp = document.getElementById('page-detail');
-  if(lp) lp.style.display = 'none';
-  if(dp) dp.style.display = 'block';
-  renderDetail(idx);
-  window.scrollTo(0,0);
-}
-
-function goList(){
-  const lp = document.getElementById('page-list');
-  const dp = document.getElementById('page-detail');
-  if(dp) dp.style.display = 'none';
-  if(lp) lp.style.display = 'block';
-  const v = document.getElementById('d-video');
-  if(v) v.innerHTML = '';
-  window.scrollTo(0,0);
 }
 
 /* ═══ BOARDGAME DETAIL ═══ */
 function renderDetail(idx){
   const g = GAMES[idx];
-  const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
-  const setH = (id, val) => { const el=document.getElementById(id); if(el) el.innerHTML=val; };
+  const set  = (id,val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  const setH = (id,val) => { const el=document.getElementById(id); if(el) el.innerHTML=val; };
 
   set('d-crumb', g.name);
   set('d-emoji', g.emoji);
@@ -141,47 +150,46 @@ function renderDetail(idx){
   set('d-win', g.win);
 
   const bg = document.getElementById('d-hero-bg');
-  if(bg) bg.style.backgroundImage = g.heroBg ? "url('"+g.heroBg+"')" : 'linear-gradient(135deg,'+g.color+'cc,'+g.color+'44)';
+  if(bg) bg.style.backgroundImage = g.heroBg ? `url('${g.heroBg}')` : `linear-gradient(135deg,${g.color}cc,${g.color}44)`;
 
   setH('d-tags',
-    '<span class="hero-tag hl">'+esc(g.category)+'</span>'
-    +'<span class="hero-tag">👥 '+esc(g.players)+' người</span>'
-    +'<span class="hero-tag">⏱ '+esc(g.time)+'</span>'
-    +'<span class="hero-tag '+diffClass(g.difficulty)+'">⚡ '+esc(g.difficulty)+'</span>');
+    `<span class="hero-tag hl">${esc(g.category)}</span>`
+    +`<span class="hero-tag">👥 ${esc(g.players)} người</span>`
+    +`<span class="hero-tag">⏱ ${esc(g.time)}</span>`
+    +`<span class="hero-tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>`);
 
-  // images
   const imgEl = document.getElementById('d-images');
   if(imgEl){
     if(g.images && g.images.length){
-      imgEl.innerHTML = '<div class="images-grid">'+g.images.map(im=>
-        '<div class="img-wrap" onclick="openLb(\''+im.url.replace(/'/g,"\\'")+"','"+esc(im.caption)+'\')">'
-        +'<img src="'+im.url+'" alt="'+esc(im.caption)+'" loading="lazy" onerror="this.parentElement.style.display=\'none\'"/>'
-        +'<div class="img-caption">'+esc(im.caption)+'</div></div>').join('')+'</div>';
+      imgEl.innerHTML = `<div class="images-grid">${g.images.map(im=>
+        `<div class="img-wrap" onclick="openLb('${im.url.replace(/'/g,"\\'")}','${esc(im.caption)}')">`
+        +`<img src="${im.url}" alt="${esc(im.caption)}" loading="lazy" onerror="this.parentElement.style.display='none'"/>`
+        +`<div class="img-caption">${esc(im.caption)}</div></div>`).join('')}</div>`;
     } else {
-      imgEl.innerHTML = '<div class="no-images"><b>🖼️</b> Chưa có ảnh hướng dẫn.<br><code>images: [{url,caption}]</code></div>';
+      imgEl.innerHTML = `<div class="no-images"><b>🖼️</b> Chưa có ảnh hướng dẫn.<br><code>images: [{url,caption}]</code></div>`;
     }
   }
 
-  setH('d-setup', (g.setup||[]).map((s,i)=>'<li class="step-item"><div class="step-num">'+(i+1)+'</div><div>'+esc(s)+'</div></li>').join(''));
-  setH('d-turn',  (g.turn||[]).map(t=>'<div class="turn-item"><div class="turn-icon">▸</div><div>'+esc(t)+'</div></div>').join(''));
+  setH('d-setup', (g.setup||[]).map((s,i)=>`<li class="step-item"><div class="step-num">${i+1}</div><div>${esc(s)}</div></li>`).join(''));
+  setH('d-turn',  (g.turn||[]).map(t=>`<div class="turn-item"><div class="turn-icon">▸</div><div>${esc(t)}</div></div>`).join(''));
 
   const tw = document.getElementById('d-tips-wrap');
   if(tw){
     if(g.tips && g.tips.length){
       tw.style.display = 'block';
-      setH('d-tips', g.tips.map(t=>'<div class="tip-item"><div class="turn-icon">💡</div><div>'+esc(t)+'</div></div>').join(''));
+      setH('d-tips', g.tips.map(t=>`<div class="tip-item"><div class="turn-icon">💡</div><div>${esc(t)}</div></div>`).join(''));
     } else tw.style.display = 'none';
   }
 
-  const vw = document.getElementById('d-video-wrap');
+  const vw  = document.getElementById('d-video-wrap');
   const vid = document.getElementById('d-video');
   if(vw && vid){
     vw.style.display = 'block';
     const ytId = getYtId(g.youtubeUrl);
     if(ytId){
-      vid.innerHTML = '<div class="video-frame"><iframe src="https://www.youtube.com/embed/'+ytId+'?rel=0&modestbranding=1" title="'+esc(g.name)+'" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
+      vid.innerHTML = `<div class="video-frame"><iframe src="https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1" title="Hướng dẫn ${esc(g.name)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
     } else {
-      vid.innerHTML = '<div class="no-video"><div class="nv-icon">📽️</div><p>Chưa có video.</p><a href="https://www.youtube.com/results?search_query='+encodeURIComponent('how to play '+g.name)+'" target="_blank" rel="noopener">Tìm trên YouTube →</a></div>';
+      vid.innerHTML = `<div class="no-video"><div class="nv-icon">📽️</div><p>Chưa có video hướng dẫn.</p><a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to play '+g.name)}" target="_blank" rel="noopener">Tìm trên YouTube →</a></div>`;
     }
   }
 
@@ -191,16 +199,18 @@ function renderDetail(idx){
     relEl.innerHTML = related.length
       ? related.map(r=>{
           const ri = GAMES.indexOf(r);
-          return '<div class="rel-card" onclick="goDetail('+ri+')">'
-            +'<div class="rel-stripe" style="background:'+r.color+'"></div>'
-            +'<div class="rel-body"><span class="rel-emoji">'+r.emoji+'</span>'
-            +'<div class="rel-name">'+esc(r.name)+'</div>'
-            +'<div class="rel-meta"><span class="rel-tag">👥 '+esc(r.players)+'</span>'
-            +'<span class="rel-tag">⏱ '+esc(r.time)+'</span>'
-            +'<span class="rel-tag '+diffClass(r.difficulty)+'">⚡ '+esc(r.difficulty)+'</span></div></div>'
-            +'<div class="rel-go">Xem luật chơi</div></div>';
+          return `<div class="rel-card" onclick="goDetail(${ri})">
+            <div class="rel-stripe" style="background:${r.color}"></div>
+            <div class="rel-body"><span class="rel-emoji">${r.emoji}</span>
+            <div class="rel-name">${esc(r.name)}</div>
+            <div class="rel-meta">
+              <span class="rel-tag">👥 ${esc(r.players)}</span>
+              <span class="rel-tag">⏱ ${esc(r.time)}</span>
+              <span class="rel-tag ${diffClass(r.difficulty)}">⚡ ${esc(r.difficulty)}</span>
+            </div></div>
+            <div class="rel-go">Xem luật chơi</div></div>`;
         }).join('')
-      : '<p style="color:var(--muted);font-size:.9rem;grid-column:1/-1">Chưa có game cùng thể loại.</p>';
+      : `<p style="color:var(--muted);font-size:.9rem;grid-column:1/-1">Chưa có game cùng thể loại "${esc(g.category)}".</p>`;
   }
 }
 
@@ -232,25 +242,25 @@ function saveUsernameSettings(){
   if(!val){ input.focus(); return; }
   localStorage.setItem('tcq_username', val);
   if(typeof updateChatUsername === 'function') updateChatUsername(val);
-  const btn = document.querySelector('#page-settings button');
+  const btn = document.querySelector('.settings-page button');
   if(btn){ const orig=btn.textContent; btn.textContent='✅ Đã lưu!'; setTimeout(()=>btn.textContent=orig, 1800); }
 }
 
 /* ═══ LIGHTBOX ═══ */
 function openLb(url, cap){
-  const lb=document.getElementById('lightbox');
-  const img=document.getElementById('lb-img');
-  const capEl=document.getElementById('lb-caption');
+  const lb    = document.getElementById('lightbox');
+  const img   = document.getElementById('lb-img');
+  const capEl = document.getElementById('lb-caption');
   if(!lb) return;
-  if(img) img.src=url;
-  if(capEl) capEl.textContent=cap;
+  if(img)   img.src = url;
+  if(capEl) capEl.textContent = cap;
   lb.classList.add('open');
-  document.body.style.overflow='hidden';
+  document.body.style.overflow = 'hidden';
 }
 function closeLb(){
-  const lb=document.getElementById('lightbox');
+  const lb = document.getElementById('lightbox');
   if(lb) lb.classList.remove('open');
-  document.body.style.overflow='';
+  document.body.style.overflow = '';
 }
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeLb(); });
@@ -258,5 +268,4 @@ const staticLb = document.getElementById('lightbox');
 if(staticLb) staticLb.addEventListener('click', e=>{ if(e.target.id==='lightbox') closeLb(); });
 
 /* ═══ BOOT ═══ */
-loadPage('news');
-updateHeader('news');
+goNews();
