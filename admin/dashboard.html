@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Dashboard Admin</title>
+
+  <link rel="stylesheet" href="dashboard.css">
+
+</head>
+<body>
+
+<div class="dashboard">
+
+  <div class="sidebar">
+
+    <h1>☕ TCQ Admin</h1>
+
+    <div class="menu-item active">
+      📰 Banner News
+    </div>
+
+  </div>
+
+  <div class="main-content">
+
+    <div class="topbar">
+      <h2>Quản lý Banner</h2>
+    </div>
+
+    <div class="card">
+
+      <h3>Upload Banner</h3>
+
+      <input type="file" id="banner-upload" accept="image/*" multiple>
+
+      <div class="preview-grid" id="preview-grid"></div>
+
+      <button id="save-banner-btn">
+        💾 Lưu Banner
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script src="dashboard.js"></script>
+
+</body>
+</html>
