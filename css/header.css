@@ -1,0 +1,103 @@
+/* ═════════ HEADER ═════════ 
+Vai trò
+Quản lý:
+header
+logo
+search
+filter
+chip
+*/
+
+.site-header{
+  background:var(--ink);
+  color:#fff;
+  padding:18px 32px;
+  display:flex;
+  align-items:center;
+  gap:20px;
+  position:sticky;
+  top:0;
+  z-index:100;
+  box-shadow:0 2px 12px rgba(0,0,0,.3);
+}
+
+.logo{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.8rem;
+  letter-spacing:2px;
+  color:var(--accent);
+  white-space:nowrap;
+  cursor:pointer;
+  text-decoration:none;
+}
+
+.logo span{
+  color:#fff;
+}
+
+/* ═════════ SEARCH ═════════ */
+
+.search-wrap{
+  flex:1;
+  position:relative;
+  max-width:480px;
+}
+
+.search-wrap input{
+  width:100%;
+  background:#2a2a2a;
+  border:2px solid #3a3a3a;
+  border-radius:10px;
+  color:#fff;
+  font-size:.95rem;
+  font-weight:600;
+  padding:10px 44px 10px 16px;
+  outline:none;
+}
+
+.search-wrap input:focus{
+  border-color:var(--accent);
+}
+
+.search-icon{
+  position:absolute;
+  right:14px;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:17px;
+  color:#555;
+}
+
+/* ═════════ FILTER ═════════ */
+
+.filter-bar{
+  padding:14px 32px;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  border-bottom:1px solid var(--border);
+  background:#faf6ef;
+}
+
+.filter-label{
+  font-size:.75rem;
+  font-weight:800;
+  color:var(--muted);
+}
+
+.chip{
+  padding:5px 14px;
+  border-radius:100px;
+  font-size:.78rem;
+  font-weight:700;
+  cursor:pointer;
+  border:2px solid var(--border);
+  background:#fff;
+}
+
+.chip.active{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
