@@ -1,13 +1,3 @@
-/* ═════════ HEADER ═════════ 
-Vai trò
-Quản lý:
-header
-logo
-search
-filter
-chip
-*/
-
 .site-header{
   background:var(--ink);
   color:#fff;
@@ -32,15 +22,13 @@ chip
 }
 
 .logo span{
-  color:#fff;
+  color:#fff
 }
-
-/* ═════════ SEARCH ═════════ */
 
 .search-wrap{
   flex:1;
   position:relative;
-  max-width:480px;
+  max-width:480px
 }
 
 .search-wrap input{
@@ -55,49 +43,16 @@ chip
   outline:none;
 }
 
-.search-wrap input:focus{
-  border-color:var(--accent);
-}
-
 .search-icon{
   position:absolute;
   right:14px;
   top:50%;
   transform:translateY(-50%);
-  font-size:17px;
   color:#555;
 }
 
-/* ═════════ FILTER ═════════ */
-
-.filter-bar{
-  padding:14px 32px;
-  display:flex;
-  align-items:center;
-  flex-wrap:wrap;
-  gap:8px;
-  border-bottom:1px solid var(--border);
-  background:#faf6ef;
-}
-
-.filter-label{
-  font-size:.75rem;
-  font-weight:800;
-  color:var(--muted);
-}
-
-.chip{
-  padding:5px 14px;
-  border-radius:100px;
-  font-size:.78rem;
+.header-count{
+  color:#666;
+  font-size:.82rem;
   font-weight:700;
-  cursor:pointer;
-  border:2px solid var(--border);
-  background:#fff;
-}
-
-.chip.active{
-  background:var(--accent);
-  border-color:var(--accent);
-  color:#fff;
 }
