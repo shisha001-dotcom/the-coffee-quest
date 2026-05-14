@@ -332,3 +332,33 @@ function initBoardgame(){
 
   });
 }
+
+const menuToggle = document.getElementById('menu-toggle');
+const sideMenu = document.getElementById('side-menu');
+const overlay = document.getElementById('menu-overlay');
+
+function openMenu(){
+
+  sideMenu.classList.add('open');
+
+  overlay.classList.add('show');
+}
+
+function closeMenu(){
+
+  sideMenu.classList.remove('open');
+
+  overlay.classList.remove('show');
+}
+
+if(menuToggle){
+
+  menuToggle.addEventListener('click', openMenu);
+
+}
+
+if(overlay){
+
+  overlay.addEventListener('click', closeMenu);
+
+}
