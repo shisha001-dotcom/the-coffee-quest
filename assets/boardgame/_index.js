@@ -4,11 +4,11 @@ const BOARDGAME_FILES = [
   "ticket_to_ride",
   "catan",
   "pandemic",
-  "co-vua",
+  "chess",
   "monopoly",
   "dixit",
   "carcassonne",
-  "no-thanks",
+  "no_thanks",
   "werewolf",
   "clue",
   "dua-rua"
