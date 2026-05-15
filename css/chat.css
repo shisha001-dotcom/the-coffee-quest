@@ -118,11 +118,25 @@
   gap:4px;
 }
 
+/* ── DÒNG META: tên + giờ ── */
+.chat-meta{
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  padding-left:4px;
+}
+
 .chat-user{
   font-size:.72rem;
   font-weight:800;
   color:#888;
-  padding-left:4px;
+}
+
+/* ── THỜI GIAN GỬI ── */
+.chat-time{
+  font-size:.65rem;
+  color:#bbb;
+  font-weight:400;
 }
 
 .chat-bubble{
@@ -136,22 +150,40 @@
   word-break:break-word;
 }
 
-/* INPUT */
+/* ═════════ INPUT ═════════ */
 .chat-input-wrap{
   border-top:1px solid #e0d8cc;
   background:#fff;
-  padding:12px;
+  padding:10px 12px;
   display:flex;
-  gap:10px;
+  gap:8px;
+  align-items:center;
+  position:relative;
+}
+
+/* ── NÚT EMOJI ── */
+#emoji-toggle{
+  border:none;
+  background:none;
+  font-size:22px;
+  cursor:pointer;
+  padding:0 2px;
+  line-height:1;
+  flex-shrink:0;
+  transition:transform .15s;
+}
+#emoji-toggle:hover{
+  transform:scale(1.2);
 }
 
 #chat-input{
   flex:1;
   border:2px solid #e0d8cc;
   border-radius:12px;
-  padding:12px;
+  padding:10px 12px;
   font-size:.92rem;
   outline:none;
+  min-width:0;
 }
 
 #chat-input:focus{
@@ -163,15 +195,61 @@
   background:#e63946;
   color:#fff;
   border-radius:12px;
-  padding:0 18px;
+  padding:0 16px;
+  height:42px;
   cursor:pointer;
   font-weight:800;
+  flex-shrink:0;
 }
 
 #chat-send:hover{
   opacity:.9;
 }
 
+/* ═════════ EMOJI PICKER ═════════ */
+.emoji-picker{
+  position:absolute;
+  bottom:70px;         /* ngay trên input bar */
+  right:22px;
+  width:320px;
+  background:#fff;
+  border:2px solid #e0d8cc;
+  border-radius:16px;
+  box-shadow:0 8px 30px rgba(0,0,0,.18);
+  padding:10px;
+  z-index:100000;
+  animation:chatFade .2s ease;
+}
+
+.emoji-picker.hidden{
+  display:none;
+}
+
+.emoji-grid{
+  display:grid;
+  grid-template-columns:repeat(8,1fr);
+  gap:4px;
+  max-height:200px;
+  overflow-y:auto;
+}
+
+.emoji-grid button{
+  border:none;
+  background:none;
+  font-size:20px;
+  cursor:pointer;
+  border-radius:8px;
+  padding:4px 2px;
+  transition:background .15s, transform .1s;
+  line-height:1;
+}
+
+.emoji-grid button:hover{
+  background:#f5f0e8;
+  transform:scale(1.25);
+}
+
+/* ═════════ RESPONSIVE ═════════ */
 @media(max-width:600px){
   #chat-window{
     width:calc(100vw - 24px);
@@ -184,5 +262,9 @@
     right:14px;
     bottom:14px;
   }
+
+  .emoji-picker{
+    width:calc(100vw - 48px);
+    right:12px;
+  }
 }
- 
