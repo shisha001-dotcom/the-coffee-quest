@@ -1,7 +1,7 @@
 // Thêm game mới: chỉ cần thêm tên file vào đây
 const BOARDGAME_FILES = [
   "uno",
-  "ticket-to-ride",
+  "ticket_to_ride",
   "catan",
   "pandemic",
   "co-vua",
