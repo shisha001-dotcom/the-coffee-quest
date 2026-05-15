@@ -832,9 +832,8 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
   margin-right: auto;  /* đẩy mọi thứ sau nó sang phải */
 }
 
-/* Khi news-mode: search/count đã display:none → logo vẫn sát menu */
 .site-header.news-mode .logo {
-  margin-right: 0;
+  margin-right: auto;   /* ← giữ logo sát trái, đẩy phần còn lại sang phải */
 }
 
 /* ══════════════════════════════════════════════
