@@ -117,11 +117,16 @@ toggleBtn.addEventListener("click", ()=>{
 
   chatWindow.classList.toggle("open");
 
+  /* Đóng emoji picker khi đóng/mở chat */
+  emojiPicker.classList.add("hidden");
+
 });
 
 closeBtn.addEventListener("click", ()=>{
 
   chatWindow.classList.remove("open");
+
+  emojiPicker.classList.add("hidden");
 
 });
 
@@ -153,6 +158,78 @@ onValue(ref(db,"onlineUsers"), snapshot=>{
 
 });
 
+/* ═════════ EMOJI PICKER ═════════ */
+
+const EMOJIS = [
+  "😀","😂","🥰","😍","🤩","😎","🥳","😊",
+  "😅","🤣","😭","😢","😤","😠","🤔","🫠",
+  "👍","👎","👏","🙌","🤝","💪","🙏","✌️",
+  "❤️","🧡","💛","💚","💙","💜","🖤","🤍",
+  "🔥","✨","🎉","🎊","💯","⭐","🌟","💫",
+  "☕","🍵","🧋","🍫","🍰","🎂","🧁","🍩",
+  "😋","🤤","😴","🥱","😪","🤧","😷","🥴",
+  "🐶","🐱","🐻","🦊","🐼","🐸","🦁","🐨",
+  "🍕","🍔","🍟","🌮","🍜","🍣","🍦","🍭",
+  "⚽","🏀","🎮","🎵","🎬","📚","💻","📱"
+];
+
+const emojiPicker  = document.getElementById("emoji-picker");
+const emojiGrid    = document.getElementById("emoji-grid");
+const emojiToggle  = document.getElementById("emoji-toggle");
+const chatInput    = document.getElementById("chat-input");
+
+/* Render emoji buttons */
+EMOJIS.forEach(em => {
+
+  const btn = document.createElement("button");
+
+  btn.textContent = em;
+
+  btn.title = em;
+
+  btn.addEventListener("click", ()=>{
+
+    /* Chèn emoji vào vị trí con trỏ */
+    const start = chatInput.selectionStart;
+    const end   = chatInput.selectionEnd;
+    const val   = chatInput.value;
+
+    chatInput.value =
+      val.slice(0, start) + em + val.slice(end);
+
+    /* Đặt lại con trỏ sau emoji */
+    const pos = start + em.length;
+    chatInput.setSelectionRange(pos, pos);
+
+    chatInput.focus();
+
+  });
+
+  emojiGrid.appendChild(btn);
+
+});
+
+/* Bật / tắt picker */
+emojiToggle.addEventListener("click", e=>{
+
+  e.stopPropagation();
+
+  emojiPicker.classList.toggle("hidden");
+
+});
+
+/* Click ngoài → đóng picker */
+document.addEventListener("click", e=>{
+
+  if(
+    !emojiPicker.contains(e.target) &&
+    e.target !== emojiToggle
+  ){
+    emojiPicker.classList.add("hidden");
+  }
+
+});
+
 /* ═════════ CHAT MESSAGES ═════════ */
 
 const msgRef = ref(db, "communityChat");
@@ -162,10 +239,7 @@ clearChatIfNewDay();
 
 function sendMessage(){
 
-  const input =
-    document.getElementById("chat-input");
-
-  const text = input.value.trim();
+  const text = chatInput.value.trim();
 
   if(!text) return;
 
@@ -175,7 +249,10 @@ function sendMessage(){
     time: Date.now()
   });
 
-  input.value = "";
+  chatInput.value = "";
+
+  /* Đóng emoji picker sau khi gửi */
+  emojiPicker.classList.add("hidden");
 }
 
 /* BUTTON SEND */
@@ -185,8 +262,7 @@ document.getElementById("chat-send")
 
 /* ENTER SEND */
 
-document.getElementById("chat-input")
-.addEventListener("keydown", e=>{
+chatInput.addEventListener("keydown", e=>{
 
   if(e.key === "Enter"){
     sendMessage();
@@ -208,6 +284,20 @@ onValue(msgRef, snapshot=>{
 
 });
 
+/* ═════════ ĐỊNH DẠNG THỜI GIAN ═════════ */
+
+function formatTime(timestamp){
+
+  if(!timestamp) return "";
+
+  const d = new Date(timestamp);
+
+  const hh = String(d.getHours()).padStart(2,"0");
+  const mm = String(d.getMinutes()).padStart(2,"0");
+
+  return `${hh}:${mm}`;
+}
+
 /* RECEIVE */
 
 onChildAdded(msgRef, snapshot=>{
@@ -219,13 +309,11 @@ onChildAdded(msgRef, snapshot=>{
   wrap.className = "chat-msg";
 
   wrap.innerHTML = `
-    <div class="chat-user">
-      ${escapeHtml(msg.user)}
+    <div class="chat-meta">
+      <span class="chat-user">${escapeHtml(msg.user)}</span>
+      <span class="chat-time">${formatTime(msg.time)}</span>
     </div>
-
-    <div class="chat-bubble">
-      ${escapeHtml(msg.text)}
-    </div>
+    <div class="chat-bubble">${escapeHtml(msg.text)}</div>
   `;
 
   const container =
