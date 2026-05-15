@@ -281,7 +281,6 @@ function renderDailyPick(){
 
   const pick = GAMES[Math.floor(Math.random() * GAMES.length)];
   const idx  = GAMES.indexOf(pick);
-  const dc   = (d) => d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium';
 
   wrap.innerHTML = `
     <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
@@ -295,7 +294,7 @@ function renderDailyPick(){
               <span class="tag">${esc(pick.category)}</span>
               <span class="tag">👥 ${esc(pick.players)}</span>
               <span class="tag">⏱ ${esc(pick.time)}</span>
-              <span class="tag ${dc(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
+              <span class="tag ${diffClass(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
             </div>
           </div>
         </div>
