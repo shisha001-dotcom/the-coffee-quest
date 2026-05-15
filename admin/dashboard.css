@@ -226,7 +226,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
   gap: 24px;
-  margin-bottom: 36px;
+  margin-bottom: 24px;
 }
 
 .banner-card {
@@ -294,7 +294,7 @@ body {
 
 /* URL INPUT */
 .input-group {
-  margin-bottom: 10px;
+  margin-bottom: 18px;
 }
 
 .input-group label {
@@ -322,50 +322,11 @@ body {
   border-color: #e63946;
 }
 
-/* UPLOAD */
-.upload-or {
-  text-align: center;
-  color: #bbb;
-  font-size: .78rem;
-  font-weight: 700;
-  margin: 12px 0;
-}
-
-.upload-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.upload-label {
-  background: #f5f0e8;
-  border: 2px solid #e0d8cc;
-  border-radius: 10px;
-  padding: 9px 16px;
-  font-size: .85rem;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background .15s, border-color .15s;
-}
-
-.upload-label:hover {
-  background: #ede6d8;
-  border-color: #c8bfb0;
-}
-
-.file-input {
-  display: none;
-}
-
-.file-name {
-  font-size: .78rem;
-  color: #999;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
+/* GHI CHÚ DƯỚI INPUT */
+.input-hint {
+  font-size: .72rem;
+  color: #aaa;
+  margin-top: 5px;
 }
 
 /* ACTION BUTTONS */
@@ -405,6 +366,43 @@ body {
 .btn-save:hover {
   opacity: .88;
   transform: translateY(-1px);
+}
+
+/* ═════════ HƯỚNG DẪN ═════════ */
+.guide-box {
+  background: #fffbf0;
+  border: 2px solid #f0e6c8;
+  border-radius: 16px;
+  padding: 22px 26px;
+  margin-bottom: 24px;
+}
+
+.guide-title {
+  font-weight: 800;
+  font-size: .95rem;
+  color: #7a5c00;
+  margin-bottom: 12px;
+}
+
+.guide-steps {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.guide-steps li {
+  font-size: .88rem;
+  color: #555;
+  line-height: 1.5;
+}
+
+.guide-steps code {
+  background: #f0e6c8;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: .82rem;
+  color: #7a5c00;
 }
 
 /* ═════════ CURRENT BANNERS ═════════ */
