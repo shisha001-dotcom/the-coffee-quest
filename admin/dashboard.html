@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Admin — The Coffee Quest</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="dashboard.css"/>
+</head>
+<body>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">☕</div>
+    <h1>Admin Panel</h1>
+    <p class="login-sub">The Coffee Quest</p>
+    <div class="field-group">
+      <label>Mật khẩu</label>
+      <input type="password" id="admin-pass" placeholder="Nhập mật khẩu admin…" autocomplete="current-password"/>
+    </div>
+    <button id="login-btn" class="btn-primary">Đăng nhập</button>
+    <p id="login-error" class="error-msg hidden">❌ Sai mật khẩu. Thử lại.</p>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ══ -->
+<div id="dashboard" class="hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span>☕</span>
+      <div>
+        <div class="sidebar-title">TCQ Admin</div>
+        <div class="sidebar-sub">Dashboard</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" data-tab="banners">🖼️ Quản lý Banner</div>
+    </nav>
+    <button id="logout-btn" class="btn-logout">🚪 Đăng xuất</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <div class="top-bar">
+      <h2 class="page-title">🖼️ Quản lý Banner</h2>
+      <span class="status-badge" id="save-status"></span>
+    </div>
+
+    <!-- BANNER CARDS -->
+    <div class="banner-grid">
+
+      <!-- BANNER 1 -->
+      <div class="banner-card">
+        <div class="banner-card-header">
+          <div class="banner-label">Banner 1</div>
+          <div class="banner-hint">Hiển thị đầu tiên trên trang News</div>
+        </div>
+
+        <div class="preview-wrap" id="preview-1">
+          <img id="preview-img-1" src="" alt="Preview Banner 1" class="preview-img hidden"/>
+          <div class="preview-placeholder" id="placeholder-1">
+            <span>🖼️</span>
+            <p>Chưa có ảnh</p>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>URL ảnh</label>
+          <input type="url" id="url-1" placeholder="https://…/banner.jpg"/>
+        </div>
+
+        <div class="upload-or">— hoặc —</div>
+
+        <div class="upload-group">
+          <label class="upload-label" for="file-1">
+            📁 Chọn file từ máy
+          </label>
+          <input type="file" id="file-1" accept="image/*" class="file-input"/>
+          <span class="file-name" id="file-name-1">Chưa chọn file</span>
+        </div>
+
+        <div class="card-actions">
+          <button class="btn-preview" onclick="previewBanner(1)">👁 Xem trước</button>
+          <button class="btn-save" onclick="saveBanner(1)">💾 Lưu Banner 1</button>
+        </div>
+      </div>
+
+      <!-- BANNER 2 -->
+      <div class="banner-card">
+        <div class="banner-card-header">
+          <div class="banner-label">Banner 2</div>
+          <div class="banner-hint">Hiển thị thứ hai trên trang News</div>
+        </div>
+
+        <div class="preview-wrap" id="preview-2">
+          <img id="preview-img-2" src="" alt="Preview Banner 2" class="preview-img hidden"/>
+          <div class="preview-placeholder" id="placeholder-2">
+            <span>🖼️</span>
+            <p>Chưa có ảnh</p>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>URL ảnh</label>
+          <input type="url" id="url-2" placeholder="https://…/banner.jpg"/>
+        </div>
+
+        <div class="upload-or">— hoặc —</div>
+
+        <div class="upload-group">
+          <label class="upload-label" for="file-2">
+            📁 Chọn file từ máy
+          </label>
+          <input type="file" id="file-2" accept="image/*" class="file-input"/>
+          <span class="file-name" id="file-name-2">Chưa chọn file</span>
+        </div>
+
+        <div class="card-actions">
+          <button class="btn-preview" onclick="previewBanner(2)">👁 Xem trước</button>
+          <button class="btn-save" onclick="saveBanner(2)">💾 Lưu Banner 2</button>
+        </div>
+      </div>
+
+    </div><!-- /banner-grid -->
+
+    <!-- CURRENT BANNERS INFO -->
+    <div class="current-section">
+      <h3 class="section-title">📋 Banner đang hiển thị</h3>
+      <div class="current-grid">
+        <div class="current-item">
+          <div class="current-label">Banner 1</div>
+          <img id="current-img-1" src="" alt="" class="current-img hidden"/>
+          <div class="current-url" id="current-url-1">Đang tải…</div>
+          <button class="btn-reset" onclick="resetBanner(1)">🔄 Reset về mặc định</button>
+        </div>
+        <div class="current-item">
+          <div class="current-label">Banner 2</div>
+          <img id="current-img-2" src="" alt="" class="current-img hidden"/>
+          <div class="current-url" id="current-url-2">Đang tải…</div>
+          <button class="btn-reset" onclick="resetBanner(2)">🔄 Reset về mặc định</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div><!-- /dashboard -->
+
+<script type="module" src="dashboard.js"></script>
+</body>
+</html>
