@@ -15,7 +15,7 @@ import {
 
 /* ═════════ CONFIG ═════════ */
 
-const ADMIN_PASSWORD = "tcqadmin2025";   // ← Đổi mật khẩu tại đây
+const ADMIN_PASSWORD = "tcqadmin2025";
 
 const DEFAULT_BANNERS = {
   1: "../assets/banner3.png",
@@ -33,6 +33,28 @@ const firebaseConfig = {
   measurementId: "G-EKGL5TN6NY"
 };
 
+/* ═════════ CONVERT GOOGLE DRIVE LINK ═════════ */
+
+function convertDriveLink(url){
+
+  if(!url) return url;
+
+  // Dạng: /file/d/FILE_ID/view
+  const match1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(match1){
+    return `https://drive.google.com/uc?export=view&id=${match1[1]}`;
+  }
+
+  // Dạng: id=FILE_ID (đã là direct link)
+  const match2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(match2){
+    return `https://drive.google.com/uc?export=view&id=${match2[1]}`;
+  }
+
+  // Không phải drive link → trả nguyên
+  return url;
+}
+
 /* ═════════ FIREBASE ═════════ */
 
 const firebaseApp = initializeApp(firebaseConfig);
@@ -47,7 +69,6 @@ const adminPass   = document.getElementById("admin-pass");
 const loginBtn    = document.getElementById("login-btn");
 const loginError  = document.getElementById("login-error");
 
-/* Kiểm tra session */
 if(sessionStorage.getItem("tcq_admin_auth") === "1"){
   showDashboard();
 }
@@ -121,27 +142,20 @@ function loadCurrentBanners(){
 
       const url = data[n] || DEFAULT_BANNERS[n];
 
-      /* Current section */
       const img    = document.getElementById(`current-img-${n}`);
       const urlDiv = document.getElementById(`current-url-${n}`);
 
       if(img){
         img.src = url;
         img.classList.remove("hidden");
-        img.onerror = () => {
-          img.classList.add("hidden");
-        };
+        img.onerror = () => img.classList.add("hidden");
       }
 
       if(urlDiv) urlDiv.textContent = url;
 
-      /* Điền sẵn URL vào input */
       const urlInput = document.getElementById(`url-${n}`);
-      if(urlInput && data[n]){
-        urlInput.value = data[n];
-      }
+      if(urlInput && data[n]) urlInput.value = data[n];
 
-      /* Hiện preview ngay */
       showPreview(n, url);
 
     });
@@ -149,52 +163,20 @@ function loadCurrentBanners(){
   });
 }
 
-/* ═════════ FILE INPUT → BASE64 ═════════ */
-
-[1, 2].forEach(n => {
-
-  const fileInput = document.getElementById(`file-${n}`);
-  const fileName  = document.getElementById(`file-name-${n}`);
-  const urlInput  = document.getElementById(`url-${n}`);
-
-  fileInput.addEventListener("change", ()=>{
-
-    const file = fileInput.files[0];
-
-    if(!file) return;
-
-    fileName.textContent = file.name;
-
-    /* Đọc file → data URL */
-    const reader = new FileReader();
-
-    reader.onload = e => {
-
-      /* Điền vào ô URL để dùng lại */
-      urlInput.value = e.target.result;
-
-      /* Auto preview */
-      showPreview(n, e.target.result);
-
-    };
-
-    reader.readAsDataURL(file);
-
-  });
-
-});
-
 /* ═════════ PREVIEW ═════════ */
 
 window.previewBanner = function(n){
 
   const urlInput = document.getElementById(`url-${n}`);
-  const url      = urlInput.value.trim();
+  const raw      = urlInput.value.trim();
 
-  if(!url){
-    showStatus("⚠️ Nhập URL hoặc chọn file trước", "error");
+  if(!raw){
+    showStatus("⚠️ Nhập URL Google Drive trước", "error");
     return;
   }
+
+  // Convert trước khi preview để thấy đúng ảnh
+  const url = convertDriveLink(raw);
 
   showPreview(n, url);
 };
@@ -216,7 +198,7 @@ function showPreview(n, url){
   img.onerror = () => {
     img.classList.add("hidden");
     placeholder.classList.remove("hidden");
-    showStatus("❌ Không tải được ảnh. Kiểm tra lại URL", "error");
+    showStatus("❌ Không tải được ảnh. Kiểm tra link và quyền chia sẻ", "error");
   };
 }
 
@@ -225,16 +207,15 @@ function showPreview(n, url){
 window.saveBanner = async function(n){
 
   const urlInput = document.getElementById(`url-${n}`);
-  const url      = urlInput.value.trim();
+  const url      = convertDriveLink(urlInput.value.trim());
 
   if(!url){
-    showStatus("⚠️ Chưa có URL hoặc ảnh để lưu", "error");
+    showStatus("⚠️ Chưa có URL để lưu", "error");
     return;
   }
 
   try{
 
-    /* Đọc data cũ để không ghi đè banner còn lại */
     const snap    = await get(bannersRef);
     const current = snap.val() || {};
 
@@ -242,6 +223,9 @@ window.saveBanner = async function(n){
       ...current,
       [n]: url
     });
+
+    // Cập nhật lại input với link đã convert
+    urlInput.value = url;
 
     showStatus(`✅ Đã lưu Banner ${n} thành công!`, "success");
 
@@ -269,19 +253,12 @@ window.resetBanner = async function(n){
     const snap    = await get(bannersRef);
     const current = snap.val() || {};
 
-    /* Xóa key này → sẽ dùng default */
     delete current[n];
 
     await set(bannersRef, current);
 
-    /* Reset input */
-    const urlInput  = document.getElementById(`url-${n}`);
-    const fileInput = document.getElementById(`file-${n}`);
-    const fileName  = document.getElementById(`file-name-${n}`);
-
-    if(urlInput)  urlInput.value   = "";
-    if(fileInput) fileInput.value  = "";
-    if(fileName)  fileName.textContent = "Chưa chọn file";
+    const urlInput = document.getElementById(`url-${n}`);
+    if(urlInput) urlInput.value = "";
 
     showStatus(`✅ Đã reset Banner ${n} về mặc định`, "success");
 
