@@ -598,10 +598,8 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
 
 /* Ẩn search khi ở banner/news */
 
-.site-header.news-mode{
-
-  justify-content:space-between;
-
+.site-header.news-mode {
+  justify-content: flex-start;
 }
 
 .site-header.news-mode #header-search,
