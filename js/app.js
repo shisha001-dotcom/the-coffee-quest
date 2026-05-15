@@ -69,10 +69,10 @@ function setActive(fn){
   });
 }
 
-function goNews(){      loadPage('news'); updateHeader('news'); closeMenu(); setActive('goNews'); }
-function goBoardgame(){ loadPage('boardgame'); updateHeader('boardgame'); closeMenu(); setActive('goBoardgame'); }
-function goContact(){   loadPage('contact');   updateHeader('contact');   closeMenu(); setActive('goContact'); }
-function goSettings(){  loadPage('settings');  updateHeader('settings');  closeMenu(); setActive('goSettings'); }
+function goNews(){      if(location.hash==='#news') routeFromHash(); else location.hash='news'; closeMenu(); }
+function goBoardgame(){ if(location.hash==='#boardgame') routeFromHash(); else location.hash='boardgame'; closeMenu(); }
+function goContact(){   if(location.hash==='#contact') routeFromHash(); else location.hash='contact'; closeMenu(); }
+function goSettings(){  if(location.hash==='#settings') routeFromHash(); else location.hash='settings'; closeMenu(); }
 
 /* ═══ BOARDGAME — List & Detail dùng classList.active (khớp CSS) ═══ */
 function showInApp(id){
@@ -269,9 +269,32 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeLb(); });
 const staticLb = document.getElementById('lightbox');
 if(staticLb) staticLb.addEventListener('click', e=>{ if(e.target.id==='lightbox') closeLb(); });
 
+/* ═══ HASH ROUTER ═══ */
+function routeFromHash(){
+  const hash = location.hash.replace('#','');
+  if(hash === 'boardgame' || hash.startsWith('game-')){
+    loadPage('boardgame').then(()=>{
+      updateHeader('boardgame'); setActive('goBoardgame');
+      if(hash.startsWith('game-')){
+        const idx = parseInt(hash.replace('game-',''));
+        if(!isNaN(idx)) setTimeout(()=>goDetail(idx), 80);
+      }
+    });
+  } else if(hash === 'contact'){
+    loadPage('contact'); updateHeader('contact'); setActive('goContact');
+  } else if(hash === 'settings'){
+    loadPage('settings'); updateHeader('settings'); setActive('goSettings');
+  } else {
+    location.hash = 'news';
+    loadPage('news'); updateHeader('news'); setActive('goNews');
+  }
+}
+
+window.addEventListener('hashchange', routeFromHash);
+
 /* ═══ BOOT ═══ */
 window.GAMES_READY.then(() => {
-  goNews();
+  routeFromHash();
 });
 
 /* ═══ DAILY PICK — Hôm nay chơi gì ═══ */
