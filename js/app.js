@@ -270,7 +270,9 @@ const staticLb = document.getElementById('lightbox');
 if(staticLb) staticLb.addEventListener('click', e=>{ if(e.target.id==='lightbox') closeLb(); });
 
 /* ═══ BOOT ═══ */
-goNews();
+window.GAMES_READY.then(() => {
+  goNews();
+});
 
 /* ═══ DAILY PICK — Hôm nay chơi gì ═══ */
 function renderDailyPick(){
