@@ -11,6 +11,5 @@ const BOARDGAME_FILES = [
   "no_thanks",
   "werewolf",
   "clue",
-  "dua_rua",
-  "avalon"
+  "dua_rua"
 ];
