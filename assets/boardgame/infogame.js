@@ -1,8 +1,20 @@
-Ly8gVGjDqm0gZ2FtZSBt4bubaTogY2jhu4kgY+G6p24gdGjDqm0gdMOqbiBm
-aWxlIHbDoG8gxJHDonkKY29uc3QgQk9BUkRHQU1FX0ZJTEVTID0gWwogICJ1
-bm8iLAogICJ0aWNrZXRfdG9fcmlkZSIsCiAgImNhdGFuIiwKICAicGFuZGVt
-aWMiLAogICJjaGVzcyIsCiAgIm1vbm9wb2x5IiwKICAiZGl4aXQiLAogICJj
-YXJjYXJzc29ubmUiLAogICJub190aGFua3MiLAogICJ3ZXJld29sZiIsCiAg
-ImNsdWUiLAogICJkdWFfcnVhIiwKICAiYXZhbG9uIiwKICAiZGVlcF9zZWEi
-LAogICJibG9rdXMiLAogICJzbGVlcGluZy1xdWVlbiIsCiAgImxvdmUtbGV0
-dGVyIgpdOw==
+// Thêm game mới: chỉ cần thêm tên file vào đây
+const BOARDGAME_FILES = [
+  "uno",
+  "ticket_to_ride",
+  "catan",
+  "pandemic",
+  "chess",
+  "monopoly",
+  "dixit",
+  "carcassonne",
+  "no_thanks",
+  "werewolf",
+  "clue",
+  "dua_rua",
+  "avalon",
+  "deep_sea",
+  "blokus",
+  "sleeping_queen",
+  "love_letter"
+];
