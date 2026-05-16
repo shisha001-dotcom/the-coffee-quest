@@ -12,5 +12,6 @@ const BOARDGAME_FILES = [
   "werewolf",
   "clue",
   "dua_rua",
-  "avalon"
+  "avalon",
+  "deep_sea"
 ];
