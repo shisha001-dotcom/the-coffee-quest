@@ -6,7 +6,7 @@ GAMES.push({
   time: "30 phút",
   difficulty: "Dễ",
   color: "#9b5de5",
-  heroBg: null,
+  heroBg: "https://m.media-amazon.com/images/S/aplus-media/vc/615f5134-2a53-44bd-af3e-c16497d470c7.__CR0,0,970,300_PT0_SX970_V1___.jpg",
   objective: "Đoán đúng bài của Người Kể Chuyện và đánh lừa người khác chọn bài của mình.",
   setup: [
     "Xáo bài, chia mỗi người 6 lá",
