@@ -6,7 +6,7 @@ players: "5-10",
 time: "30 phút",
 difficulty: "Trung bình",
 color: "#4a782b",
-heroBg: "https://cf.geekdo-images.com/gKj_e4s2w2Tj77H1-d68200_hero.png",
+heroBg: "https://m.media-amazon.com/images/S/aplus-media/sota/5d3505a3-c60c-4a63-96ec-4a116a71fabd._SR970,300_.jpg",
 objective: "Phe Tốt cần hoàn thành 3 nhiệm vụ thành công để chiến thắng, trong khi phe Ác cần thất bại 3 nhiệm vụ hoặc ám sát Merlin thành công để thắng.",
 setup: [
 "Chia vai trò: Mỗi người chơi bí mật nhận một thẻ vai trò (Tốt hoặc Ác). Các vai trò cụ thể như Merlin, Sát Thủ, Percival, Morgana, Mordred, Oberon được phân bổ tùy theo số lượng người chơi. Người chơi Ác biết nhau, Merlin biết người Ác (trừ Mordred), Percival biết Merlin và Morgana nhưng không biết ai là ai. Việc này được thực hiện trong im lặng hoặc thông qua hướng dẫn của một người điều hành để đảm bảo tính bí mật và thông tin được tiết lộ đúng cho từng phe.",
