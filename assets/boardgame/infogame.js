@@ -13,5 +13,6 @@ const BOARDGAME_FILES = [
   "clue",
   "dua_rua",
   "avalon",
-  "deep_sea"
+  "deep_sea",
+  "blokus"
 ];
