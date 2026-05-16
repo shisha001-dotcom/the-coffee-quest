@@ -1,12 +1,12 @@
 GAMES.push({
-  name: "CLUE",
+  name: "CLUE GO",
   category: "Suy luận",
   emoji: "🕵️",
   players: "3-6",
   time: "30-60 phút",
   difficulty: "Trung bình",
   color: "#6b3fa0",
-  heroBg: "https://images.ctfassets.net/r3qu44etwf9a/5k3r2O7k9lKzQ9A7nQv8mK/9fbc7f8a1b6a3c0f7d3a6a0f0d2f8f5e/clue-board-game-hero.jpg",
+  heroBg: "https://cf.geekdo-images.com/wNcbhLJGGjakYjjm1gV_kQ__opengraph/img/22FcQ8Hj6fdfVywtkFIvqi6hVpM=/0x0:1188x624/fit-in/1200x630/filters:strip_icc()/pic7563466.png",
   objective: "Tìm ra 3 bí mật của vụ án mạng: Ai là hung thủ, hung khí là gì và vụ án xảy ra ở căn phòng nào.",
   setup: [
     "Đặt 3 thẻ đáp án (Thủ phạm, Vũ khí, Phòng) vào phong bì bí mật.",
