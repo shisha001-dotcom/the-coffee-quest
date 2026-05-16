@@ -6,7 +6,7 @@ GAMES.push({
   time: "15-180 phút",
   difficulty: "Khó",
   color: "#1a1a1a",
-  heroBg: null,
+  heroBg: "https://media.istockphoto.com/id/1199513073/photo/placed-chess-pieces-on-a-dark-background-the-concept-of-confrontation-fair-and-unfair-play.jpg?s=612x612&w=0&k=20&c=fYjph2-pSXmW5Hjk1SSF_B2XURBvykdB_huzEK4PcuE=",
   objective: "Chiếu bí (Checkmate) Vua đối phương.",
   setup: [
     "Đặt bàn cờ sao cho góc PHẢI của mỗi người là ô SÁNG",
