@@ -1,12 +1,12 @@
 GAMES.push({
-name: "Deep_sea",
+name: "Deep Sea Adventure",
 category: "Đẩy may mắn, Thu thập bộ, Gia đình",
 emoji: "🐙",
 players: "2-6",
 time: "30 phút",
 difficulty: "Dễ",
 color: "#006699",
-heroBg: "https://cf.geekdo-images.com/g9ZfD0tF2c9lH7xW2v0Y6Q__card/img/h7_M2qN4Sg-J6xUjQyT9s7XmOyw=/fit-in/600x480/filters:strip_icc()/pic2329384.jpg",
+heroBg: "https://cf.geekdo-images.com/owyKXaa5SPB2HG9F_MueNQ__opengraph/img/uM4XaM8TUxsPyzwdkRnb7ui0cyA=/0x25:696x391/fit-in/1200x630/filters:strip_icc()/pic3169827.png",
 objective: "Thu thập nhiều kho báu giá trị nhất và trở về tàu ngầm an toàn trước khi hết oxy.",
 setup: [
 "Đặt tàu ngầm (thẻ bắt đầu) ở một đầu của khu vực chơi. Xếp 15 thẻ tàn tích (kho báu) theo thứ tự tăng dần giá trị (số tròn) từ tàu ngầm ra xa, mặt úp xuống để tạo thành con đường khám phá dưới biển sâu. Đây là các địa điểm mà thợ lặn sẽ ghé qua để tìm kiếm báu vật.",
