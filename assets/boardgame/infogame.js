@@ -14,5 +14,6 @@ const BOARDGAME_FILES = [
   "dua_rua",
   "avalon",
   "deep_sea",
-  "blokus"
+  "blokus",
+  "sleeping-queen"
 ];
