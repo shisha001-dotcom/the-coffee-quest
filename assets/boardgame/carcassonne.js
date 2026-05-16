@@ -6,7 +6,7 @@ GAMES.push({
   time: "30-45 phút",
   difficulty: "Dễ",
   color: "#e07b39",
-  heroBg: null,
+  heroBg: "https://m.media-amazon.com/images/S/aplus-media-library-service-media/f51cbc7b-0896-4c56-bc0e-fc658cd8836b.__CR0,0,970,300_PT0_SX970_V1___.jpg",
   objective: "Xây dựng bản đồ và ghi điểm từ thành phố, đường, tu viện và đồng cỏ.",
   setup: [
     "Đặt 1 ô gạch bắt đầu ở giữa bàn",
