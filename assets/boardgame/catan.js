@@ -6,7 +6,7 @@ GAMES.push({
   time: "60-120 phút",
   difficulty: "Trung bình",
   color: "#e9c46a",
-  heroBg: null,
+  heroBg: "https://cdn.shopify.com/s/files/1/0581/7171/9848/files/catan_banner.jpg?v=1631079804",
   objective: "Đạt 10 điểm chiến thắng đầu tiên bằng cách xây dựng khu định cư và thành phố.",
   setup: [
     "Xếp ngẫu nhiên 19 ô địa hình thành bản đồ lục giác",
