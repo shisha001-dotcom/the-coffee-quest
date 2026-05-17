@@ -6,7 +6,7 @@ players: "2-8",
 time: "15-20 phút",
 difficulty: "Dễ",
 color: "#B0C4DE",
-heroBg: "https://cf.geekdo-images.com/gK63_26r2t1a4oH2oG-j6g__imagepage/img/LwH_R4G7i3U146_e5B7pC4l8bE=/fit-in/900x600/filters:no_upscale():strip_icc()/pic1344686.jpg",
+heroBg: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgCTIIfeAjmd8WTAqNecGCGjAXzbBh7K8ViPJWW7KIXlaZb2Q1zXI0-POXBGw-McNwOGvRqT_Bn9IpjOmxAjhR5RAdB4521M8Mzcrn_J6qlpruACLazPC3whjr-hQ5eMFqxQ-bdJm5YPKU/w1200-h630-p-k-no-nu/tgbg-geistes-1.jpg",
 objective: "Nhanh tay nhanh mắt giành lấy các lá bài bằng cách chộp đúng vật phẩm hoặc gọi tên đúng, trở thành người thu thập được nhiều lá bài nhất khi trò chơi kết thúc.",
 setup: [
 "Đầu tiên, đặt tất cả 5 vật phẩm gỗ đặc biệt của trò chơi bao gồm: một con ma màu trắng, một cái chai màu xanh dương, một cái ghế màu đỏ, một cuốn sách màu xám và một con chuột màu xanh lá cây, ra giữa khu vực chơi. Đảm bảo rằng tất cả các vật phẩm này đều nằm trong tầm với của tất cả người chơi.",
