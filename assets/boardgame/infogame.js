@@ -19,5 +19,6 @@ const BOARDGAME_FILES = [
   "love_letter",
   "geistes-blitz",
   "marrakech",
-  "co-vay"
+  "co-vay",
+  "captain-flip"
 ];
