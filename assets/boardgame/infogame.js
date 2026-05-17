@@ -1,8 +1,5 @@
-Ly8gVGjDqm0gZ2FtZSBt4bubaTogY2jhu4‰gY+G6p24gdGjDqm0gdMOqbiBm
-aWxlIHbDoG8gxJHDonkKY29uc3QgQk9BUkRHQU1FX0ZJTEVTID0gWwogICJ1
-bm8iLAogICJ0aWNrZXRfdG9fcmlkZSIsCiAgImNhdGFuIiwKICAicGFuZGVt
-aWMiLAogICJjaGVzcyIsCiAgIm1vbm9wb2x5IiwKICAiZGl4aXQiLAogICJj
-YXJjYXNzb25uZSIsCiAgIm5vX3RoYW5rcyIsCiAgIndlcmV3b2xmIiwKICAi
-Y2x1ZSIsCiAgImR1YV9ydWEiLAogICJhdmFsb24iLAogICJkZWVwX3NlYSIs
-CiAgImJsb2t1cyIsCiAgInNsZWVwaW5nX3F1ZWVuIiwKICAibG92ZV9sZXR0
-ZXIiLAogICJtYXJyYWtlY2giCl07Cg==
+```json
+{
+  "code": "const games = [\n    { name: \"Cờ tướng\", image: \"cotuong.png\" },\n    { name: \"Cờ vua\", image: \"covua.png\" },\n    { name: \"Cờ caro\", image: \"cocaro.png\" },\n    { name: \"Cờ cá ngựa\", image: \"cocangua.png\" },\n    { name: \"Domino\", image: \"domino.png\" },\n    { name: \"Mạt chược\", image: \"matchuoc.png\" },\n    { name: \"Cờ vây\", image: \"covay.png\" }\n];\n\nfunction displayGames() {\n    const gameList = document.getElementById('game-list');\n    games.forEach(game => {\n        const gameItem = document.createElement('div');\n        gameItem.className = 'game-item';\n        gameItem.innerHTML = `\n            <img src=\"${game.image}\" alt=\"${game.name}\">\n            <h3>${game.name}</h3>\n        `;\n        gameList.appendChild(gameItem);\n    });\n}\n\ndisplayGames();"
+}
+```
