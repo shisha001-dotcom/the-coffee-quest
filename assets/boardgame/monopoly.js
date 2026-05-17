@@ -6,7 +6,7 @@ GAMES.push({
   time: "60-180 phút",
   difficulty: "Trung bình",
   color: "#2d6a4f",
-  heroBg: null,
+  heroBg: "https://upload.wikimedia.org/wikipedia/commons/7/78/Monopoly_board_on_white_bg.jpg",
   objective: "Khiến tất cả đối thủ phá sản bằng cách độc quyền bất động sản.",
   setup: [
     "Mỗi người nhận $1,500 từ ngân hàng",
