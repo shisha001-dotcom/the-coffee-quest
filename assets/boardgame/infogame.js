@@ -1,20 +1,8 @@
-// Thêm game mới: chỉ cần thêm tên file vào đây
-const BOARDGAME_FILES = [
-  "uno",
-  "ticket_to_ride",
-  "catan",
-  "pandemic",
-  "chess",
-  "monopoly",
-  "dixit",
-  "carcassonne",
-  "no_thanks",
-  "werewolf",
-  "clue",
-  "dua_rua",
-  "avalon",
-  "deep_sea",
-  "blokus",
-  "sleeping_queen",
-  "love_letter"
-];
+Ly8gVGjDqm0gZ2FtZSBt4bubaTogY2jhu4‰gY+G6p24gdGjDqm0gdMOqbiBm
+aWxlIHbDoG8gxJHDonkKY29uc3QgQk9BUkRHQU1FX0ZJTEVTID0gWwogICJ1
+bm8iLAogICJ0aWNrZXRfdG9fcmlkZSIsCiAgImNhdGFuIiwKICAicGFuZGVt
+aWMiLAogICJjaGVzcyIsCiAgIm1vbm9wb2x5IiwKICAiZGl4aXQiLAogICJj
+YXJjYXNzb25uZSIsCiAgIm5vX3RoYW5rcyIsCiAgIndlcmV3b2xmIiwKICAi
+Y2x1ZSIsCiAgImR1YV9ydWEiLAogICJhdmFsb24iLAogICJkZWVwX3NlYSIs
+CiAgImJsb2t1cyIsCiAgInNsZWVwaW5nX3F1ZWVuIiwKICAibG92ZV9sZXR0
+ZXIiLAogICJtYXJyYWtlY2giCl07Cg==
