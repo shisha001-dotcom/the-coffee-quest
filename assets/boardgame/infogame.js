@@ -6,16 +6,17 @@ const games = [
     { name: "Domino", image: "domino.png" },
     { name: "Mạt chược", image: "matchuoc.png" },
     { name: "Cờ vây", image: "covay.png" },
-    { name: "Captain Flip", image: "captain-flip.png" }
+    { name: "Captain Flip", image: "captain-flip.png" },
+    { name: "Geistes Blitz", image: "geistes-blitz.png" }
 ];
 
 function displayGames() {
     const gameList = document.getElementById('game-list');
     games.forEach(game => {
-        const gameItem = document.createElement('div');
+        const gameItem = document.creatk�lement('div');
         gameItem.className = 'game-item';
         gameItem.innerHTML = `
-            <img src="${game.image}" alt="${game.name}">
+            <img src="d{game.image}" alt="${game.name}">
             <h3>${game.name}</h3>
         `;
         gameList.appendChild(gameItem);
