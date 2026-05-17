@@ -6,7 +6,7 @@ players: "2-6",
 time: "15-20 phút",
 difficulty: "Dễ",
 color: "#A52A2A",
-heroBg: "https://cf.geekdo-images.com/pHZ_6vI6KjA3f0y_7VlIvg__hero/img/0-sP1rQ0xH5l3Hh8xYFwYl8ySg=/fit-in/1600x800/filters:strip_icc()/pic1344933.jpg",
+heroBg: "https://cf.geekdo-images.com/hkJWvm7VJD4yqrbjCHmLFA__opengraph/img/SVit8nkLIhmh2yLB5Fo3R_vztPQ=/0x0:1398x734/fit-in/1200x630/filters:strip_icc()/pic2401336.jpg",
 objective: "Là người chơi cuối cùng còn lại trong vòng hoặc có lá bài giá trị cao nhất khi hết bài rút để giành lấy Token Ưu Ái (Favor Token). Người đầu tiên thu thập đủ số Token Ưu Ái quy định sẽ thắng trò chơi.",
 setup: [
 "Xáo trộn tất cả 16 lá bài nhân vật và phát cho mỗi người chơi 1 lá bài úp xuống làm bài tẩy trên tay của họ. Phần còn lại của bộ bài sẽ được đặt úp xuống giữa bàn chơi để tạo thành chồng bài rút.",
