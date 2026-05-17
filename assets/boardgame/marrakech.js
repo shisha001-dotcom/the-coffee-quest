@@ -6,7 +6,7 @@ players: "2-4",
 time: "20-30 phút",
 difficulty: "Dễ",
 color: "#D2691E",
-heroBg: "https://cf.geekdo-images.com/gK1V5P3a57Q68b5kYvI8gA__imagepage/img/p8U4z2X01H4FzB6Z2C1G1I8C5Sg=/fit-in/900x600/filters:no_upscale():strip_icc()/pic650824.jpg",
+heroBg: "https://cf.geekdo-images.com/JFE29MODWOFXreEmM-xhyQ__itemrep/img/hO2TUcU1O4X4xt9q3eAvoNwFKDc=/fit-in/246x300/filters:strip_icc()/pic8594649.jpg",
 objective: "Mục tiêu là trở thành người buôn thảm giàu có nhất Marrakech vào cuối trò chơi bằng cách khéo léo đặt thảm và thu tiền từ các đối thủ đi qua khu vực của mình, đồng thời quản lý số tiền và số thảm một cách hiệu quả để tối đa hóa tài sản của mình.",
 setup: [
 "Đặt bảng trò chơi lên giữa bàn. Mỗi người chơi chọn một màu, lấy số lượng thảm cùng màu tương ứng với số người chơi (2 người chơi: 25 thảm/người; 3 người chơi: 15 thảm/người; 4 người chơi: 12 thảm/người) và 30 Dirham tiền vàng ban đầu. Người chơi lớn tuổi nhất đặt Assam (nhân vật buôn thảm) vào ô trung tâm của bảng, đối diện với bất kỳ hướng nào.",
