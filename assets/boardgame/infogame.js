@@ -1,5 +1,25 @@
-```json
-{
-  "code": "const games = [\n    { name: \"Cờ tướng\", image: \"cotuong.png\" },\n    { name: \"Cờ vua\", image: \"covua.png\" },\n    { name: \"Cờ caro\", image: \"cocaro.png\" },\n    { name: \"Cờ cá ngựa\", image: \"cocangua.png\" },\n    { name: \"Domino\", image: \"domino.png\" },\n    { name: \"Mạt chược\", image: \"matchuoc.png\" },\n    { name: \"Cờ vây\", image: \"covay.png\" }\n];\n\nfunction displayGames() {\n    const gameList = document.getElementById('game-list');\n    games.forEach(game => {\n        const gameItem = document.createElement('div');\n        gameItem.className = 'game-item';\n        gameItem.innerHTML = `\n            <img src=\"${game.image}\" alt=\"${game.name}\">\n            <h3>${game.name}</h3>\n        `;\n        gameList.appendChild(gameItem);\n    });\n}\n\ndisplayGames();"
+const games = [
+    { name: "Cờ tướng", image: "cotuong.png" },
+    { name: "Cờ vua", image: "covua.png" },
+    { name: "Cờ caro", image: "cocaro.png" },
+    { name: "Cờ cá ngựa", image: "cocangua.png" },
+    { name: "Domino", image: "domino.png" },
+    { name: "Mạt chược", image: "matchuoc.png" },
+    { name: "Cờ vây", image: "covay.png" },
+    { name: "Captain Flip", image: "captain-flip.png" }
+];
+
+function displayGames() {
+    const gameList = document.getElementById('game-list');
+    games.forEach(game => {
+        const gameItem = document.createElement('div');
+        gameItem.className = 'game-item';
+        gameItem.innerHTML = `
+            <img src="${game.image}" alt="${game.name}">
+            <h3>${game.name}</h3>
+        `;
+        gameList.appendChild(gameItem);
+    });
 }
-```
+
+displayGames();
