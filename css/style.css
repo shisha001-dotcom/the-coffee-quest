@@ -561,11 +561,11 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);min-h
 
   .news-banner{
 
-    height:30vh;
+    height:25vh;
 
-    min-height:200px;
+    min-height:150px;
 
-    max-height:400px;
+    max-height:300px;
   }
 
   .banner-safe{
