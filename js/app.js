@@ -100,7 +100,8 @@ function goDetail(idx){
 /* ═══ BOARDGAME LIST ═══ */
 function filteredGames(){
   return GAMES.filter(g=>{
-    const mc = activeFilter==='all' || g.category===activeFilter;
+    const cats = Array.isArray(g.categories) ? g.categories : [g.category];
+    const mc = activeFilter === 'all' || cats.includes(activeFilter);
     const q  = searchQ.toLowerCase();
     return mc && (!q || g.name.toLowerCase().includes(q) || (g.category||'').toLowerCase().includes(q));
   });
@@ -125,7 +126,7 @@ function renderGrid(){
           <div>
             <div class="card-title">${esc(g.name)}</div>
             <div class="card-meta">
-              <span class="tag">${esc(g.category)}</span>
+              ${cats.map(c => `<span class="tag">${esc(c)}</span>`).join('')}
               <span class="tag">👥 ${esc(g.players)}</span>
               <span class="tag">⏱ ${esc(g.time)}</span>
               <span class="tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>
@@ -155,7 +156,7 @@ function renderDetail(idx){
   if(bg) bg.style.backgroundImage = g.heroBg ? `url('${g.heroBg}')` : `linear-gradient(135deg,${g.color}cc,${g.color}44)`;
 
   setH('d-tags',
-    `<span class="hero-tag hl">${esc(g.category)}</span>`
+    `${cats.map(c => `<span class="hero-tag hl">${esc(c)}</span>`).join('')}`
     +`<span class="hero-tag">👥 ${esc(g.players)} người</span>`
     +`<span class="hero-tag">⏱ ${esc(g.time)}</span>`
     +`<span class="hero-tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>`);
@@ -195,7 +196,12 @@ function renderDetail(idx){
     }
   }
 
-  const related = GAMES.filter((_,i)=> i!==idx && GAMES[i].category===g.category).slice(0,4);
+  const cats = Array.isArray(g.categories) ? g.categories : [g.category];
+const related = GAMES.filter((_,i) => {
+  if(i === idx) return false;
+  const otherCats = Array.isArray(GAMES[i].categories) ? GAMES[i].categories : [GAMES[i].category];
+  return cats.some(c => otherCats.includes(c));
+}).slice(0,4);
   const relEl = document.getElementById('d-related');
   if(relEl){
     relEl.innerHTML = related.length
