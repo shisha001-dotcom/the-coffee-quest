@@ -1,6 +1,6 @@
 GAMES.push({
 name: "Marrakech",
-category: "Đặt gạch, Đấu giá, Kinh tế",
+category: "🏗️ Xây dựng",
 emoji: "🕌",
 players: "2-4",
 time: "20-30 phút",
