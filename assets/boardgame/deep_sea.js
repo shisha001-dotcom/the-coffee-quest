@@ -1,6 +1,6 @@
 GAMES.push({
 name: "Deep Sea Adventure",
-category: "Đẩy may mắn, Thu thập bộ, Gia đình",
+category: "🎉 Party",
 emoji: "🐙",
 players: "2-6",
 time: "30 phút",
