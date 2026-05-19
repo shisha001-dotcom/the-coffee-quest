@@ -1,6 +1,6 @@
 GAMES.push({
 name: "Cờ Vây",
-category: "Chiến lược, Trừu tượng",
+category: "♟️ Chiến lược",
 emoji: "☯️",
 players: "2",
 time: "30-180 phút (tùy cấp độ)",
