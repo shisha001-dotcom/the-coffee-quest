@@ -1,6 +1,6 @@
 GAMES.push({
 name: "Blokus",
-category: "Trừu tượng, Chiến thuật, Xếp hình",
+category: "♟️ Chiến lược",
 emoji: "🧩",
 players: "2-4",
 time: "20-30 phút",
