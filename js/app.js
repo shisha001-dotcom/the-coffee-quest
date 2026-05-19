@@ -109,6 +109,9 @@ function filteredGames(){
 
 function renderGrid(){
   const games   = filteredGames();
+  const cats = Array.isArray(g.categories)
+  ? g.categories
+  : [g.category];
   const countEl = document.getElementById('countNum');
   if(countEl) countEl.textContent = games.length;
   const grid  = document.getElementById('grid');
@@ -117,8 +120,14 @@ function renderGrid(){
   if(!games.length){ grid.innerHTML=''; if(empty) empty.style.display='block'; return; }
   if(empty) empty.style.display='none';
   grid.innerHTML = games.map((g,i)=>{
-    const ri = GAMES.indexOf(g);
-    return `<div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i*0.04}s">
+
+  const ri = GAMES.indexOf(g);
+
+  const cats = Array.isArray(g.categories)
+    ? g.categories
+    : [g.category];
+
+  return `<div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i*0.04}s">
       <div class="card-stripe" style="background:${g.color}"></div>
       <div class="card-body">
         <div class="card-top">
