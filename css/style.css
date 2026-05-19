@@ -103,8 +103,27 @@ body {
 }
 
 /* Ẩn/hiện page theo route */
-.page { display: none; }
-.page.active { display: block; }
+.page{
+  display:none;
+  opacity:0;
+  transform:translateY(10px);
+}
+
+.page.active{
+  display:block;
+  animation:pageIn .28s ease both;
+}
+
+@keyframes pageIn{
+  from{
+    opacity:0;
+    transform:translateY(14px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
 
 
 /* ══════════════════════════════════════════════════════════════════
@@ -217,17 +236,30 @@ body {
 #side-menu {
   position: fixed;
   top: 0;
-  left: calc(-1 * var(--menu-w));
+  left: 0;
+
   width: var(--menu-w);
   height: 100vh;
+
   z-index: 500;
+
   background: var(--menu-bg);
+
   overflow-y: auto;
-  /* ► Thay đổi .4s để menu trượt nhanh/chậm hơn */
-  transition: left .35s cubic-bezier(.4,0,.2,1);
+
+  transform: translateX(-100%);
+  transition: transform .32s cubic-bezier(.4,0,.2,1);
+
+  will-change: transform;
+
   box-shadow: 4px 0 32px rgba(0,0,0,.4);
+
+  contain: layout paint;
 }
-#side-menu.open { left: 0; }
+
+#side-menu.open {
+  transform: translateX(0);
+}
 
 /* Overlay tối phía sau menu */
 #menu-overlay {
@@ -287,14 +319,37 @@ body {
   align-items: center;
   gap: 10px;
   padding: 14px 18px;
+
   color: #aaa;
   font-weight: 700;
   font-size: .92rem;
+
   cursor: pointer;
+
   border-radius: var(--r-md);
   margin: 3px 10px;
-  transition: background var(--t), color var(--t), transform var(--t);
+
+  opacity: .82;
+  transform: translateX(-10px);
+
+  transition:
+    opacity .22s ease,
+    transform .22s ease,
+    background .22s ease,
+    color .22s ease;
 }
+
+#side-menu.open .menu-item{
+  opacity:1;
+  transform:translateX(0);
+}
+
+#side-menu.open .menu-item:nth-child(1){transition-delay:.03s;}
+#side-menu.open .menu-item:nth-child(2){transition-delay:.06s;}
+#side-menu.open .menu-item:nth-child(3){transition-delay:.09s;}
+#side-menu.open .menu-item:nth-child(4){transition-delay:.12s;}
+#side-menu.open .menu-item:nth-child(5){transition-delay:.15s;}
+
 .menu-item:hover {
   background: #1f1f1f;
   color: #fff;
@@ -653,9 +708,14 @@ body {
   cursor: pointer;
   transition: transform var(--t), box-shadow var(--t), border-color var(--t);
   animation: fadeUp .38s ease both;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
 }
 .game-card:hover {
-  transform: translateY(-5px);
+  transform:
+  translate3d(0,-4px,0)
+  scale(1.012);
   box-shadow: var(--shadow-md);
   border-color: #c0b8ac;
 }
@@ -1474,4 +1534,27 @@ body {
   /* Username modal */
   .username-card { padding: 34px 22px; border-radius: 20px; }
   .username-card h2 { font-size: 1.7rem; }
+}
+
+*{
+  -webkit-tap-highlight-color: transparent;
+}
+
+body{
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  overflow-x:hidden;
+}
+
+img{
+  user-select:none;
+  -webkit-user-drag:none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *{
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }
