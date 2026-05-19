@@ -1,6 +1,6 @@
 GAMES.push({
   name: "Dixit",
-  category: "Party",
+  category: "🎉 Party",
   emoji: "🎨",
   players: "3-6",
   time: "30 phút",
