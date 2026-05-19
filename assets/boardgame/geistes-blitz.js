@@ -1,6 +1,6 @@
 GAMES.push({
 name: "Geistes Blitz",
-category: "Tốc độ, Phản xạ, Quan sát",
+category: "🎉 Party",
 emoji: "👻",
 players: "2-8",
 time: "15-20 phút",
