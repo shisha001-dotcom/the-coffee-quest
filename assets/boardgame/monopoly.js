@@ -1,6 +1,8 @@
 GAMES.push({
   name: "Monopoly",
-  category: "Classic",
+  category: "🎲 Dice Game",
+  category: "♟️ Chiến lược",
+  category: "🎉 Party",
   emoji: "🏦",
   players: "2-8",
   time: "60-180 phút",
