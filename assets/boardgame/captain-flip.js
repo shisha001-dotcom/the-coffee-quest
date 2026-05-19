@@ -1,6 +1,6 @@
 GAMES.push({
 name: "Captain Flip",
-category: "Gia đình, Cướp biển, May rủi, Thu thập bộ",
+category: "♟️ Chiến lược",
 emoji: "🏴‍☠️",
 players: "2-5",
 time: "20-30 phút",
