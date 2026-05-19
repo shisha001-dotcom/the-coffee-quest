@@ -1,6 +1,6 @@
 GAMES.push({
 name: "Love Letter",
-category: "Deduction, Card Game",
+category: "🕵️ Suy luận",
 emoji: "❤️",
 players: "2-6",
 time: "15-20 phút",
