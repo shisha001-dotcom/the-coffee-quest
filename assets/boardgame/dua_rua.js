@@ -1,6 +1,6 @@
 GAMES.push({
   name: "ĐUA RÙA",
-  category: "Gia đình",
+  category: "🎉 Party",
   emoji: "🐢",
   players: "2-5",
   time: "15-25 phút",
