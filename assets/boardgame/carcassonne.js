@@ -1,6 +1,6 @@
 GAMES.push({
   name: "Carcassonne",
-  category: "Family",
+  category: "👨‍👩‍👧 Gia đình",
   emoji: "🏰",
   players: "2-5",
   time: "30-45 phút",
