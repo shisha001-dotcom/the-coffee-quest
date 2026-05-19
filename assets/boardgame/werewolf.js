@@ -1,6 +1,6 @@
 GAMES.push({
   name: "WEREWOLF",
-  category: "Party Game",
+  category: "🎭 Ẩn vai trò",
   emoji: "🐺",
   players: "6-20",
   time: "20-45 phút",
