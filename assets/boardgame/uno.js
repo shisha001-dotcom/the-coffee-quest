@@ -1,6 +1,6 @@
 GAMES.push({
   name: "Uno",
-  category: "Party",
+  category: "🎉 Party",
   emoji: "🃏",
   players: "2-10",
   time: "15 phút",
