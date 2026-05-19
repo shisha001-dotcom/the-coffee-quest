@@ -1,6 +1,8 @@
 GAMES.push({
   name: "Catan",
-  category: "Strategy",
+  category: "♟️ Chiến lược",
+  category: "💰 Giao thương",
+  category: "🏗️ Xây dựng",
   emoji: "🏝️",
   players: "3-4",
   time: "60-120 phút",
