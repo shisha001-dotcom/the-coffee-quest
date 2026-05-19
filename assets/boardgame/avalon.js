@@ -1,6 +1,6 @@
 GAMES.push({
 name: "The Resistance: Avalon",
-category: "🎭 Ẩn vai trò",
+category: ["🎉 Party", "🎭 Ẩn vai trò", "🕵️ Suy luận"],
 emoji: "🛡️",
 players: "5-10",
 time: "30 phút",
