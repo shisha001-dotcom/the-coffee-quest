@@ -1,6 +1,6 @@
 GAMES.push({
 name: "Sleeping Queens",
-category: "Trẻ em, Gia đình, Đặt bài",
+category: "🎉 Party",
 emoji: "👑",
 players: "2-5",
 time: "15-20 phút",
