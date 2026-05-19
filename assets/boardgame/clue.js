@@ -1,6 +1,6 @@
 GAMES.push({
   name: "CLUE GO",
-  category: "Suy luận",
+  category: "🕵️ Suy luận",
   emoji: "🕵️",
   players: "3-6",
   time: "30-60 phút",
