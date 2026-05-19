@@ -1,6 +1,6 @@
 GAMES.push({
   name: "Cờ Vua",
-  category: "Classic",
+  category: "♟️ Chiến lược",
   emoji: "♟️",
   players: "2",
   time: "15-180 phút",
