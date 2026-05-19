@@ -1,6 +1,6 @@
 GAMES.push({
   name: "NO THANKS!",
-  category: "abc",
+  category: "♟️ Chiến lược",
   emoji: "🏰",
   players: "2-5",
   time: "10-15 phút",
