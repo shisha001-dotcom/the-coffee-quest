@@ -1,6 +1,6 @@
 GAMES.push({
   name: "Ticket to Ride",
-  category: "Family",
+  category: "🏗️ Xây dựng",
   emoji: "🚂",
   players: "2-5",
   time: "45-75 phút",
