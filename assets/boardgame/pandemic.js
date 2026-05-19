@@ -1,6 +1,6 @@
 GAMES.push({
   name: "Pandemic",
-  category: "Cooperative",
+  category: "🤝 Hợp tác",
   emoji: "🦠",
   players: "2-4",
   time: "45-60 phút",
