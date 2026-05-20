@@ -621,6 +621,21 @@ body {
   z-index: 100;
 }
 
+@media (max-width: 660px) {
+  .filter-bar {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .filter-bar::-webkit-scrollbar { display: none; }
+  .filter-label { flex-shrink: 0; }
+  .chip { flex-shrink: 0; scroll-snap-align: start; }
+}
+
 .filter-label {
   font-size: .72rem;
   font-weight: 800;
@@ -1513,8 +1528,6 @@ body {
     gap: 12px;
   }
   .search-wrap { max-width: 100%; flex: 1; }
-
-  .filter-bar { padding: 12px 14px; }
 
   .list-main { padding: 18px 12px 60px; }
   #grid { grid-template-columns: 1fr; }
