@@ -382,7 +382,7 @@ body {
   position: relative;
   width: 100%;
   /* ► Thay 100vh thành giá trị khác nếu muốn banner nhỏ hơn, vd: 70vh */
-  height: 100vh;
+  height: 80vh;
   overflow: hidden;
   background: #111;
   display: block;
@@ -1488,7 +1488,7 @@ body {
 @media (max-width: 768px) {
   /* Banner mobile nhỏ hơn */
   .banner-slide {
-    height: 67vw;   /* ► Thay 67vw thành giá trị khác để thay chiều cao banner mobile */
+    height: 45vw;   /* ► Thay 67vw thành giá trị khác để thay chiều cao banner mobile */
     min-height: 240px;
     max-height: 520px;
   }
