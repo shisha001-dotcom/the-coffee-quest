@@ -1503,9 +1503,9 @@ body {
 @media (max-width: 768px) {
   /* Banner mobile nhỏ hơn */
   .banner-slide {
-    height: 45vw;   /* ► Thay 67vw thành giá trị khác để thay chiều cao banner mobile */
+    height: 35vw;   /* ► Thay 67vw thành giá trị khác để thay chiều cao banner mobile */
     min-height: 240px;
-    max-height: 520px;
+    max-height: 380px;
   }
   .banner-slide .banner-safe {
     align-items: flex-end;
