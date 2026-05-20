@@ -1,123 +1,39 @@
-const GAMES = [];
-const GAME_INDEX_MAP = new Map();
+// js/data.js
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+const SUPABASE_URL = 'https://dklfwlgpomnrmxmbjpat.supabase.co'   // thay bằng URL của bạn
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrbGZ3bGdwb21ucm14bWJqcGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDQ5MDAsImV4cCI6MjA5NDA4MDkwMH0.sy8zDIdh9RBhl9TOqg6PnfTehqtV7VcFQSaSPoc4MoI'          // thay bằng anon key
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+const GAMES = []
 
 window.GAMES_READY = (async () => {
+  const { data, error } = await supabase
+    .from('games')
+    .select('*')
+    .order('sort_order')
 
-  /* =========================
-     LOAD INDEX
-  ========================= */
+  if (error) { console.error('Supabase error:', error); return }
 
-  const indexRes = await fetch("assets/boardgame/infogame.js");
-
-  if (!indexRes.ok) {
-    throw new Error(`Không load được infogame.js`);
-  }
-
-  const indexText = await indexRes.text();
-
-  const match = indexText.match(/\[([^\]]+)\]/s);
-
-  const files = match
-    ? match[1]
-        .match(/["']([^"']+)["']/g)
-        ?.map(s => s.replace(/["']/g, ""))
-    : [];
-
-  if (!files?.length) {
-    console.warn("⚠ Không tìm thấy file game");
-    return;
-  }
-
-  /* =========================
-     PREBUILD ORDER MAP
-  ========================= */
-
-  const orderMap = new Map();
-
-  files.forEach((file, index) => {
-    orderMap.set(norm(file), index);
-  });
-
-  /* =========================
-     LOAD GAME FILES
-  ========================= */
-
-  const loadPromises = files.map(async (name) => {
-
-    try {
-
-      const res = await fetch(`assets/boardgame/${name}.js`);
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const code = await res.text();
-
-      new Function("GAMES", code)(GAMES);
-
-    } catch (err) {
-
-      console.warn(`❌ Lỗi load "${name}"`, err);
-
-    }
-
-  });
-
-  await Promise.all(loadPromises);
-
-  /* =========================
-     CACHE SLUG
-  ========================= */
-
-  GAMES.forEach(game => {
-
-    game._slug = norm(toSlug(game.name));
-
-  });
-
-  /* =========================
-     SORT FAST
-  ========================= */
-
-  GAMES.sort((a, b) => {
-
-    return (
-      (orderMap.get(a._slug) ?? 999999)
-      -
-      (orderMap.get(b._slug) ?? 999999)
-    );
-
-  });
-
-  /* =========================
-     BUILD INDEX MAP
-  ========================= */
-
-  GAMES.forEach((g, i) => {
-    GAME_INDEX_MAP.set(g, i);
-  });
-
-  console.log(`✅ Đã load ${GAMES.length} games`);
-
-})();
-
-/* =========================
-   HELPERS
-========================= */
-
-function norm(s = "") {
-  return s.replace(/_/g, "-");
-}
-
-function toSlug(str = "") {
-
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-}
+  // Map tên cột snake_case → camelCase cho app.js dùng
+  data.forEach(g => {
+    GAMES.push({
+      name:       g.name,
+      emoji:      g.emoji,
+      color:      g.color,
+      categories: g.categories || [],
+      players:    g.players,
+      time:       g.time,
+      difficulty: g.difficulty,
+      objective:  g.objective,
+      setup:      g.setup      || [],
+      turn:       g.turn       || [],
+      win:        g.win,
+      tips:       g.tips       || [],
+      youtubeUrl: g.youtube_url,
+      heroBg:     g.hero_bg,
+      images:     g.images     || [],
+    })
+  })
+})()
