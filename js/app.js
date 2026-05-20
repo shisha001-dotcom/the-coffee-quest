@@ -2,7 +2,7 @@
 //  app.js — The Coffee Quest
 // ═══════════════════════════════════════════════════════════════
 
-let activeFilter = 'all', searchQ = '', currentIdx = -1;
+let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 function diffClass(d){ return d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium' }
@@ -101,7 +101,7 @@ function goDetail(idx){
 function filteredGames(){
   return GAMES.filter(g=>{
     const cats = Array.isArray(g.categories) ? g.categories : [g.category];
-    const mc = activeFilter === 'all' || cats.includes(activeFilter);
+    const mc = activeFilter === '🧩 Tất cả' || cats.includes(activeFilter);
     const q  = searchQ.toLowerCase();
     return mc && (!q || g.name.toLowerCase().includes(q) || (g.category||'').toLowerCase().includes(q));
   });
@@ -109,9 +109,6 @@ function filteredGames(){
 
 function renderGrid(){
   const games   = filteredGames();
-  const cats = Array.isArray(g.categories)
-  ? g.categories
-  : [g.category];
   const countEl = document.getElementById('countNum');
   if(countEl) countEl.textContent = games.length;
   const grid  = document.getElementById('grid');
@@ -154,6 +151,8 @@ function renderDetail(idx){
   const g = GAMES[idx];
   const set  = (id,val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
   const setH = (id,val) => { const el=document.getElementById(id); if(el) el.innerHTML=val; };
+
+  const cats = Array.isArray(g.categories) ? g.categories : [g.category];
 
   set('d-crumb', g.name);
   set('d-emoji', g.emoji);
@@ -205,8 +204,7 @@ function renderDetail(idx){
     }
   }
 
-  const cats = Array.isArray(g.categories) ? g.categories : [g.category];
-const related = GAMES.filter((_,i) => {
+  const related = GAMES.filter((_,i) => {
   if(i === idx) return false;
   const otherCats = Array.isArray(GAMES[i].categories) ? GAMES[i].categories : [GAMES[i].category];
   return cats.some(c => otherCats.includes(c));
