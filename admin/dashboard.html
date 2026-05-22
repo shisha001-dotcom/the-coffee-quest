@@ -1,148 +1,74 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boardgame Dashboard</title>
 
-  <title>Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="dashboard.css">
+  <link rel="stylesheet" href="./dashboard.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 <body>
 
-<div class="wrap">
+<div class="dashboard-layout">
 
-  <h1>🎲 Admin Upload Boardgame</h1>
+  <!-- SIDEBAR -->
 
-  <div class="field">
-    <label>Tên game</label>
-    <input id="name">
-  </div>
+  <aside class="sidebar">
 
-  <div class="field">
-    <label>Emoji</label>
-    <input id="emoji" placeholder="🎲">
-  </div>
+    <div class="sidebar-logo">
+      🎲 BG Admin
+    </div>
 
-  <div class="field">
-    <label>Màu chủ đạo</label>
-    <input id="color" placeholder="#6c5ce7">
-  </div>
+    <div class="sidebar-menu">
 
-  <div class="field">
-    <label>Categories (JSON Array)</label>
-    <textarea id="categories"></textarea>
-  </div>
+      <div class="menu-group">
 
-  <div class="field">
-    <label>Số người chơi</label>
-    <input id="players">
-  </div>
+        <div class="menu-title">
+          HỆ THỐNG
+        </div>
 
-  <div class="field">
-    <label>Thời gian</label>
-    <input id="time">
-  </div>
+        <a class="menu-item active">
+          <span>📊</span>
+          Dashboard
+        </a>
 
-  <div class="field">
-    <label>Độ khó</label>
-    <input id="difficulty">
-  </div>
+        <a class="menu-item">
+          <span>🎲</span>
+          Boardgames
+        </a>
 
-  <div class="field">
-    <label>Mục tiêu game</label>
-    <textarea id="objective"></textarea>
-  </div>
+        <a class="menu-item">
+          <span>🧩</span>
+          Categories
+        </a>
 
-  <div class="field">
-    <label>Setup (JSON Array)</label>
-    <textarea id="setup"></textarea>
-  </div>
+        <a class="menu-item">
+          <span>🖼️</span>
+          Images
+        </a>
 
-  <div class="field">
-    <label>Turn (JSON Array)</label>
-    <textarea id="turn"></textarea>
-  </div>
+      </div>
 
-  <div class="field">
-    <label>Điều kiện thắng</label>
-    <textarea id="win"></textarea>
-  </div>
+      <div class="menu-group">
 
-  <div class="field">
-    <label>Tips (JSON Array)</label>
-    <textarea id="tips"></textarea>
-  </div>
+        <div class="menu-title">
+          QUẢN TRỊ
+        </div>
 
-  <div class="field">
-    <label>YouTube URL</label>
-    <input id="youtube_url">
-  </div>
+        <a class="menu-item">
+          <span>⚙️</span>
+          Settings
+        </a>
 
-  <div class="field">
-    <label>Hero Background URL</label>
-    <input id="hero_bg">
-  </div>
+      </div>
 
-  <div class="field">
-    <label>Images (JSON Array)</label>
-    <textarea id="images"></textarea>
-  </div>
+    </div>
 
-  <button id="uploadBtn">
-    🚀 Upload Game
-  </button>
-
-  <div id="status"></div>
-
-  <div class="guide">
-
-    <h2>📘 Hướng dẫn format JSON</h2>
-
-    <h3>Categories</h3>
-
-<pre>[
-  "Party",
-  "Chiến thuật"
-]</pre>
-
-    <h3>Setup</h3>
-
-<pre>[
-  "Mỗi người nhận 1 role",
-  "Xáo bài",
-  "Chia token"
-]</pre>
-
-    <h3>Turn</h3>
-
-<pre>[
-  "Người chơi thực hiện hành động",
-  "Người khác phản ứng",
-  "Kết thúc lượt"
-]</pre>
-
-    <h3>Tips</h3>
-
-<pre>[
-  "Quan sát biểu cảm",
-  "Đừng nói quá nhiều"
-]</pre>
-
-    <h3>Images</h3>
-
-<pre>[
-  "https://abc.com/image1.jpg",
-  "https://abc.com/image2.jpg"
-]</pre>
-
-  </div>
-
-</div>
-
-<script type="module" src="dashboard.js"></script>
-
-</body>
+  </aside>
 </html>
