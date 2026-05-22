@@ -122,10 +122,26 @@
         <label>Tên game *</label>
         <input type="text" id="nameInput" placeholder="Catan, Cluedo...">
       </div>
+
+      <!-- EMOJI PICKER FIELD -->
       <div class="form-group">
         <label>Emoji</label>
-        <input type="text" id="emojiInput" placeholder="🎲">
+        <div class="emoji-field">
+          <div class="emoji-preview" id="emojiPreview">🎲</div>
+          <input type="text" id="emojiInput" placeholder="Chọn hoặc nhập..." autocomplete="off" readonly>
+          <button type="button" class="emoji-toggle-btn" id="emojiToggleBtn" title="Chọn emoji">▼</button>
+        </div>
+
+        <!-- EMOJI PICKER DROPDOWN -->
+        <div class="emoji-picker hidden" id="emojiPicker">
+          <div class="emoji-picker-search">
+            <input type="text" id="emojiSearch" placeholder="🔍 Tìm emoji...">
+          </div>
+          <div class="emoji-categories" id="emojiCategories"></div>
+          <div class="emoji-grid" id="emojiGrid"></div>
+        </div>
       </div>
+
       <div class="form-group">
         <label>Số người chơi</label>
         <input type="text" id="playersInput" placeholder="2-4 người">
