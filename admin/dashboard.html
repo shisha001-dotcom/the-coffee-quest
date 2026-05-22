@@ -10,65 +10,160 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="./dashboard.css">
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
 <div class="dashboard-layout">
 
   <!-- SIDEBAR -->
-
   <aside class="sidebar">
-
-    <div class="sidebar-logo">
-      🎲 BG Admin
-    </div>
-
+    <div class="sidebar-logo">🎲 BG Admin</div>
     <div class="sidebar-menu">
-
       <div class="menu-group">
-
-        <div class="menu-title">
-          HỆ THỐNG
-        </div>
-
-        <a class="menu-item active">
-          <span>📊</span>
-          Dashboard
-        </a>
-
-        <a class="menu-item">
-          <span>🎲</span>
-          Boardgames
-        </a>
-
-        <a class="menu-item">
-          <span>🧩</span>
-          Categories
-        </a>
-
-        <a class="menu-item">
-          <span>🖼️</span>
-          Images
-        </a>
-
+        <div class="menu-title">HỆ THỐNG</div>
+        <a class="menu-item active"><span>📊</span> Dashboard</a>
+        <a class="menu-item"><span>🎲</span> Boardgames</a>
+        <a class="menu-item"><span>🧩</span> Categories</a>
+        <a class="menu-item"><span>🖼️</span> Images</a>
       </div>
-
       <div class="menu-group">
-
-        <div class="menu-title">
-          QUẢN TRỊ
-        </div>
-
-        <a class="menu-item">
-          <span>⚙️</span>
-          Settings
-        </a>
-
+        <div class="menu-title">QUẢN TRỊ</div>
+        <a class="menu-item"><span>⚙️</span> Settings</a>
       </div>
+    </div>
+  </aside>
 
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- HEADER -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Quản lý danh sách boardgame</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh</button>
+        <button class="btn btn-primary" id="addGameBtn">+ Thêm Game</button>
+      </div>
     </div>
 
-  </aside>
+    <!-- STATS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">🎲</div>
+        <div class="stat-info">
+          <div class="stat-value" id="totalGames">—</div>
+          <div class="stat-label">Tổng số game</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🧩</div>
+        <div class="stat-info">
+          <div class="stat-value" id="totalCategories">—</div>
+          <div class="stat-label">Thể loại</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">▶️</div>
+        <div class="stat-info">
+          <div class="stat-value" id="youtubeCount">—</div>
+          <div class="stat-label">Có YouTube</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🖼️</div>
+        <div class="stat-info">
+          <div class="stat-value" id="imageCount">—</div>
+          <div class="stat-label">Có hình ảnh</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEARCH BAR -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="🔍 Tìm boardgame..." class="search-input">
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-card">
+      <div id="loadingMsg" class="loading-msg">⏳ Đang tải dữ liệu...</div>
+      <div id="errorMsg" class="error-msg hidden"></div>
+      <table class="game-table" id="gameTable">
+        <thead>
+          <tr>
+            <th>Game</th>
+            <th>Người chơi</th>
+            <th>Thời gian</th>
+            <th>Độ khó</th>
+            <th>Thể loại</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="gameTableBody"></tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="gameModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="modalTitle">Thêm Boardgame</h2>
+      <button class="close-btn" id="closeModalBtn">✕</button>
+    </div>
+
+    <input type="hidden" id="gameId">
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tên game *</label>
+        <input type="text" id="nameInput" placeholder="Catan, Cluedo...">
+      </div>
+      <div class="form-group">
+        <label>Emoji</label>
+        <input type="text" id="emojiInput" placeholder="🎲">
+      </div>
+      <div class="form-group">
+        <label>Số người chơi</label>
+        <input type="text" id="playersInput" placeholder="2-4 người">
+      </div>
+      <div class="form-group">
+        <label>Thời gian</label>
+        <input type="text" id="timeInput" placeholder="30-60 phút">
+      </div>
+      <div class="form-group">
+        <label>Độ khó</label>
+        <input type="text" id="difficultyInput" placeholder="Easy / Medium / Hard">
+      </div>
+      <div class="form-group">
+        <label>Thể loại</label>
+        <input type="text" id="categoryInput" placeholder="Strategy, Party...">
+      </div>
+      <div class="form-group full-width">
+        <label>Mục tiêu</label>
+        <textarea id="objectiveInput" placeholder="Mô tả mục tiêu game..."></textarea>
+      </div>
+      <div class="form-group full-width">
+        <label>Hero Background URL</label>
+        <input type="text" id="heroInput" placeholder="https://...">
+      </div>
+      <div class="form-group full-width">
+        <label>YouTube URL</label>
+        <input type="text" id="youtubeInput" placeholder="https://youtube.com/...">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="deleteBtn" style="display:none;">🗑️ Xóa</button>
+      <button class="btn btn-primary" id="saveBtn">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./dashboard.js"></script>
+</body>
 </html>
