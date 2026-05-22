@@ -333,7 +333,8 @@ modal.addEventListener("click", e => {
    ══════════════════════════════════════════════ */
 
 async function saveGame() {
-  const id = document.getElementById("gameId").value;
+  const rawId = document.getElementById("gameId").value;
+  const id    = rawId ? Number(rawId) : null;
 
   const payload = {
     name:        document.getElementById("nameInput").value.trim(),
@@ -352,24 +353,59 @@ async function saveGame() {
     return;
   }
 
-  saveBtn.disabled = true;
+  saveBtn.disabled    = true;
   saveBtn.textContent = "Đang lưu...";
+
+  console.log("💾 saveGame →", id ? `UPDATE id=${id}` : "INSERT", payload);
 
   try {
     if (id) {
-      const { error } = await client.from("games").update(payload).eq("id", id);
+      const { data, error, status, statusText } = await client
+        .from("games")
+        .update(payload)
+        .eq("id", id)
+        .select();
+
+      console.log("Supabase UPDATE response:", { data, error, status, statusText });
+
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          `UPDATE không ảnh hưởng dòng nào (id=${id}). Có thể RLS đang chặn — hãy kiểm tra Supabase > Authentication > Policies.`
+        );
+      }
     } else {
-      const { error } = await client.from("games").insert(payload);
+      const { data, error, status } = await client
+        .from("games")
+        .insert(payload)
+        .select();
+
+      console.log("Supabase INSERT response:", { data, error, status });
+
       if (error) throw error;
     }
+
     modal.classList.add("hidden");
-    loadGames();
+    await loadGames();
+
+    // flash thông báo thành công
+    const toast = document.createElement("div");
+    toast.textContent = "✅ Đã lưu thành công!";
+    Object.assign(toast.style, {
+      position: "fixed", bottom: "28px", right: "28px",
+      background: "#00b894", color: "#fff",
+      padding: "12px 22px", borderRadius: "10px",
+      fontWeight: "600", fontSize: "14px",
+      boxShadow: "0 4px 16px rgba(0,0,0,0.15)", zIndex: "9999"
+    });
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+
   } catch (err) {
-    console.error(err);
-    alert("Lỗi: " + err.message);
+    console.error("❌ saveGame error:", err);
+    alert("❌ Lỗi khi lưu:\n\n" + err.message);
   } finally {
-    saveBtn.disabled = false;
+    saveBtn.disabled    = false;
     saveBtn.textContent = "💾 Lưu";
   }
 }
