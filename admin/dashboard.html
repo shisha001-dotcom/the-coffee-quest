@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./dashboard.css">
   <style>
-    /* Extra styles for new fields */
     .section-divider {
       grid-column: 1 / -1;
       display: flex;
@@ -60,9 +59,7 @@
       background: #fff;
       flex-shrink: 0;
     }
-    .color-row input[type="text"] {
-      flex: 1;
-    }
+    .color-row input[type="text"] { flex: 1; }
   </style>
 </head>
 <body>
@@ -75,16 +72,18 @@
     <div class="sidebar-menu">
       <div class="menu-group">
         <div class="menu-title">HỆ THỐNG</div>
-        <a class="menu-item active"><span>📊</span> Dashboard</a>
+        <a class="menu-item active" id="dashboardMenuItem" onclick="showDashboard()"><span>📊</span> Dashboard</a>
         <a class="menu-item"><span>🎲</span> Boardgames</a>
         <a class="menu-item"><span>🧩</span> Categories</a>
         <a class="menu-item"><span>🖼️</span> Images</a>
+        <!-- Chat menu item được inject bởi dashboard-chat.js -->
       </div>
       <div class="menu-group">
         <div class="menu-title">QUẢN TRỊ</div>
         <a class="menu-item"><span>⚙️</span> Settings</a>
       </div>
     </div>
+    <!-- User bar được inject bởi dashboard.js -->
   </aside>
 
   <!-- MAIN -->
@@ -174,7 +173,6 @@
 
     <div class="form-grid">
 
-      <!-- ── THÔNG TIN CƠ BẢN ── -->
       <div class="section-divider"><span>📋 Thông tin cơ bản</span></div>
 
       <div class="form-group">
@@ -235,7 +233,6 @@
         <div class="hint">Nhiều thể loại: phân cách bằng dấu phẩy</div>
       </div>
 
-      <!-- ── NỘI DUNG GAME ── -->
       <div class="section-divider"><span>🎯 Nội dung game</span></div>
 
       <div class="form-group full-width">
@@ -266,7 +263,6 @@
         <div class="hint">Mỗi mẹo = 1 dòng (có thể để trống)</div>
       </div>
 
-      <!-- ── MEDIA ── -->
       <div class="section-divider"><span>🖼️ Media</span></div>
 
       <div class="form-group full-width">
@@ -285,7 +281,7 @@
         <input type="text" id="youtubeInput" placeholder="https://youtube.com/watch?v=...">
       </div>
 
-    </div><!-- /form-grid -->
+    </div>
 
     <div class="modal-actions">
       <button class="btn btn-danger"  id="deleteBtn" style="display:none;">🗑️ Xóa game</button>
@@ -297,5 +293,27 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./dashboard.js"></script>
+<!-- Chat module — ES module, tự inject menu item + page -->
+<script type="module" src="./dashboard-chat.js"></script>
+
+<script>
+  /* Hàm trở lại dashboard từ trang chat */
+  function showDashboard() {
+    const chatPage   = document.getElementById("chatAdminPage");
+    const pageHeader = document.querySelector(".page-header");
+    const statsGrid  = document.querySelector(".stats-grid");
+    const searchBar  = document.querySelector(".search-bar");
+    const tableCard  = document.querySelector(".table-card");
+
+    if (chatPage) chatPage.style.display = "none";
+    [pageHeader, statsGrid, searchBar, tableCard].forEach(el => {
+      if (el) el.style.display = "";
+    });
+
+    document.querySelectorAll(".menu-item").forEach(el => el.classList.remove("active"));
+    document.getElementById("dashboardMenuItem")?.classList.add("active");
+  }
+</script>
+
 </body>
 </html>
