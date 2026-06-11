@@ -10,7 +10,8 @@ import {
   onValue,
   onDisconnect,
   remove,
-  get
+  get,
+  runTransaction
 }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
@@ -58,7 +59,6 @@ usernameInput.addEventListener("keydown", e => {
   if (e.key === "Enter") saveUsername();
 });
 
-/* Update username từ settings page */
 window.updateChatUsername = function(newName) {
   username = newName;
 };
@@ -71,8 +71,6 @@ const closeBtn   = document.getElementById("chat-close");
 toggleBtn.addEventListener("click", () => {
   chatWindow.classList.toggle("open");
   emojiPicker.classList.add("hidden");
-
-  /* Reset unread khi mở */
   if (chatWindow.classList.contains("open")) {
     clearUnreadDot();
   }
@@ -83,21 +81,17 @@ closeBtn.addEventListener("click", () => {
   emojiPicker.classList.add("hidden");
 });
 
-/* ═════════ UNREAD DOT TRÊN NÚT CHAT ═════════ */
+/* ═════════ UNREAD DOT ═════════ */
 function showUnreadDot() {
   let dot = document.getElementById("chat-unread-dot");
   if (!dot) {
     dot = document.createElement("span");
     dot.id = "chat-unread-dot";
     Object.assign(dot.style, {
-      position: "absolute",
-      top: "6px", right: "6px",
+      position: "absolute", top: "6px", right: "6px",
       width: "12px", height: "12px",
-      background: "#fdcb6e",
-      border: "2px solid #e63946",
-      borderRadius: "50%",
-      display: "block",
-      pointerEvents: "none",
+      background: "#fdcb6e", border: "2px solid #e63946",
+      borderRadius: "50%", display: "block", pointerEvents: "none",
     });
     toggleBtn.style.position = "relative";
     toggleBtn.appendChild(dot);
@@ -109,7 +103,7 @@ function clearUnreadDot() {
 }
 
 /* ═════════ ONLINE USERS ═════════ */
-const userId   = Date.now() + "_" + Math.random().toString(36).slice(2);
+const userId    = Date.now() + "_" + Math.random().toString(36).slice(2);
 const onlineRef = ref(db, "onlineUsers/" + userId);
 
 set(onlineRef, { name: username, online: true });
@@ -119,7 +113,52 @@ onValue(ref(db, "onlineUsers"), snapshot => {
   const data  = snapshot.val();
   const count = data ? Object.keys(data).length : 0;
   document.getElementById("online-count").textContent = count;
+
+  /* ── Tracking giờ cao điểm: ghi max online mỗi giờ ── */
+  trackHourlyOnline(count);
 });
+
+/* ═════════════════════════════════════════════════
+   ANALYTICS TRACKING
+   ─────────────────────────────────────────────────
+   Firebase paths:
+     analytics/gameViews/{date}/{gameId}/count  ← số lượt xem
+     analytics/gameViews/{date}/{gameId}/name   ← tên game
+     analytics/hourly/{date}/{HH}/peak          ← peak online theo giờ
+   ═════════════════════════════════════════════════ */
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10); // "2026-06-11"
+}
+function hourStr() {
+  return String(new Date().getHours()).padStart(2, "0"); // "09"
+}
+
+/* Ghi lượt xem game — gọi từ app.js qua window.__fbTrack */
+window.__fbTrack = async function(type, date, gameId, gameName) {
+  if (type !== 'gameViews') return;
+  try {
+    const countRef = ref(db, `analytics/gameViews/${date}/${gameId}/count`);
+    await runTransaction(countRef, cur => (cur || 0) + 1);
+    // Ghi tên game (chỉ cần 1 lần nhưng set idempotent không sao)
+    await set(ref(db, `analytics/gameViews/${date}/${gameId}/name`), gameName);
+  } catch(e) {
+    console.warn("track gameView failed:", e);
+  }
+};
+
+/* Ghi peak online theo giờ */
+let _lastOnlineCount = 0;
+async function trackHourlyOnline(count) {
+  if (count === _lastOnlineCount) return;
+  _lastOnlineCount = count;
+  try {
+    const peakRef = ref(db, `analytics/hourly/${todayStr()}/${hourStr()}/peak`);
+    await runTransaction(peakRef, cur => Math.max(cur || 0, count));
+  } catch(e) {
+    console.warn("track hourly failed:", e);
+  }
+}
 
 /* ═════════ EMOJI PICKER ═════════ */
 const EMOJIS = [
@@ -175,7 +214,6 @@ function formatTime(timestamp) {
   return `${hh}:${mm}`;
 }
 
-/* ═════════ ESCAPE HTML ═════════ */
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -189,7 +227,6 @@ function buildMessageEl(msg) {
   wrap.className = "chat-msg";
 
   if (msg.isStaff) {
-    /* ── TIN NHẮN TỪ QUÁN ── */
     wrap.innerHTML = `
       <div class="chat-meta" style="align-items:center;gap:6px;">
         <span style="
@@ -202,14 +239,12 @@ function buildMessageEl(msg) {
       </div>
       <div class="chat-bubble" style="
         background:linear-gradient(135deg,#1a1a2e,#2d2d5e);
-        color:#fff;
-        border:none;
+        color:#fff; border:none;
         border-radius:4px 14px 14px 14px;
         box-shadow:0 2px 10px rgba(26,26,46,.3);
       ">${escapeHtml(msg.text)}</div>
     `;
   } else {
-    /* ── TIN NHẮN KHÁCH ── */
     wrap.innerHTML = `
       <div class="chat-meta">
         <span class="chat-user">${escapeHtml(msg.user)}</span>
@@ -226,18 +261,10 @@ function buildMessageEl(msg) {
 const msgRef = ref(db, "communityChat");
 clearChatIfNewDay();
 
-/* ─── SEND ─── */
 function sendMessage() {
   const text = chatInput.value.trim();
   if (!text) return;
-
-  push(msgRef, {
-    user: username,
-    text: text,
-    time: Date.now(),
-    isStaff: false,
-  });
-
+  push(msgRef, { user: username, text, time: Date.now(), isStaff: false });
   chatInput.value = "";
   emojiPicker.classList.add("hidden");
 }
@@ -247,39 +274,27 @@ chatInput.addEventListener("keydown", e => {
   if (e.key === "Enter") sendMessage();
 });
 
-/* ─── RECEIVE (real-time) ─── */
 let firstLoad = true;
 
-/* Load lịch sử ngay khi mở */
 get(msgRef).then(snapshot => {
   const container = document.getElementById("chat-messages");
   container.innerHTML = "";
-
   if (snapshot.exists()) {
-    snapshot.forEach(child => {
-      container.appendChild(buildMessageEl(child.val()));
-    });
+    snapshot.forEach(child => container.appendChild(buildMessageEl(child.val())));
     container.scrollTop = container.scrollHeight;
   }
-
   firstLoad = false;
 });
 
 onChildAdded(msgRef, snapshot => {
-  if (firstLoad) return;   // đã xử lý bởi get()
-
+  if (firstLoad) return;
   const msg = snapshot.val();
   const container = document.getElementById("chat-messages");
   container.appendChild(buildMessageEl(msg));
   container.scrollTop = container.scrollHeight;
-
-  /* Unread dot khi cửa sổ đóng & tin nhắn từ quán */
-  if (!chatWindow.classList.contains("open") && msg.isStaff) {
-    showUnreadDot();
-  }
+  if (!chatWindow.classList.contains("open") && msg.isStaff) showUnreadDot();
 });
 
-/* ─── CLEAR UI khi DB reset ─── */
 onValue(msgRef, snapshot => {
   if (!snapshot.exists()) {
     document.getElementById("chat-messages").innerHTML = "";
@@ -290,11 +305,8 @@ onValue(msgRef, snapshot => {
 async function clearChatIfNewDay() {
   const today    = new Date().toISOString().split("T")[0];
   const savedDay = localStorage.getItem("tcq-last-reset-day");
-
   if (savedDay === today) return;
-
   localStorage.setItem("tcq-last-reset-day", today);
-
   try {
     await remove(msgRef);
     console.log("🧹 Đã reset chat ngày mới");
