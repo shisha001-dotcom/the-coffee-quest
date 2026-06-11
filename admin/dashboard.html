@@ -4,12 +4,66 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Boardgame Dashboard</title>
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
   <link rel="stylesheet" href="./dashboard.css">
+  <style>
+    /* Extra styles for new fields */
+    .section-divider {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 4px 0 -4px;
+    }
+    .section-divider span {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .section-divider::before,
+    .section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .form-group textarea {
+      height: 100px;
+      padding: 10px 14px;
+      resize: vertical;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .form-group textarea.tall { height: 140px; }
+    .form-group .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: -4px;
+    }
+    .color-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .color-row input[type="color"] {
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 3px;
+      cursor: pointer;
+      background: #fff;
+      flex-shrink: 0;
+    }
+    .color-row input[type="text"] {
+      flex: 1;
+    }
+  </style>
 </head>
 <body>
 
@@ -44,7 +98,7 @@
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary" id="refreshBtn">🔄 Refresh</button>
-        <button class="btn btn-primary" id="addGameBtn">+ Thêm Game</button>
+        <button class="btn btn-primary"   id="addGameBtn">+ Thêm Game</button>
       </div>
     </div>
 
@@ -80,7 +134,7 @@
       </div>
     </div>
 
-    <!-- SEARCH BAR -->
+    <!-- SEARCH -->
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="🔍 Tìm boardgame..." class="search-input">
     </div>
@@ -88,8 +142,8 @@
     <!-- TABLE -->
     <div class="table-card">
       <div id="loadingMsg" class="loading-msg">⏳ Đang tải dữ liệu...</div>
-      <div id="errorMsg" class="error-msg hidden"></div>
-      <table class="game-table" id="gameTable">
+      <div id="errorMsg"   class="error-msg hidden"></div>
+      <table class="game-table hidden" id="gameTable">
         <thead>
           <tr>
             <th>Game</th>
@@ -107,9 +161,10 @@
   </main>
 </div>
 
-<!-- MODAL -->
+<!-- ═══════════ MODAL ═══════════ -->
 <div class="modal-overlay hidden" id="gameModal">
   <div class="modal-box">
+
     <div class="modal-header">
       <h2 id="modalTitle">Thêm Boardgame</h2>
       <button class="close-btn" id="closeModalBtn">✕</button>
@@ -118,64 +173,125 @@
     <input type="hidden" id="gameId">
 
     <div class="form-grid">
+
+      <!-- ── THÔNG TIN CƠ BẢN ── -->
+      <div class="section-divider"><span>📋 Thông tin cơ bản</span></div>
+
       <div class="form-group">
         <label>Tên game *</label>
         <input type="text" id="nameInput" placeholder="Catan, Cluedo...">
       </div>
 
-      <!-- EMOJI PICKER FIELD -->
+      <!-- EMOJI PICKER -->
       <div class="form-group">
         <label>Emoji</label>
         <div class="emoji-field">
           <div class="emoji-preview" id="emojiPreview">🎲</div>
-          <input type="text" id="emojiInput" placeholder="Chọn hoặc nhập..." autocomplete="off" readonly>
+          <input type="text" id="emojiInput" placeholder="Chọn emoji..." autocomplete="off" readonly>
           <button type="button" class="emoji-toggle-btn" id="emojiToggleBtn" title="Chọn emoji">▼</button>
         </div>
-
-        <!-- EMOJI PICKER DROPDOWN -->
         <div class="emoji-picker hidden" id="emojiPicker">
           <div class="emoji-picker-search">
             <input type="text" id="emojiSearch" placeholder="🔍 Tìm emoji...">
           </div>
           <div class="emoji-categories" id="emojiCategories"></div>
-          <div class="emoji-grid" id="emojiGrid"></div>
+          <div class="emoji-grid"       id="emojiGrid"></div>
         </div>
+      </div>
+
+      <div class="form-group">
+        <label>Màu chủ đạo</label>
+        <div class="color-row">
+          <input type="color" id="colorPicker" value="#6c5ce7"
+                 oninput="document.getElementById('colorInput').value=this.value">
+          <input type="text"  id="colorInput"  placeholder="#6c5ce7"
+                 oninput="document.getElementById('colorPicker').value=this.value">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Thứ tự hiển thị</label>
+        <input type="number" id="sortInput" placeholder="1, 2, 3...">
       </div>
 
       <div class="form-group">
         <label>Số người chơi</label>
         <input type="text" id="playersInput" placeholder="2-4 người">
       </div>
+
       <div class="form-group">
         <label>Thời gian</label>
         <input type="text" id="timeInput" placeholder="30-60 phút">
       </div>
+
       <div class="form-group">
         <label>Độ khó</label>
-        <input type="text" id="difficultyInput" placeholder="Easy / Medium / Hard">
+        <input type="text" id="difficultyInput" placeholder="Dễ / Trung bình / Khó">
       </div>
+
       <div class="form-group">
         <label>Thể loại</label>
-        <input type="text" id="categoryInput" placeholder="Strategy, Party...">
+        <input type="text" id="categoryInput" placeholder="🎉 Party, ♟️ Chiến lược">
+        <div class="hint">Nhiều thể loại: phân cách bằng dấu phẩy</div>
       </div>
+
+      <!-- ── NỘI DUNG GAME ── -->
+      <div class="section-divider"><span>🎯 Nội dung game</span></div>
+
       <div class="form-group full-width">
         <label>Mục tiêu</label>
-        <textarea id="objectiveInput" placeholder="Mô tả mục tiêu game..."></textarea>
+        <textarea id="objectiveInput" placeholder="Mô tả mục tiêu của game..."></textarea>
       </div>
+
+      <div class="form-group full-width">
+        <label>Điều kiện thắng</label>
+        <textarea id="winInput" placeholder="Người đầu tiên gom đủ... / Người có điểm cao nhất..."></textarea>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Các bước chuẩn bị</label>
+        <textarea id="setupInput" class="tall" placeholder="Đặt bảng chơi vào giữa bàn&#10;Mỗi người lấy 5 lá bài&#10;Xáo trộn bộ bài..."></textarea>
+        <div class="hint">Mỗi bước = 1 dòng</div>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Các bước lượt chơi</label>
+        <textarea id="turnInput" class="tall" placeholder="Rút 2 lá bài&#10;Thực hiện 1 hành động&#10;Kết thúc lượt và chuyển cho người tiếp theo..."></textarea>
+        <div class="hint">Mỗi bước = 1 dòng</div>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Mẹo chơi</label>
+        <textarea id="tipsInput" placeholder="Ưu tiên tích điểm sớm&#10;Chú ý bài của đối thủ&#10;Không nên giữ bài quá nhiều..."></textarea>
+        <div class="hint">Mỗi mẹo = 1 dòng (có thể để trống)</div>
+      </div>
+
+      <!-- ── MEDIA ── -->
+      <div class="section-divider"><span>🖼️ Media</span></div>
+
+      <div class="form-group full-width">
+        <label>Ảnh hướng dẫn</label>
+        <textarea id="imagesInput" placeholder="https://i.imgur.com/abc.jpg | Sắp xếp bảng cờ&#10;https://i.imgur.com/xyz.jpg | Bộ bài ban đầu"></textarea>
+        <div class="hint">Mỗi dòng: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">URL ảnh | Chú thích</code></div>
+      </div>
+
       <div class="form-group full-width">
         <label>Hero Background URL</label>
         <input type="text" id="heroInput" placeholder="https://...">
       </div>
+
       <div class="form-group full-width">
         <label>YouTube URL</label>
-        <input type="text" id="youtubeInput" placeholder="https://youtube.com/...">
+        <input type="text" id="youtubeInput" placeholder="https://youtube.com/watch?v=...">
       </div>
-    </div>
+
+    </div><!-- /form-grid -->
 
     <div class="modal-actions">
-      <button class="btn btn-danger" id="deleteBtn" style="display:none;">🗑️ Xóa</button>
+      <button class="btn btn-danger"  id="deleteBtn" style="display:none;">🗑️ Xóa game</button>
       <button class="btn btn-primary" id="saveBtn">💾 Lưu</button>
     </div>
+
   </div>
 </div>
 
