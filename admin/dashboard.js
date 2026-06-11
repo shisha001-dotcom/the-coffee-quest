@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════
-   AUTH GUARD — chạy trước mọi thứ khác
+   AUTH GUARD
    ══════════════════════════════════════════════ */
 const SESSION_KEY = "bg_admin_session";
 
@@ -13,7 +13,7 @@ function requireAuth() {
   if (!session || !session.username) {
     sessionStorage.removeItem(SESSION_KEY);
     location.replace("login.html");
-    throw new Error("Unauthenticated"); // dừng script
+    throw new Error("Unauthenticated");
   }
   return session;
 }
@@ -23,7 +23,6 @@ function logout() {
   location.replace("login.html");
 }
 
-/* ── Kiểm tra ngay khi load ── */
 const currentSession = requireAuth();
 
 /* ══════════════════════════════════════════════
@@ -36,7 +35,7 @@ const SUPABASE_KEY =
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ══════════════════════════════════════════════
-   RENDER USER INFO VÀO SIDEBAR
+   INJECT USER BAR
    ══════════════════════════════════════════════ */
 (function injectUserBar() {
   const sidebar = document.querySelector(".sidebar");
@@ -74,14 +73,13 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     </button>
   `;
   sidebar.appendChild(userBar);
-
   document.getElementById("logoutBtn")?.addEventListener("click", () => {
     if (confirm("Bạn muốn đăng xuất?")) logout();
   });
 })();
 
 /* ══════════════════════════════════════════════
-   DOM REFS
+   DOM REFS (Boardgames page)
    ══════════════════════════════════════════════ */
 const tableBody     = document.getElementById("gameTableBody");
 const searchInput   = document.getElementById("searchInput");
@@ -99,7 +97,6 @@ let games = [];
 /* ══════════════════════════════════════════════
    EMOJI PICKER
    ══════════════════════════════════════════════ */
-
 const EMOJI_CATEGORIES = [
   { label:"Yêu thích", icon:"⭐", emojis:["🎲","🃏","♟️","🎯","🧩","🎮","🏆","🥇","🎪","🎭","🎨","🎬","🎤","🎸","🎺","🎻"] },
   { label:"Mặt", icon:"😀", emojis:["😀","😁","😂","🤣","😃","😄","😅","😆","😇","😈","😉","😊","😋","😌","😍","😎","😏","😐","😑","😒","😓","😔","😕","😖","😗","😘","😙","😚","😛","😜","😝","😞","😟","😠","😡","😢","😣","😤","😥","😦","😧","😨","😩","😪","😫","😬","😭","😮","😯","😰","😱","😲","😳","😴","😵","😶","😷","🤐","🤑","🤒","🤓","🤔","🤕","🤗"] },
@@ -126,7 +123,7 @@ const emojiGrid       = document.getElementById("emojiGrid");
 const emojiCategories = document.getElementById("emojiCategories");
 const emojiSearch     = document.getElementById("emojiSearch");
 
-function buildCategoryTabs(){
+function buildCategoryTabs() {
   emojiCategories.innerHTML = "";
   EMOJI_CATEGORIES.forEach((cat, i) => {
     const btn = document.createElement("button");
@@ -143,7 +140,7 @@ function buildCategoryTabs(){
   });
 }
 
-function renderEmojiGrid(list){
+function renderEmojiGrid(list) {
   emojiGrid.innerHTML = "";
   list.forEach(emoji => {
     const btn = document.createElement("button");
@@ -155,14 +152,14 @@ function renderEmojiGrid(list){
   });
 }
 
-function selectEmoji(emoji){
+function selectEmoji(emoji) {
   currentEmoji = emoji;
   emojiInput.value = emoji;
   emojiPreview.textContent = emoji;
   closePicker();
 }
 
-function openPicker(){
+function openPicker() {
   pickerOpen = true;
   emojiPicker.classList.remove("hidden");
   emojiToggleBtn.textContent = "▲";
@@ -171,35 +168,34 @@ function openPicker(){
   emojiSearch.focus();
 }
 
-function closePicker(){
+function closePicker() {
   pickerOpen = false;
   emojiPicker.classList.add("hidden");
   emojiToggleBtn.textContent = "▼";
 }
 
 emojiToggleBtn.addEventListener("click", e => { e.stopPropagation(); pickerOpen ? closePicker() : openPicker(); });
-emojiInput.addEventListener("click", e => { e.stopPropagation(); if(!pickerOpen) openPicker(); });
+emojiInput.addEventListener("click", e => { e.stopPropagation(); if (!pickerOpen) openPicker(); });
 emojiSearch.addEventListener("input", e => {
   const q = e.target.value.trim();
-  if(!q){ renderEmojiGrid(EMOJI_CATEGORIES[currentCategory].emojis); return; }
+  if (!q) { renderEmojiGrid(EMOJI_CATEGORIES[currentCategory].emojis); return; }
   const filtered = UNIQUE_EMOJIS.filter(em => em.includes(q));
   renderEmojiGrid(filtered.length ? filtered : UNIQUE_EMOJIS.slice(0, 64));
 });
 document.addEventListener("click", e => {
-  if(pickerOpen && !emojiPicker.contains(e.target) && e.target !== emojiToggleBtn && e.target !== emojiInput) closePicker();
+  if (pickerOpen && !emojiPicker.contains(e.target) && e.target !== emojiToggleBtn && e.target !== emojiInput) closePicker();
 });
 emojiPicker.addEventListener("click", e => e.stopPropagation());
 
 /* ══════════════════════════════════════════════
    ARRAY FIELD HELPERS
    ══════════════════════════════════════════════ */
-
-function parseLines(id){
+function parseLines(id) {
   const val = document.getElementById(id)?.value || "";
   return val.split("\n").map(s => s.trim()).filter(Boolean);
 }
 
-function parseImages(id){
+function parseImages(id) {
   const val = document.getElementById(id)?.value || "";
   return val.split("\n").map(line => {
     const parts = line.split("|");
@@ -207,80 +203,20 @@ function parseImages(id){
   }).filter(img => img.url);
 }
 
-function setLines(id, arr){
+function setLines(id, arr) {
   const el = document.getElementById(id);
-  if(el) el.value = Array.isArray(arr) ? arr.join("\n") : "";
+  if (el) el.value = Array.isArray(arr) ? arr.join("\n") : "";
 }
 
-function setImages(id, arr){
+function setImages(id, arr) {
   const el = document.getElementById(id);
-  if(el) el.value = Array.isArray(arr) ? arr.map(img => `${img.url} | ${img.caption||""}`).join("\n") : "";
-}
-
-/* ══════════════════════════════════════════════
-   INJECT EXTRA FIELDS INTO MODAL
-   ══════════════════════════════════════════════ */
-
-function injectExtraFields(){
-  if(document.getElementById("colorInput")) return;
-
-  const formGrid = document.querySelector(".form-grid");
-  if(!formGrid) return;
-
-  const extra = `
-    <div class="form-group">
-      <label>Màu chủ đạo (hex)</label>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="color" id="colorPicker" value="#6c5ce7"
-               style="width:44px;height:44px;border:1px solid var(--border);border-radius:10px;padding:2px;cursor:pointer;background:#fff">
-        <input type="text"  id="colorInput" placeholder="#6c5ce7"
-               style="flex:1" oninput="document.getElementById('colorPicker').value=this.value">
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label>Thứ tự hiển thị</label>
-      <input type="number" id="sortInput" placeholder="1, 2, 3...">
-    </div>
-
-    <div class="form-group full-width">
-      <label>Điều kiện thắng</label>
-      <textarea id="winInput" placeholder="Người đầu tiên gom đủ... / Người có điểm cao nhất..."></textarea>
-    </div>
-
-    <div class="form-group full-width">
-      <label>Các bước chuẩn bị <span style="color:var(--text-muted);font-weight:400">(mỗi bước 1 dòng)</span></label>
-      <textarea id="setupInput" rows="5" placeholder="Đặt bảng chơi vào giữa bàn&#10;Mỗi người lấy 5 lá bài&#10;Xáo trộn bộ bài..."></textarea>
-    </div>
-
-    <div class="form-group full-width">
-      <label>Các bước lượt chơi <span style="color:var(--text-muted);font-weight:400">(mỗi bước 1 dòng)</span></label>
-      <textarea id="turnInput" rows="5" placeholder="Rút 2 lá bài&#10;Thực hiện 1 hành động&#10;Kết thúc lượt..."></textarea>
-    </div>
-
-    <div class="form-group full-width">
-      <label>Mẹo chơi <span style="color:var(--text-muted);font-weight:400">(mỗi mẹo 1 dòng)</span></label>
-      <textarea id="tipsInput" rows="4" placeholder="Ưu tiên tích điểm sớm&#10;Chú ý bài của đối thủ..."></textarea>
-    </div>
-
-    <div class="form-group full-width">
-      <label>Ảnh hướng dẫn <span style="color:var(--text-muted);font-weight:400">(mỗi dòng: URL | caption)</span></label>
-      <textarea id="imagesInput" rows="4" placeholder="https://... | Sắp xếp bảng cờ&#10;https://... | Bộ bài ban đầu"></textarea>
-    </div>
-  `;
-
-  formGrid.insertAdjacentHTML("beforeend", extra);
-
-  document.getElementById("colorPicker").addEventListener("input", e => {
-    document.getElementById("colorInput").value = e.target.value;
-  });
+  if (el) el.value = Array.isArray(arr) ? arr.map(img => `${img.url} | ${img.caption||""}`).join("\n") : "";
 }
 
 /* ══════════════════════════════════════════════
    LOAD GAMES
    ══════════════════════════════════════════════ */
-
-async function loadGames(){
+async function loadGames() {
   loadingMsg.classList.remove("hidden");
   errorMsg.classList.add("hidden");
   gameTable.classList.add("hidden");
@@ -292,8 +228,7 @@ async function loadGames(){
 
   loadingMsg.classList.add("hidden");
 
-  if(error){
-    console.error(error);
+  if (error) {
     errorMsg.textContent = "❌ Lỗi khi tải dữ liệu: " + error.message;
     errorMsg.classList.remove("hidden");
     return;
@@ -306,55 +241,55 @@ async function loadGames(){
 }
 
 /* ══════════════════════════════════════════════
-   STATS
+   STATS (updated from dashboard.html structure)
    ══════════════════════════════════════════════ */
+function updateStats(data) {
+  const totalEl = document.getElementById("totalGames");
+  if (totalEl) totalEl.textContent = data.length;
 
-function updateStats(data){
-  document.getElementById("totalGames").innerText = data.length;
-  const categories = new Set();
   let youtubeCount = 0, imageCount = 0;
   data.forEach(game => {
-    if(game.youtube_url) youtubeCount++;
-    if(game.hero_bg) imageCount++;
-    if(Array.isArray(game.categories)) game.categories.forEach(cat => categories.add(cat));
+    if (game.youtube_url) youtubeCount++;
+    if (game.hero_bg)     imageCount++;
   });
-  document.getElementById("totalCategories").innerText = categories.size;
-  document.getElementById("youtubeCount").innerText    = youtubeCount;
-  document.getElementById("imageCount").innerText      = imageCount;
+
+  const ytEl  = document.getElementById("youtubeCount");
+  const imgEl = document.getElementById("imageCount");
+  if (ytEl)  ytEl.textContent  = youtubeCount;
+  if (imgEl) imgEl.textContent = imageCount;
 }
 
 /* ══════════════════════════════════════════════
    DIFFICULTY
    ══════════════════════════════════════════════ */
-
-function difficultyClass(value){
-  if(!value) return "medium";
+function difficultyClass(value) {
+  if (!value) return "medium";
   const v = value.toLowerCase();
-  if(v.includes("easy") || v.includes("dễ"))  return "easy";
-  if(v.includes("hard") || v.includes("khó")) return "hard";
+  if (v.includes("easy") || v.includes("dễ"))  return "easy";
+  if (v.includes("hard") || v.includes("khó")) return "hard";
   return "medium";
 }
 
 /* ══════════════════════════════════════════════
    RENDER TABLE
    ══════════════════════════════════════════════ */
-
-function renderGames(data){
+function renderGames(data) {
   tableBody.innerHTML = "";
-  if(!data.length){
+  if (!data.length) {
     tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Không tìm thấy game nào.</td></tr>`;
     return;
   }
   data.forEach(game => {
-    const tr = document.createElement("tr");
-    const imgSrc = game.hero_bg || "https://placehold.co/48x48";
-    const name   = game.name   || "(không tên)";
-    const emoji  = game.emoji  || "🎲";
-    const diff   = game.difficulty || "Medium";
-    const cats   = Array.isArray(game.categories) ? game.categories : [];
-    const cat    = cats[0] || "Boardgame";
-    const yt     = game.youtube_url || "#";
-    const colorDot = game.color ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${game.color};margin-right:4px;vertical-align:middle"></span>` : "";
+    const tr      = document.createElement("tr");
+    const imgSrc  = game.hero_bg || "https://placehold.co/48x48";
+    const name    = game.name   || "(không tên)";
+    const emoji   = game.emoji  || "🎲";
+    const diff    = game.difficulty || "Medium";
+    const cats    = Array.isArray(game.categories) ? game.categories : [];
+    const yt      = game.youtube_url || "#";
+    const colorDot = game.color
+      ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${game.color};margin-right:4px;vertical-align:middle"></span>`
+      : "";
 
     tr.innerHTML = `
       <td>
@@ -369,7 +304,7 @@ function renderGames(data){
       <td>${game.players || "—"}</td>
       <td>${game.time    || "—"}</td>
       <td><div class="difficulty ${difficultyClass(diff)}">${diff}</div></td>
-      <td>${cats.map(c => `<div class="badge" style="margin-bottom:3px">${c}</div>`).join("") || `<div class="badge">${cat}</div>`}</td>
+      <td>${cats.map(c => `<div class="badge" style="margin-bottom:3px">${c}</div>`).join("") || '<div class="badge">Boardgame</div>'}</td>
       <td>
         <div style="display:flex;gap:8px;align-items:center;">
           <button class="btn btn-primary edit-btn" data-id="${game.id}">✏️ Sửa</button>
@@ -383,8 +318,7 @@ function renderGames(data){
 /* ══════════════════════════════════════════════
    SEARCH
    ══════════════════════════════════════════════ */
-
-searchInput.addEventListener("input", e => {
+searchInput?.addEventListener("input", e => {
   const v = e.target.value.toLowerCase();
   renderGames(games.filter(g => (g.name||"").toLowerCase().includes(v)));
 });
@@ -392,9 +326,7 @@ searchInput.addEventListener("input", e => {
 /* ══════════════════════════════════════════════
    OPEN ADD MODAL
    ══════════════════════════════════════════════ */
-
-addGameBtn.addEventListener("click", () => {
-  injectExtraFields();
+addGameBtn?.addEventListener("click", () => {
   clearForm();
   document.getElementById("modalTitle").innerText = "➕ Thêm Boardgame";
   deleteBtn.style.display = "none";
@@ -404,15 +336,13 @@ addGameBtn.addEventListener("click", () => {
 /* ══════════════════════════════════════════════
    CLOSE MODAL
    ══════════════════════════════════════════════ */
-
-closeModalBtn.addEventListener("click", () => modal.classList.add("hidden"));
-modal.addEventListener("click", e => { if(e.target === modal) modal.classList.add("hidden"); });
+closeModalBtn?.addEventListener("click", () => modal.classList.add("hidden"));
+modal?.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
 
 /* ══════════════════════════════════════════════
    SAVE (INSERT + UPDATE)
    ══════════════════════════════════════════════ */
-
-async function saveGame(){
+async function saveGame() {
   const rawId = document.getElementById("gameId").value;
   const id    = rawId ? Number(rawId) : null;
 
@@ -420,7 +350,7 @@ async function saveGame(){
 
   const catRaw = document.getElementById("categoryInput").value.trim();
   const categories = catRaw
-    ? catRaw.split(/[,\n]/).map(s=>s.trim()).filter(Boolean)
+    ? catRaw.split(/[,\n]/).map(s => s.trim()).filter(Boolean)
     : [];
 
   const payload = {
@@ -442,34 +372,24 @@ async function saveGame(){
     sort_order:  Number(document.getElementById("sortInput")?.value) || null,
   };
 
-  if(!payload.name){
-    alert("Vui lòng nhập tên game.");
-    return;
-  }
+  if (!payload.name) { alert("Vui lòng nhập tên game."); return; }
 
   saveBtn.disabled    = true;
   saveBtn.textContent = "Đang lưu...";
 
-  console.log("💾 saveGame →", id ? `UPDATE id=${id}` : "INSERT", payload);
-
   try {
-    if(id){
+    if (id) {
       const { data, error } = await client.from("games").update(payload).eq("id", id).select();
-      console.log("UPDATE →", { data, error });
-      if(error) throw error;
-      if(!data || !data.length) throw new Error(`UPDATE không ảnh hưởng dòng nào (id=${id}). Kiểm tra RLS Supabase.`);
+      if (error) throw error;
+      if (!data || !data.length) throw new Error(`UPDATE không ảnh hưởng dòng nào (id=${id}).`);
     } else {
       const { data, error } = await client.from("games").insert(payload).select();
-      console.log("INSERT →", { data, error });
-      if(error) throw error;
+      if (error) throw error;
     }
-
     modal.classList.add("hidden");
     await loadGames();
     showToast("✅ Đã lưu thành công!");
-
-  } catch(err){
-    console.error("❌ saveGame error:", err);
+  } catch(err) {
     alert("❌ Lỗi khi lưu:\n\n" + err.message);
   } finally {
     saveBtn.disabled    = false;
@@ -477,29 +397,27 @@ async function saveGame(){
   }
 }
 
-saveBtn.addEventListener("click", saveGame);
+saveBtn?.addEventListener("click", saveGame);
 
 /* ══════════════════════════════════════════════
    DELETE
    ══════════════════════════════════════════════ */
-
-async function deleteGame(){
-  const id = document.getElementById("gameId").value;
-  if(!id) return;
+async function deleteGame() {
+  const id   = document.getElementById("gameId").value;
+  if (!id) return;
   const name = document.getElementById("nameInput").value || `ID=${id}`;
-  if(!confirm(`Xóa "${name}"?\n\nHành động này không thể hoàn tác!`)) return;
+  if (!confirm(`Xóa "${name}"?\n\nHành động này không thể hoàn tác!`)) return;
 
   deleteBtn.disabled    = true;
   deleteBtn.textContent = "Đang xóa...";
 
   try {
     const { error } = await client.from("games").delete().eq("id", id);
-    if(error) throw error;
+    if (error) throw error;
     modal.classList.add("hidden");
     showToast("🗑️ Đã xóa thành công!", "#e17055");
     await loadGames();
-  } catch(err){
-    console.error(err);
+  } catch(err) {
     alert("Lỗi: " + err.message);
   } finally {
     deleteBtn.disabled    = false;
@@ -507,50 +425,47 @@ async function deleteGame(){
   }
 }
 
-deleteBtn.addEventListener("click", deleteGame);
+deleteBtn?.addEventListener("click", deleteGame);
 
 /* ══════════════════════════════════════════════
    CLEAR FORM
    ══════════════════════════════════════════════ */
-
-function clearForm(){
+function clearForm() {
   ["gameId","nameInput","playersInput","timeInput","difficultyInput",
    "objectiveInput","heroInput","youtubeInput","categoryInput",
    "winInput","setupInput","turnInput","tipsInput","imagesInput","sortInput"]
-    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ""; });
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
 
   const ci = document.getElementById("colorInput");
-  if(ci) ci.value = "#6c5ce7";
+  if (ci) ci.value = "#6c5ce7";
   const cp = document.getElementById("colorPicker");
-  if(cp) cp.value = "#6c5ce7";
+  if (cp) cp.value = "#6c5ce7";
 
   currentEmoji = "🎲";
-  emojiInput.value = "🎲";
-  emojiPreview.textContent = "🎲";
+  if (emojiInput) emojiInput.value = "🎲";
+  if (emojiPreview) emojiPreview.textContent = "🎲";
   closePicker();
 }
 
 /* ══════════════════════════════════════════════
    EDIT — event delegation
    ══════════════════════════════════════════════ */
-
 document.addEventListener("click", e => {
-  if(!e.target.classList.contains("edit-btn")) return;
-  injectExtraFields();
+  if (!e.target.classList.contains("edit-btn")) return;
 
   const id   = Number(e.target.dataset.id);
   const game = games.find(g => g.id === id);
-  if(!game) return;
+  if (!game) return;
 
-  document.getElementById("modalTitle").innerText   = "✏️ Chỉnh sửa Boardgame";
-  document.getElementById("gameId").value           = game.id;
-  document.getElementById("nameInput").value        = game.name        || "";
-  document.getElementById("playersInput").value     = game.players     || "";
-  document.getElementById("timeInput").value        = game.time        || "";
-  document.getElementById("difficultyInput").value  = game.difficulty  || "";
-  document.getElementById("objectiveInput").value   = game.objective   || "";
-  document.getElementById("heroInput").value        = game.hero_bg     || "";
-  document.getElementById("youtubeInput").value     = game.youtube_url || "";
+  document.getElementById("modalTitle").innerText          = "✏️ Chỉnh sửa Boardgame";
+  document.getElementById("gameId").value                  = game.id;
+  document.getElementById("nameInput").value               = game.name        || "";
+  document.getElementById("playersInput").value            = game.players     || "";
+  document.getElementById("timeInput").value               = game.time        || "";
+  document.getElementById("difficultyInput").value         = game.difficulty  || "";
+  document.getElementById("objectiveInput").value          = game.objective   || "";
+  document.getElementById("heroInput").value               = game.hero_bg     || "";
+  document.getElementById("youtubeInput").value            = game.youtube_url || "";
 
   const cats = Array.isArray(game.categories) ? game.categories : [];
   document.getElementById("categoryInput").value = cats.join(", ");
@@ -558,24 +473,24 @@ document.addEventListener("click", e => {
   const colorVal = game.color || "#6c5ce7";
   const ci = document.getElementById("colorInput");
   const cp = document.getElementById("colorPicker");
-  if(ci) ci.value = colorVal;
-  if(cp) cp.value = colorVal;
+  if (ci) ci.value = colorVal;
+  if (cp) cp.value = colorVal;
 
   const so = document.getElementById("sortInput");
-  if(so) so.value = game.sort_order ?? "";
+  if (so) so.value = game.sort_order ?? "";
 
   const wi = document.getElementById("winInput");
-  if(wi) wi.value = game.win || "";
+  if (wi) wi.value = game.win || "";
 
-  setLines("setupInput",  game.setup);
-  setLines("turnInput",   game.turn);
-  setLines("tipsInput",   game.tips);
+  setLines("setupInput",   game.setup);
+  setLines("turnInput",    game.turn);
+  setLines("tipsInput",    game.tips);
   setImages("imagesInput", game.images);
 
   const em = game.emoji || "🎲";
   currentEmoji = em;
-  emojiInput.value = em;
-  emojiPreview.textContent = em;
+  if (emojiInput)   emojiInput.value          = em;
+  if (emojiPreview) emojiPreview.textContent  = em;
   closePicker();
 
   deleteBtn.style.display = "inline-flex";
@@ -585,8 +500,7 @@ document.addEventListener("click", e => {
 /* ══════════════════════════════════════════════
    TOAST
    ══════════════════════════════════════════════ */
-
-function showToast(msg, bg="#00b894"){
+function showToast(msg, bg = "#00b894") {
   const t = document.createElement("div");
   t.textContent = msg;
   Object.assign(t.style, {
@@ -594,20 +508,22 @@ function showToast(msg, bg="#00b894"){
     background: bg, color:"#fff",
     padding:"12px 22px", borderRadius:"10px",
     fontWeight:"600", fontSize:"14px",
-    boxShadow:"0 4px 16px rgba(0,0,0,0.15)", zIndex:"9999",
+    boxShadow:"0 4px 16px rgba(0,0,0,.15)", zIndex:"9999",
   });
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
 }
 
 /* ══════════════════════════════════════════════
-   REFRESH
+   REFRESH (dashboard page)
    ══════════════════════════════════════════════ */
-
-document.getElementById("refreshBtn").addEventListener("click", loadGames);
+document.getElementById("refreshBtn")?.addEventListener("click", async () => {
+  await loadGames();
+  // also reload drinks total if table exists
+  if (typeof loadDrinks === "function") await loadDrinks();
+});
 
 /* ══════════════════════════════════════════════
-   INIT
+   INIT — preload stats for dashboard
    ══════════════════════════════════════════════ */
-
 loadGames();
