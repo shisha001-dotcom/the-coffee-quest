@@ -1,10 +1,88 @@
+/* ══════════════════════════════════════════════
+   AUTH GUARD — chạy trước mọi thứ khác
+   ══════════════════════════════════════════════ */
+const SESSION_KEY = "bg_admin_session";
+
+function getSession() {
+  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); }
+  catch { return null; }
+}
+
+function requireAuth() {
+  const session = getSession();
+  if (!session || !session.username) {
+    sessionStorage.removeItem(SESSION_KEY);
+    location.replace("login.html");
+    throw new Error("Unauthenticated"); // dừng script
+  }
+  return session;
+}
+
+function logout() {
+  sessionStorage.removeItem(SESSION_KEY);
+  location.replace("login.html");
+}
+
+/* ── Kiểm tra ngay khi load ── */
+const currentSession = requireAuth();
+
+/* ══════════════════════════════════════════════
+   SUPABASE
+   ══════════════════════════════════════════════ */
 const SUPABASE_URL = "https://dklfwlgpomnrmxmbjpat.supabase.co";
 const SUPABASE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrbGZ3bGdwb21ucm14bWJqcGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDQ5MDAsImV4cCI6MjA5NDA4MDkwMH0.sy8zDIdh9RBhl9TOqg6PnfTehqtV7VcFQSaSPoc4MoI";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ─── DOM refs ─── */
+/* ══════════════════════════════════════════════
+   RENDER USER INFO VÀO SIDEBAR
+   ══════════════════════════════════════════════ */
+(function injectUserBar() {
+  const sidebar = document.querySelector(".sidebar");
+  if (!sidebar) return;
+
+  const roleLabel = currentSession.role === "superadmin" ? "Super Admin" : "Editor";
+  const roleBadge = currentSession.role === "superadmin"
+    ? `<span style="background:#6c5ce7;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.4px">${roleLabel}</span>`
+    : `<span style="background:#00b894;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.4px">${roleLabel}</span>`;
+
+  const userBar = document.createElement("div");
+  userBar.style.cssText = `
+    margin-top: auto;
+    border-top: 1px solid rgba(255,255,255,.08);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  `;
+  userBar.innerHTML = `
+    <div style="width:38px;height:38px;border-radius:50%;background:#6c5ce7;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;">
+      ${(currentSession.displayName||"A")[0].toUpperCase()}
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+        ${currentSession.displayName || currentSession.username}
+      </div>
+      <div style="margin-top:4px">${roleBadge}</div>
+    </div>
+    <button id="logoutBtn" title="Đăng xuất"
+      style="background:rgba(255,255,255,.08);border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;color:#a0a8c0;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s,color .2s;flex-shrink:0;"
+      onmouseover="this.style.background='rgba(225,112,85,.25)';this.style.color='#e17055'"
+      onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.color='#a0a8c0'">
+      ⏏
+    </button>
+  `;
+  sidebar.appendChild(userBar);
+
+  document.getElementById("logoutBtn")?.addEventListener("click", () => {
+    if (confirm("Bạn muốn đăng xuất?")) logout();
+  });
+})();
+
+/* ══════════════════════════════════════════════
+   DOM REFS
+   ══════════════════════════════════════════════ */
 const tableBody     = document.getElementById("gameTableBody");
 const searchInput   = document.getElementById("searchInput");
 const modal         = document.getElementById("gameModal");
@@ -116,13 +194,11 @@ emojiPicker.addEventListener("click", e => e.stopPropagation());
    ARRAY FIELD HELPERS
    ══════════════════════════════════════════════ */
 
-/** Parse textarea value → string array (split by newline, filter blank) */
 function parseLines(id){
   const val = document.getElementById(id)?.value || "";
   return val.split("\n").map(s => s.trim()).filter(Boolean);
 }
 
-/** Parse "url | caption" lines → [{url, caption}] array */
 function parseImages(id){
   const val = document.getElementById(id)?.value || "";
   return val.split("\n").map(line => {
@@ -131,13 +207,11 @@ function parseImages(id){
   }).filter(img => img.url);
 }
 
-/** Set textarea from string array */
 function setLines(id, arr){
   const el = document.getElementById(id);
   if(el) el.value = Array.isArray(arr) ? arr.join("\n") : "";
 }
 
-/** Set textarea from [{url, caption}] array */
 function setImages(id, arr){
   const el = document.getElementById(id);
   if(el) el.value = Array.isArray(arr) ? arr.map(img => `${img.url} | ${img.caption||""}`).join("\n") : "";
@@ -148,14 +222,12 @@ function setImages(id, arr){
    ══════════════════════════════════════════════ */
 
 function injectExtraFields(){
-  // Check if already injected
   if(document.getElementById("colorInput")) return;
 
   const formGrid = document.querySelector(".form-grid");
   if(!formGrid) return;
 
   const extra = `
-    <!-- Color -->
     <div class="form-group">
       <label>Màu chủ đạo (hex)</label>
       <div style="display:flex;gap:8px;align-items:center">
@@ -166,37 +238,31 @@ function injectExtraFields(){
       </div>
     </div>
 
-    <!-- Sort order -->
     <div class="form-group">
       <label>Thứ tự hiển thị</label>
       <input type="number" id="sortInput" placeholder="1, 2, 3...">
     </div>
 
-    <!-- Win condition -->
     <div class="form-group full-width">
       <label>Điều kiện thắng</label>
       <textarea id="winInput" placeholder="Người đầu tiên gom đủ... / Người có điểm cao nhất..."></textarea>
     </div>
 
-    <!-- Setup steps -->
     <div class="form-group full-width">
       <label>Các bước chuẩn bị <span style="color:var(--text-muted);font-weight:400">(mỗi bước 1 dòng)</span></label>
       <textarea id="setupInput" rows="5" placeholder="Đặt bảng chơi vào giữa bàn&#10;Mỗi người lấy 5 lá bài&#10;Xáo trộn bộ bài..."></textarea>
     </div>
 
-    <!-- Turn steps -->
     <div class="form-group full-width">
       <label>Các bước lượt chơi <span style="color:var(--text-muted);font-weight:400">(mỗi bước 1 dòng)</span></label>
       <textarea id="turnInput" rows="5" placeholder="Rút 2 lá bài&#10;Thực hiện 1 hành động&#10;Kết thúc lượt..."></textarea>
     </div>
 
-    <!-- Tips -->
     <div class="form-group full-width">
       <label>Mẹo chơi <span style="color:var(--text-muted);font-weight:400">(mỗi mẹo 1 dòng)</span></label>
       <textarea id="tipsInput" rows="4" placeholder="Ưu tiên tích điểm sớm&#10;Chú ý bài của đối thủ..."></textarea>
     </div>
 
-    <!-- Images -->
     <div class="form-group full-width">
       <label>Ảnh hướng dẫn <span style="color:var(--text-muted);font-weight:400">(mỗi dòng: URL | caption)</span></label>
       <textarea id="imagesInput" rows="4" placeholder="https://... | Sắp xếp bảng cờ&#10;https://... | Bộ bài ban đầu"></textarea>
@@ -205,7 +271,6 @@ function injectExtraFields(){
 
   formGrid.insertAdjacentHTML("beforeend", extra);
 
-  // Sync color picker ↔ text input
   document.getElementById("colorPicker").addEventListener("input", e => {
     document.getElementById("colorInput").value = e.target.value;
   });
@@ -353,7 +418,6 @@ async function saveGame(){
 
   const colorVal = document.getElementById("colorInput")?.value.trim() || "#6c5ce7";
 
-  // Parse categories: comma or newline separated
   const catRaw = document.getElementById("categoryInput").value.trim();
   const categories = catRaw
     ? catRaw.split(/[,\n]/).map(s=>s.trim()).filter(Boolean)
@@ -488,32 +552,26 @@ document.addEventListener("click", e => {
   document.getElementById("heroInput").value        = game.hero_bg     || "";
   document.getElementById("youtubeInput").value     = game.youtube_url || "";
 
-  // Categories — join by comma
   const cats = Array.isArray(game.categories) ? game.categories : [];
   document.getElementById("categoryInput").value = cats.join(", ");
 
-  // Color
   const colorVal = game.color || "#6c5ce7";
   const ci = document.getElementById("colorInput");
   const cp = document.getElementById("colorPicker");
   if(ci) ci.value = colorVal;
   if(cp) cp.value = colorVal;
 
-  // Sort order
   const so = document.getElementById("sortInput");
   if(so) so.value = game.sort_order ?? "";
 
-  // Win
   const wi = document.getElementById("winInput");
   if(wi) wi.value = game.win || "";
 
-  // Array fields
   setLines("setupInput",  game.setup);
   setLines("turnInput",   game.turn);
   setLines("tipsInput",   game.tips);
   setImages("imagesInput", game.images);
 
-  // Emoji
   const em = game.emoji || "🎲";
   currentEmoji = em;
   emojiInput.value = em;
@@ -537,7 +595,6 @@ function showToast(msg, bg="#00b894"){
     padding:"12px 22px", borderRadius:"10px",
     fontWeight:"600", fontSize:"14px",
     boxShadow:"0 4px 16px rgba(0,0,0,0.15)", zIndex:"9999",
-    animation:"none"
   });
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
