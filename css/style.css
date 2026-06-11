@@ -397,7 +397,7 @@ body {
   object-fit: cover;
   display: block;
   /* ► Tăng thời gian để ảnh zoom vào chậm hơn khi load */
-  animation: bannerKenBurns 8s ease-out both;
+  /*animation: bannerKenBurns 8s ease-out both;*/
 }
 
 /* ► Bật/tắt hiệu ứng Ken Burns (zoom nhẹ khi ảnh xuất hiện) */
@@ -874,7 +874,7 @@ body {
   background-position: center;
   filter: brightness(.38);
   /* ► Hiệu ứng zoom nhẹ khi mở detail */
-  animation: bannerKenBurns 1.2s ease-out both;
+  /*animation: bannerKenBurns 1.2s ease-out both;*/
 }
 .hero-overlay {
   position: absolute;
