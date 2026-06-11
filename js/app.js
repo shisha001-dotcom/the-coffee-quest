@@ -95,6 +95,31 @@ function goDetail(idx){
   renderDetail(idx);
   window.scrollTo(0,0);
   history.pushState(null,'','#game-'+idx);
+
+  /* ── TRACKING: ghi lượt xem lên Firebase ── */
+  trackGameView(idx);
+}
+
+/* ═══════════════════════════════════════════
+   TRACKING — ghi lượt xem game vào Firebase
+   Path: analytics/gameViews/{YYYY-MM-DD}/{gameId}
+          analytics/hourly/{YYYY-MM-DD}/{HH}
+   ═══════════════════════════════════════════ */
+function getDateStr(){
+  return new Date().toISOString().slice(0,10); // "2026-06-11"
+}
+function getHourStr(){
+  return String(new Date().getHours()).padStart(2,'0'); // "09"
+}
+
+async function trackGameView(idx){
+  /* Chờ Firebase từ chat.js sẵn sàng — nó được import dưới dạng module */
+  if(typeof window.__fbTrack !== 'function') return;
+  const game = GAMES[idx];
+  if(!game) return;
+  const dateStr = getDateStr();
+  const gameKey = String(game.id);
+  window.__fbTrack('gameViews', dateStr, gameKey, game.name || gameKey);
 }
 
 /* ═══ BOARDGAME LIST ═══ */
