@@ -627,7 +627,29 @@
 let activeDrinkFilter = 'all';
 let allDrinks = [];
 
-/* ── Clear all active states ── */
+/* ══════════════════════════════════════════════
+   NAVIGATION HELPERS
+   Tất cả dùng window.__showPage (định nghĩa trong dashboard-chat.js)
+   để đảm bảo CHỈ 1 page hiển thị tại một thời điểm.
+   Fallback nội tuyến nếu module chưa load xong.
+   ══════════════════════════════════════════════ */
+
+function _showPage(pageId) {
+  // Chờ __showPage từ dashboard-chat.js nếu chưa có
+  if (typeof window.__showPage === 'function') {
+    window.__showPage(pageId);
+  } else {
+    // Fallback: ẩn tất cả page đã biết rồi hiện page cần
+    ['dashboardPage','boardgamesPage','drinksPage','analyticsPage','chatAdminPage']
+      .forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+    const target = document.getElementById(pageId);
+    if (target) target.style.display = '';
+  }
+}
+
 function clearActive() {
   document.querySelectorAll('.menu-item, .menu-item-parent, .menu-sub-item').forEach(el => el.classList.remove('active'));
 }
@@ -636,9 +658,7 @@ function clearActive() {
 function showDashboard() {
   clearActive();
   document.getElementById('dashboardMenuItem').classList.add('active');
-  document.getElementById('dashboardPage').style.display  = '';
-  document.getElementById('boardgamesPage').style.display = 'none';
-  document.getElementById('drinksPage').style.display     = 'none';
+  _showPage('dashboardPage');
 }
 
 /* ── Toggle Boardgames sub-menu ── */
@@ -646,7 +666,6 @@ function toggleBgMenu() {
   const parent   = document.getElementById('bgParent');
   const children = document.getElementById('bgChildren');
   const isOpen   = children.classList.contains('open');
-  // close drinks first
   document.getElementById('drinkChildren').classList.remove('open');
   document.getElementById('drinkParent').classList.remove('open');
   parent.classList.toggle('open', !isOpen);
@@ -659,16 +678,13 @@ function showBoardgames(mode) {
   clearActive();
   document.getElementById('bgParent').classList.add('open');
   document.getElementById('bgChildren').classList.add('open');
-  const itemId = mode === 'all' ? 'bgAllItem' : mode === 'search' ? 'bgSearchItem' : 'bgAllItem';
+  const itemId = mode === 'search' ? 'bgSearchItem' : 'bgAllItem';
   document.getElementById(itemId)?.classList.add('active');
 
-  document.getElementById('dashboardPage').style.display  = 'none';
-  document.getElementById('boardgamesPage').style.display = '';
-  document.getElementById('drinksPage').style.display     = 'none';
+  _showPage('boardgamesPage');
 
-  const searchBar = document.getElementById('searchInput');
-  if (mode === 'search' && searchBar) {
-    searchBar.focus();
+  if (mode === 'search') {
+    document.getElementById('searchInput')?.focus();
   }
   loadGames();
 }
@@ -676,9 +692,7 @@ function showBoardgames(mode) {
 /* ── Open Add Game directly from sidebar ── */
 function openAddGame() {
   showBoardgames('all');
-  setTimeout(() => {
-    document.getElementById('addGameBtn')?.click();
-  }, 150);
+  setTimeout(() => document.getElementById('addGameBtn')?.click(), 150);
 }
 
 /* ── Toggle Drinks sub-menu ── */
@@ -686,7 +700,6 @@ function toggleDrinkMenu() {
   const parent   = document.getElementById('drinkParent');
   const children = document.getElementById('drinkChildren');
   const isOpen   = children.classList.contains('open');
-  // close bg first
   document.getElementById('bgChildren').classList.remove('open');
   document.getElementById('bgParent').classList.remove('open');
   parent.classList.toggle('open', !isOpen);
@@ -706,19 +719,16 @@ function showDrinks(cat) {
   };
   document.getElementById(subMap[cat] || 'drinkAllItem')?.classList.add('active');
 
-  document.getElementById('dashboardPage').style.display  = 'none';
-  document.getElementById('boardgamesPage').style.display = 'none';
-  document.getElementById('drinksPage').style.display     = '';
+  _showPage('drinksPage');
 
-  // sync filter tabs
   document.querySelectorAll('.drink-tab').forEach(btn => {
     btn.classList.toggle('btn-primary',   btn.dataset.cat === cat);
     btn.classList.toggle('btn-secondary', btn.dataset.cat !== cat);
   });
 
   activeDrinkFilter = cat;
-  const subtitle = cat === 'all' ? 'Công thức & hướng dẫn pha chế' : `Loại: ${cat}`;
-  document.getElementById('drinkPageSubtitle').textContent = subtitle;
+  document.getElementById('drinkPageSubtitle').textContent =
+    cat === 'all' ? 'Công thức & hướng dẫn pha chế' : `Loại: ${cat}`;
 
   loadDrinks();
 }
