@@ -10,15 +10,7 @@ import { getDatabase, ref, get }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 /* ── Tái dùng Firebase app ── */
-const firebaseConfig = {
-  apiKey:            "AIzaSyBIn1bj6ndt8Yy5AiPFdeKtI5MrZnaNugc",
-  authDomain:        "doublevcute.firebaseapp.com",
-  databaseURL:       "https://doublevcute-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "doublevcute",
-  storageBucket:     "doublevcute.firebasestorage.app",
-  messagingSenderId: "31483876077",
-  appId:             "1:31483876077:web:f2efbb34d8a2c6dcb532e4"
-};
+const firebaseConfig = window.APP_CONFIG.firebaseConfig;
 
 const fbApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const db    = getDatabase(fbApp);
