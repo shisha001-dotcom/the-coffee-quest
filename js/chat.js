@@ -152,18 +152,7 @@ async function trackHourlyOnline(count) {
 }
 
 /* ═════════ EMOJI PICKER ═════════ */
-const EMOJIS = [
-  "😀","😂","🥰","😍","🤩","😎","🥳","😊",
-  "😅","🤣","😭","😢","😤","😠","🤔","🫠",
-  "👍","👎","👏","🙌","🤝","💪","🙏","✌️",
-  "❤️","🧡","💛","💚","💙","💜","🖤","🤍",
-  "🔥","✨","🎉","🎊","💯","⭐","🌟","💫",
-  "☕","🍵","🧋","🍫","🍰","🎂","🧁","🍩",
-  "😋","🤤","😴","🥱","😪","🤧","😷","🥴",
-  "🐶","🐱","🐻","🦊","🐼","🐸","🦁","🐨",
-  "🍕","🍔","🍟","🌮","🍜","🍣","🍦","🍭",
-  "⚽","🏀","🎮","🎵","🎬","📚","💻","📱"
-];
+const EMOJIS = window.CHAT_EMOJIS;
 
 const emojiPicker = document.getElementById("emoji-picker");
 const emojiGrid   = document.getElementById("emoji-grid");
