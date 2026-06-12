@@ -1,7 +1,6 @@
 /* ══════════════════════════════════════════════
    DASHBOARD CHAT MODULE
    File: admin/dashboard-chat.js
-   Import sau dashboard.js trong dashboard.html
    ══════════════════════════════════════════════ */
 
 import { initializeApp, getApps } from
@@ -12,7 +11,6 @@ import {
 } from
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-/* ─── Firebase config (giống chat.js của frontend) ─── */
 const firebaseConfig = {
   apiKey:            "AIzaSyBIn1bj6ndt8Yy5AiPFdeKtI5MrZnaNugc",
   authDomain:        "doublevcute.firebaseapp.com",
@@ -23,17 +21,12 @@ const firebaseConfig = {
   appId:             "1:31483876077:web:f2efbb34d8a2c6dcb532e4"
 };
 
-/* Tái dùng app nếu đã init (tránh duplicate) */
-const fbApp = getApps().length
-  ? getApps()[0]
-  : initializeApp(firebaseConfig);
-
+const fbApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const db     = getDatabase(fbApp);
 const msgRef = ref(db, "communityChat");
 
-/* ─── Session nhân viên (từ auth guard dashboard.js) ─── */
-const SESSION_KEY = "bg_admin_session";
-let staffSession  = null;
+const SESSION_KEY    = "bg_admin_session";
+let staffSession     = null;
 try { staffSession = JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch {}
 
 const STAFF_DISPLAY = "THE COFFEEQUEST";
@@ -49,13 +42,42 @@ const TAG_PATTERNS  = [
 /* ══════════════════════════════════════════════
    STATE
    ══════════════════════════════════════════════ */
-let unreadCount    = 0;
-let chatPageOpen   = false;
-let allMessages    = [];   // cache để render
-let notifGranted   = false;
+let unreadCount  = 0;
+let chatPageOpen = false;
+let allMessages  = [];
+let notifGranted = false;
 
 /* ══════════════════════════════════════════════
-   NOTIFICATION PERMISSION
+   PAGE MANAGER — quản lý tất cả các page trong main-content
+   Đây là trung tâm điều phối để tránh các page hiển thị chồng nhau
+   ══════════════════════════════════════════════ */
+
+// Danh sách tất cả page ID trong main-content
+const ALL_PAGE_IDS = [
+  'dashboardPage',
+  'boardgamesPage',
+  'drinksPage',
+  'analyticsPage',
+  'chatAdminPage',
+];
+
+// Ẩn toàn bộ page
+function hideAllPages() {
+  ALL_PAGE_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+// Hiện đúng 1 page, ẩn hết còn lại
+window.__showPage = function(pageId) {
+  hideAllPages();
+  const el = document.getElementById(pageId);
+  if (el) el.style.display = '';
+};
+
+/* ══════════════════════════════════════════════
+   NOTIFICATION
    ══════════════════════════════════════════════ */
 if ("Notification" in window && Notification.permission === "default") {
   Notification.requestPermission().then(p => { notifGranted = p === "granted"; });
@@ -74,7 +96,7 @@ function pushNotification(user, text) {
 }
 
 /* ══════════════════════════════════════════════
-   BADGE UNREAD trên menu item
+   BADGE UNREAD
    ══════════════════════════════════════════════ */
 function updateBadge(n) {
   const badge = document.getElementById("chatMenuBadge");
@@ -88,17 +110,37 @@ function updateBadge(n) {
 }
 
 /* ══════════════════════════════════════════════
-   INJECT MENU ITEM VÀO SIDEBAR
+   INJECT MENU ITEM
    ══════════════════════════════════════════════ */
 (function injectChatMenu() {
-  /* Chờ DOM sẵn sàng */
   const tryInject = () => {
     const menuGroups = document.querySelectorAll(".menu-group");
     if (!menuGroups.length) { setTimeout(tryInject, 100); return; }
 
-    /* Tìm group HỆ THỐNG hoặc group đầu tiên */
-    const target = menuGroups[0];
+    // Tìm placeholder item nếu đã có trong HTML
+    const placeholder = document.getElementById("chatMenuItemPlaceholder");
+    if (placeholder) {
+      placeholder.id = "chatMenuItem";
+      placeholder.style.cssText = "position:relative;cursor:pointer;";
+      placeholder.innerHTML = `
+        <span>💬</span> Cộng đồng
+        <span id="chatMenuBadge" style="
+          display:none;
+          position:absolute; right:10px; top:50%; transform:translateY(-50%);
+          background:#e17055; color:#fff;
+          font-size:10px; font-weight:700;
+          min-width:18px; height:18px;
+          border-radius:9px; padding:0 5px;
+          align-items:center; justify-content:center;
+          line-height:1;
+        "></span>
+      `;
+      placeholder.onclick = () => openChatPage();
+      return;
+    }
 
+    // Fallback: inject mới vào group đầu tiên
+    const target = menuGroups[0];
     const item = document.createElement("a");
     item.className = "menu-item";
     item.id = "chatMenuItem";
@@ -131,9 +173,8 @@ function updateBadge(n) {
 
   const page = document.createElement("div");
   page.id = "chatAdminPage";
-  page.style.cssText = "display:none;height:100%;flex-direction:column;gap:0;";
+  page.style.display = "none";
   page.innerHTML = `
-    <!-- HEADER -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
       <div>
         <h1 style="font-size:26px;font-weight:700;color:var(--text)">💬 Cộng đồng</h1>
@@ -152,17 +193,14 @@ function updateBadge(n) {
       </div>
     </div>
 
-    <!-- LAYOUT: messages + sidebar -->
     <div style="display:flex;gap:20px;flex:1;min-height:0;height:calc(100vh - 200px);">
 
-      <!-- MESSAGES PANEL -->
       <div style="flex:1;display:flex;flex-direction:column;gap:0;min-width:0;">
         <div style="background:var(--card);border-radius:var(--radius) var(--radius) 0 0;border:1px solid var(--border);border-bottom:none;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:13px;font-weight:600;color:var(--text-muted);">LỊCH SỬ CHAT</span>
           <span id="adminMsgCount" style="font-size:12px;color:var(--text-muted);">0 tin nhắn</span>
         </div>
 
-        <!-- Messages list -->
         <div id="adminChatMessages" style="
           flex:1; overflow-y:auto;
           background:var(--card);
@@ -177,7 +215,6 @@ function updateBadge(n) {
           </div>
         </div>
 
-        <!-- Input bar -->
         <div style="
           background:var(--card);
           border:1px solid var(--border);
@@ -204,18 +241,14 @@ function updateBadge(n) {
           </button>
         </div>
 
-        <!-- Staff badge info -->
         <div style="padding:8px 4px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
           <span>Gửi bởi:</span>
           <span style="background:#1a1a2e;color:#fff;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">THE COFFEEQUEST</span>
-          <span style="color:#a0aec0;">·  ${staffSession?.displayName || staffSession?.username || "Nhân viên"}</span>
+          <span style="color:#a0aec0;">· ${staffSession?.displayName || staffSession?.username || "Nhân viên"}</span>
         </div>
       </div>
 
-      <!-- RIGHT SIDEBAR: online + tag alerts -->
       <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;">
-
-        <!-- Tag notifications -->
         <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
           <div style="background:#fff8f3;border-bottom:1px solid #fde8d8;padding:12px 16px;display:flex;align-items:center;gap:8px;">
             <span style="font-size:16px;">🔔</span>
@@ -227,7 +260,6 @@ function updateBadge(n) {
           </div>
         </div>
 
-        <!-- Quick replies -->
         <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
           <div style="border-bottom:1px solid var(--border);padding:12px 16px;">
             <span style="font-size:13px;font-weight:700;color:var(--text);">⚡ Trả lời nhanh</span>
@@ -249,7 +281,6 @@ function updateBadge(n) {
             `).join("")}
           </div>
         </div>
-
       </div>
     </div>
   `;
@@ -260,53 +291,32 @@ function updateBadge(n) {
 
 /* ══════════════════════════════════════════════
    OPEN / CLOSE CHAT PAGE
+   — Dùng window.__showPage để đảm bảo chỉ 1 page hiển thị
    ══════════════════════════════════════════════ */
 function openChatPage() {
-  /* Ẩn các section khác */
-  const pageHeader  = document.querySelector(".page-header");
-  const statsGrid   = document.querySelector(".stats-grid");
-  const searchBar   = document.querySelector(".search-bar");
-  const tableCard   = document.querySelector(".table-card");
-  const chatPage    = document.getElementById("chatAdminPage");
-
-  [pageHeader, statsGrid, searchBar, tableCard].forEach(el => {
-    if (el) el.style.display = "none";
-  });
-
-  chatPage.style.display = "flex";
+  window.__showPage('chatAdminPage');
   chatPageOpen = true;
   unreadCount  = 0;
   updateBadge(0);
 
-  /* Active state menu */
-  document.querySelectorAll(".menu-item").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".menu-item, .menu-item-parent").forEach(el => el.classList.remove("active"));
   document.getElementById("chatMenuItem")?.classList.add("active");
 
-  /* Scroll xuống cuối */
   setTimeout(scrollToBottom, 100);
-
-  /* Focus input */
   document.getElementById("adminChatInput")?.focus();
 }
 
 function closeChatPage() {
-  const pageHeader = document.querySelector(".page-header");
-  const statsGrid  = document.querySelector(".stats-grid");
-  const searchBar  = document.querySelector(".search-bar");
-  const tableCard  = document.querySelector(".table-card");
-  const chatPage   = document.getElementById("chatAdminPage");
-
-  [pageHeader, statsGrid, searchBar, tableCard].forEach(el => {
-    if (el) el.style.display = "";
-  });
-
-  chatPage.style.display = "none";
+  // Chỉ ẩn chat page — việc hiện page nào tiếp theo
+  // do hàm navigation trong dashboard.html xử lý
+  const el = document.getElementById('chatAdminPage');
+  if (el) el.style.display = 'none';
   chatPageOpen = false;
 }
 
 /* Hook các menu item khác để đóng chat page */
 document.addEventListener("click", e => {
-  const item = e.target.closest(".menu-item");
+  const item = e.target.closest(".menu-item, .menu-item-parent, .menu-sub-item");
   if (!item || item.id === "chatMenuItem") return;
   if (chatPageOpen) closeChatPage();
 });
@@ -314,28 +324,21 @@ document.addEventListener("click", e => {
 /* ══════════════════════════════════════════════
    RENDER MESSAGE
    ══════════════════════════════════════════════ */
-function isStaffMsg(msg) {
-  return msg.isStaff === true;
-}
-
+function isStaffMsg(msg) { return msg.isStaff === true; }
 function isTagMsg(msg) {
   if (isStaffMsg(msg)) return false;
   return TAG_PATTERNS.some(p => p.test(msg.text));
 }
-
 function escHtml(s) {
   return String(s || "")
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
-
 function highlightTags(text) {
-  /* Highlight @tag trong tin nhắn khách */
   return escHtml(text).replace(
     /(@thecoffeequest|@the\s*coffee\s*quest|@quán|@quan|@staff|@admin)/gi,
     '<span style="background:#fff0cc;color:#b7791f;font-weight:700;padding:1px 5px;border-radius:4px;">$1</span>'
   );
 }
-
 function formatTime(ts) {
   if (!ts) return "";
   const d  = new Date(ts);
@@ -345,34 +348,21 @@ function formatTime(ts) {
 }
 
 function buildMsgEl(msg) {
-  const wrap = document.createElement("div");
+  const wrap  = document.createElement("div");
   const staff = isStaffMsg(msg);
   const tag   = isTagMsg(msg);
 
   if (staff) {
-    /* ── TIN NHẮN QUÁN ── */
     wrap.style.cssText = "display:flex;flex-direction:column;align-items:flex-end;gap:3px;";
     wrap.innerHTML = `
       <div style="display:flex;align-items:baseline;gap:6px;">
         <span style="font-size:10px;color:var(--text-muted);">${formatTime(msg.time)}</span>
-        <span style="
-          background:#1a1a2e; color:#fff;
-          font-size:10px; font-weight:700;
-          padding:2px 9px; border-radius:20px;
-          letter-spacing:.3px;
-        ">THE COFFEEQUEST</span>
+        <span style="background:#1a1a2e;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:.3px;">THE COFFEEQUEST</span>
         <span style="font-size:10px;color:#a0aec0;">${escHtml(msg.staffName||"")}</span>
       </div>
-      <div style="
-        background:linear-gradient(135deg,#6c5ce7,#5a4bd1);
-        color:#fff; border-radius:14px 4px 14px 14px;
-        padding:10px 14px; font-size:14px; line-height:1.55;
-        max-width:80%; word-break:break-word;
-        box-shadow:0 2px 8px rgba(108,92,231,.25);
-      ">${escHtml(msg.text)}</div>
+      <div style="background:linear-gradient(135deg,#6c5ce7,#5a4bd1);color:#fff;border-radius:14px 4px 14px 14px;padding:10px 14px;font-size:14px;line-height:1.55;max-width:80%;word-break:break-word;box-shadow:0 2px 8px rgba(108,92,231,.25);">${escHtml(msg.text)}</div>
     `;
   } else {
-    /* ── TIN NHẮN KHÁCH ── */
     const border = tag ? "border:1.5px solid #f6ad55;" : "border:1px solid var(--border);";
     const bg     = tag ? "background:#fffbf0;" : "background:var(--bg);";
     wrap.style.cssText = "display:flex;flex-direction:column;align-items:flex-start;gap:3px;";
@@ -382,12 +372,7 @@ function buildMsgEl(msg) {
         <span style="font-size:10px;color:#bbb;">${formatTime(msg.time)}</span>
         ${tag ? '<span style="font-size:10px;background:#fed7aa;color:#c05621;font-weight:700;padding:1px 7px;border-radius:10px;">📣 Tag quán</span>' : ""}
       </div>
-      <div style="
-        ${bg} ${border}
-        border-radius:4px 14px 14px 14px;
-        padding:10px 14px; font-size:14px; line-height:1.55;
-        max-width:80%; word-break:break-word; color:var(--text);
-      ">${highlightTags(msg.text)}</div>
+      <div style="${bg}${border}border-radius:4px 14px 14px 14px;padding:10px 14px;font-size:14px;line-height:1.55;max-width:80%;word-break:break-word;color:var(--text);">${highlightTags(msg.text)}</div>
     `;
   }
   return wrap;
@@ -407,65 +392,46 @@ function addTagAlert(msg) {
 function renderTagAlerts() {
   const list = document.getElementById("tagAlertList");
   if (!list) return;
-
   if (!tagAlerts.length) {
     list.innerHTML = '<div style="text-align:center;padding:16px 0;color:var(--text-muted);">Chưa có tag nào</div>';
     return;
   }
-
   list.innerHTML = tagAlerts.map(msg => `
-    <div style="
-      padding:8px 10px; border-radius:8px;
-      background:#fffbf0; border:1px solid #fde8b4;
-      margin-bottom:6px; cursor:pointer;
-    " onclick="document.getElementById('adminChatInput').value=''; document.getElementById('adminChatInput').focus();">
-      <div style="font-size:11px;font-weight:700;color:#b7791f;margin-bottom:3px;">
-        ${escHtml(msg.user)} · ${formatTime(msg.time)}
-      </div>
-      <div style="font-size:12px;color:var(--text);line-height:1.4;">
-        ${highlightTags(msg.text.length > 60 ? msg.text.slice(0,60)+"…" : msg.text)}
-      </div>
+    <div style="padding:8px 10px;border-radius:8px;background:#fffbf0;border:1px solid #fde8b4;margin-bottom:6px;cursor:pointer;"
+      onclick="document.getElementById('adminChatInput').value='';document.getElementById('adminChatInput').focus();">
+      <div style="font-size:11px;font-weight:700;color:#b7791f;margin-bottom:3px;">${escHtml(msg.user)} · ${formatTime(msg.time)}</div>
+      <div style="font-size:12px;color:var(--text);line-height:1.4;">${highlightTags(msg.text.length > 60 ? msg.text.slice(0,60)+"…" : msg.text)}</div>
     </div>
   `).join("");
 
   const badge = document.getElementById("tagBadge");
-  if (badge) {
-    badge.textContent = tagAlerts.length;
-    badge.style.display = "inline-flex";
-  }
+  if (badge) { badge.textContent = tagAlerts.length; badge.style.display = "inline-flex"; }
 }
 
-/* ══════════════════════════════════════════════
-   SCROLL TO BOTTOM
-   ══════════════════════════════════════════════ */
 function scrollToBottom() {
-  const container = document.getElementById("adminChatMessages");
-  if (container) container.scrollTop = container.scrollHeight;
+  const c = document.getElementById("adminChatMessages");
+  if (c) c.scrollTop = c.scrollHeight;
 }
 
 /* ══════════════════════════════════════════════
    INIT CHAT LOGIC
    ══════════════════════════════════════════════ */
 function initChatLogic() {
-
-  /* ─── Online count ─── */
   onValue(ref(db, "onlineUsers"), snapshot => {
-    const n = snapshot.val() ? Object.keys(snapshot.val()).length : 0;
+    const n  = snapshot.val() ? Object.keys(snapshot.val()).length : 0;
     const el = document.getElementById("adminOnlineCount");
     if (el) el.textContent = n;
   });
 
-  /* ─── Receive messages ─── */
   let initialLoad = true;
 
-  /* Load lịch sử trước */
   get(msgRef).then(snapshot => {
     const container = document.getElementById("adminChatMessages");
     if (!container) return;
     container.innerHTML = "";
 
     if (!snapshot.exists()) {
-      container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:40px 0;">Chưa có tin nhắn nào hôm nay.</div>';
+      container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:40px 0;" data-placeholder>Chưa có tin nhắn nào hôm nay.</div>';
     } else {
       const msgs = [];
       snapshot.forEach(child => msgs.push({ key: child.key, ...child.val() }));
@@ -474,7 +440,6 @@ function initChatLogic() {
         allMessages.push(msg);
         if (isTagMsg(msg)) addTagAlert(msg);
       });
-
       const countEl = document.getElementById("adminMsgCount");
       if (countEl) countEl.textContent = `${msgs.length} tin nhắn`;
     }
@@ -483,35 +448,25 @@ function initChatLogic() {
     initialLoad = false;
   });
 
-  /* Lắng nghe tin nhắn mới real-time */
   onChildAdded(msgRef, snapshot => {
-    if (initialLoad) return;  // đã xử lý bởi get() trên
-
+    if (initialLoad) return;
     const msg = { key: snapshot.key, ...snapshot.val() };
     allMessages.push(msg);
 
     const container = document.getElementById("adminChatMessages");
     if (container) {
-      /* Xóa placeholder nếu còn */
       const placeholder = container.querySelector("[data-placeholder]");
       if (placeholder) placeholder.remove();
-
       container.appendChild(buildMsgEl(msg));
       const countEl = document.getElementById("adminMsgCount");
       if (countEl) countEl.textContent = `${allMessages.length} tin nhắn`;
     }
 
-    /* Tag alert */
     if (isTagMsg(msg)) {
       addTagAlert(msg);
-      /* Notification */
       pushNotification(msg.user, msg.text);
-      if (!chatPageOpen) {
-        unreadCount++;
-        updateBadge(unreadCount);
-      }
+      if (!chatPageOpen) { unreadCount++; updateBadge(unreadCount); }
     } else if (!chatPageOpen && !isStaffMsg(msg)) {
-      /* Thông báo bình thường khi không ở trang chat */
       unreadCount++;
       updateBadge(unreadCount);
     }
@@ -519,13 +474,10 @@ function initChatLogic() {
     if (chatPageOpen) scrollToBottom();
   });
 
-  /* ─── Listen for clear (khi DB reset) ─── */
   onValue(msgRef, snapshot => {
     if (!snapshot.exists()) {
       const container = document.getElementById("adminChatMessages");
-      if (container) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:40px 0;" data-placeholder>Chưa có tin nhắn nào.</div>';
-      }
+      if (container) container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:40px 0;" data-placeholder>Chưa có tin nhắn nào.</div>';
       allMessages = [];
       tagAlerts   = [];
       renderTagAlerts();
@@ -534,48 +486,35 @@ function initChatLogic() {
     }
   });
 
-  /* ─── Send message ─── */
   function sendStaffMessage() {
     const input = document.getElementById("adminChatInput");
     const text  = input?.value.trim();
     if (!text) return;
-
     push(msgRef, {
-      user:      STAFF_DISPLAY,        // tên hiển thị ngoài client
-      text:      text,
+      user:      STAFF_DISPLAY,
+      text,
       time:      Date.now(),
-      isStaff:   true,                 // flag để client render khác biệt
+      isStaff:   true,
       staffName: staffSession?.displayName || staffSession?.username || "",
     });
-
     input.value = "";
     input.style.height = "auto";
     input.focus();
   }
 
-  /* Send button */
   document.getElementById("adminSendBtn")?.addEventListener("click", sendStaffMessage);
-
-  /* Enter gửi, Shift+Enter xuống dòng */
   document.getElementById("adminChatInput")?.addEventListener("keydown", e => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendStaffMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendStaffMessage(); }
   });
-
-  /* Auto-resize textarea */
   document.getElementById("adminChatInput")?.addEventListener("input", function() {
     this.style.height = "auto";
     this.style.height = Math.min(this.scrollHeight, 120) + "px";
   });
 
-  /* Auto-focus border color */
   const input = document.getElementById("adminChatInput");
-  input?.addEventListener("focus",  () => { if(input) input.style.borderColor = "var(--primary)"; });
-  input?.addEventListener("blur",   () => { if(input) input.style.borderColor = "var(--border)"; });
+  input?.addEventListener("focus", () => { if(input) input.style.borderColor = "var(--primary)"; });
+  input?.addEventListener("blur",  () => { if(input) input.style.borderColor = "var(--border)"; });
 
-  /* ─── Quick replies ─── */
   document.getElementById("quickReplies")?.addEventListener("click", e => {
     const btn = e.target.closest(".quick-reply-btn");
     if (!btn) return;
@@ -588,7 +527,6 @@ function initChatLogic() {
     }
   });
 
-  /* ─── Clear chat button ─── */
   document.getElementById("adminClearChatBtn")?.addEventListener("click", async () => {
     if (!confirm("Xóa toàn bộ lịch sử chat hôm nay?\n\nHành động này không thể hoàn tác!")) return;
     try {
@@ -600,9 +538,6 @@ function initChatLogic() {
   });
 }
 
-/* ══════════════════════════════════════════════
-   TOAST (dùng lại từ dashboard.js nếu có, fallback nếu không)
-   ══════════════════════════════════════════════ */
 function showDashboardToast(msg, bg = "#00b894") {
   if (typeof showToast === "function") { showToast(msg, bg); return; }
   const t = document.createElement("div");
