@@ -16,16 +16,7 @@ import {
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 /* ═════════ FIREBASE CONFIG ═════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyBIn1bj6ndt8Yy5AiPFdeKtI5MrZnaNugc",
-  authDomain: "doublevcute.firebaseapp.com",
-  databaseURL: "https://doublevcute-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "doublevcute",
-  storageBucket: "doublevcute.firebasestorage.app",
-  messagingSenderId: "31483876077",
-  appId: "1:31483876077:web:f2efbb34d8a2c6dcb532e4",
-  measurementId: "G-EKGL5TN6NY"
-};
+const firebaseConfig = window.APP_CONFIG.firebaseConfig;
 
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
