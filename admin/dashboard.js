@@ -28,9 +28,8 @@ const currentSession = requireAuth();
 /* ══════════════════════════════════════════════
    SUPABASE
    ══════════════════════════════════════════════ */
-const SUPABASE_URL = "https://dklfwlgpomnrmxmbjpat.supabase.co";
-const SUPABASE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrbGZ3bGdwb21ucm14bWJqcGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDQ5MDAsImV4cCI6MjA5NDA4MDkwMH0.sy8zDIdh9RBhl9TOqg6PnfTehqtV7VcFQSaSPoc4MoI";
+const SUPABASE_URL = window.APP_CONFIG.supabaseUrl;
+const SUPABASE_KEY = window.APP_CONFIG.supabaseKey;
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
