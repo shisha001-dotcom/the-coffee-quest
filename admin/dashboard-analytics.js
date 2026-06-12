@@ -193,15 +193,13 @@ let hourlyChartInstance = null;
    SHOW / HIDE PAGE
    ══════════════════════════════════════════════ */
 window.showAnalyticsPage = function() {
-  /* Ẩn tất cả page khác */
-  ['dashboardPage','boardgamesPage','drinksPage'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
-  const chatPage = document.getElementById('chatAdminPage');
-  if (chatPage) chatPage.style.display = 'none';
-
-  document.getElementById('analyticsPage').style.display = '';
+  if (typeof window.__showPage === 'function') {
+    window.__showPage('analyticsPage');
+  } else {
+    ['dashboardPage','boardgamesPage','drinksPage','chatAdminPage']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    document.getElementById('analyticsPage').style.display = '';
+  }
 
   /* Active sidebar */
   document.querySelectorAll('.menu-item, .menu-item-parent').forEach(el => el.classList.remove('active'));
