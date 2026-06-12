@@ -1522,12 +1522,32 @@ body {
 }
 
 /* Mobile nhỏ ≤ 660px */
-@media (max-width: 660px) {
-  .site-header {
-    padding: 0 14px;
-    gap: 12px;
-  }
-  .search-wrap { max-width: 100%; flex: 1; }
+/* Header chuyển 2 dòng trên mobile: dòng 1 = menu+logo+count, dòng 2 = search */
+.site-header {
+  position: static;     /* bỏ sticky vì header giờ cao 2 dòng */
+  height: auto;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 10px 14px;
+  gap: 10px;
+  row-gap: 8px;
+}
+
+#menu-toggle  { order: 1; }
+.logo         { order: 2; font-size: 1.35rem; }
+.header-count { order: 3; font-size: .72rem; }
+
+.search-wrap {
+  order: 4;
+  flex: 1 1 100%;
+  max-width: 100%;
+  margin-top: 0;
+}
+
+/* Filter bar dính sát mép trên vì header không còn sticky */
+.filter-bar {
+  top: 0;
+}
 
   .list-main { padding: 18px 12px 60px; }
   #grid { grid-template-columns: 1fr; }
