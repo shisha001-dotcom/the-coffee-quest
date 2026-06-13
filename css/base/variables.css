@@ -1,0 +1,54 @@
+/* ══════════════════════════════════════════════════════════════════
+   1. CSS VARIABLES
+   ─────────────────────────────────────────────────────────────────
+   ► Thay đổi các giá trị ở đây để ảnh hưởng toàn bộ giao diện.
+   ► Không cần sửa ở nhiều chỗ khác nhau nữa.
+   ══════════════════════════════════════════════════════════════════ */
+:root {
+  /* --- Màu nền & bề mặt --- */
+  --bg:          #f5f0e8;   /* nền toàn trang (kem nhạt) */
+  --card:        #ffffff;   /* nền card */
+  --surface-2:   #faf6ef;   /* nền phụ (filter bar, daily pick...) */
+  --tag-bg:      #f0ebe0;   /* nền chip/tag nhỏ */
+
+  /* --- Màu chữ --- */
+  --ink:         #1a1a1a;   /* chữ chính */
+  --muted:       #888888;   /* chữ phụ, placeholder */
+
+  /* --- Màu đường viền --- */
+  --border:      #e0d8cc;
+
+  /* --- Màu nhấn --- */
+  /* ► ĐỔI --accent để thay màu đỏ chủ đạo (nút, tag nổi bật...) */
+  --accent:      #e63946;
+  --accent-glow: rgba(230, 57, 70, .18);
+
+  /* --- Màu phụ --- */
+  --green:       #2a9d8f;   /* dùng cho "điều kiện thắng" */
+  --yellow:      #e9c46a;   /* dùng cho số đếm ở header */
+
+  /* --- Header --- */
+  /* ► Đổi --header-bg để thay màu header (hiện tại là đen) */
+  --header-bg:   #111111;
+  --header-h:    64px;      /* chiều cao header */
+
+  /* --- Menu bên --- */
+  --menu-bg:     #111111;
+  --menu-w:      280px;     /* chiều rộng side menu */
+
+  /* --- Bo góc --- */
+  /* ► Giảm xuống 0 để giao diện vuông vức kiểu "brutal" */
+  --r-sm:  10px;
+  --r-md:  14px;
+  --r-lg:  20px;
+  --r-xl:  24px;
+
+  /* --- Bóng đổ --- */
+  --shadow-sm:  0 2px 8px rgba(0,0,0,.08);
+  --shadow-md:  0 8px 24px rgba(0,0,0,.12);
+  --shadow-lg:  0 20px 60px rgba(0,0,0,.22);
+
+  /* --- Transition mặc định --- */
+  /* ► Tăng thời gian lên (vd: .3s) để animation chậm hơn */
+  --t: .18s ease;
+}

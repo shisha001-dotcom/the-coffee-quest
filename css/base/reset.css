@@ -1,0 +1,69 @@
+/* ══════════════════════════════════════════════════════════════════
+   2. RESET & BASE
+   ══════════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  /* ► Thêm texture nhẹ cho nền */
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(230,57,70,.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(42,157,143,.04) 0%, transparent 50%);
+}
+
+body{
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  overflow-x:hidden;
+}
+
+img{
+  user-select:none;
+  -webkit-user-drag:none;
+}
+
+*{
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ẩn/hiện page theo route */
+.page{
+  display:none;
+  opacity:0;
+  transform:translateY(10px);
+}
+
+.page.active{
+  display:block;
+  animation:pageIn .28s ease both;
+}
+
+@keyframes pageIn{
+  from{
+    opacity:0;
+    transform:translateY(14px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *{
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

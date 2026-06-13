@@ -1,0 +1,106 @@
+/* ══════════════════════════════════════════════════════════════════
+   11. CONTACT PAGE
+   ─────────────────────────────────────────────────────────────────
+   ► Sửa nội dung địa chỉ/hotline trong pages/contact.html
+   ══════════════════════════════════════════════════════════════════ */
+.contact-page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 44px 24px 80px;
+  animation: fadeUp .4s ease both;
+}
+.contact-page h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 1.5px;
+  margin-bottom: 20px;
+}
+.contact-page p {
+  color: #555;
+  font-size: .95rem;
+  line-height: 1.7;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.contact-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+.contact-gallery img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  border: 2px solid var(--border);
+  transition: transform var(--t), box-shadow var(--t);
+}
+.contact-gallery img:hover {
+  transform: scale(1.04);
+  box-shadow: var(--shadow-md);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   12. SETTINGS PAGE
+   ══════════════════════════════════════════════════════════════════ */
+.settings-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 44px 24px 80px;
+  animation: fadeUp .4s ease both;
+}
+.settings-page h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 1.5px;
+  margin-bottom: 28px;
+}
+
+.setting-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.setting-box label {
+  font-size: .76rem;
+  font-weight: 800;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+.setting-box input {
+  border: 2px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  font-size: .95rem;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  outline: none;
+  transition: border-color var(--t), box-shadow var(--t);
+}
+.setting-box input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.setting-box button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-md);
+  padding: 13px;
+  font-size: .9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity var(--t), transform var(--t);
+}
+.setting-box button:hover {
+  opacity: .9;
+  transform: translateY(-1px);
+}
