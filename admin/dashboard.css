@@ -601,6 +601,99 @@ body {
   visibility: visible;
 }
 
+/* =============================================
+   ADMIN CHAT PAGE — responsive (Messenger-style mobile)
+   ============================================= */
+.chat-back-btn {
+  display: none;
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+#chatSidebarToggle { display: none; position: relative; }
+.chat-toggle-badge {
+  position: absolute;
+  top: -4px; right: -4px;
+  background: #e17055;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px; height: 16px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+}
+
+#chatSidebarOverlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 690;
+}
+#chatSidebarOverlay.show { display: block; }
+
+@media (max-width: 860px) {
+  #chatAdminPage .chat-page-header {
+    margin-bottom: 12px;
+  }
+  #chatAdminPage .chat-page-subtitle,
+  #chatAdminPage .chat-online-pill,
+  #chatAdminPage .chat-clear-label {
+    display: none;
+  }
+  #chatAdminPage .chat-back-btn,
+  #chatAdminPage #chatSidebarToggle {
+    display: flex;
+  }
+  #chatAdminPage .chat-page-title h1 { font-size: 18px; }
+
+  #chatAdminPage .chat-body-row {
+    height: calc(100vh - 150px) !important;
+    gap: 0 !important;
+  }
+  #chatAdminPage .chat-main-col { width: 100%; }
+
+  /* Ẩn header "LỊCH SỬ CHAT" — full màn hình kiểu Messenger */
+  #chatAdminPage .chat-history-bar { display: none !important; }
+
+  #chatAdminPage .chat-messages-area {
+    border-radius: 14px 14px 0 0 !important;
+    border: 1px solid var(--border) !important;
+  }
+
+  #chatAdminPage .chat-input-bar {
+    border-radius: 0 0 14px 14px !important;
+  }
+
+  #chatAdminPage .chat-sent-by { display: none; }
+
+  /* Sidebar (Tag quán + Trả lời nhanh) → bottom sheet */
+  #chatAdminPage .chat-sidebar {
+    position: fixed;
+    left: 12px; right: 12px; bottom: 12px;
+    width: auto !important;
+    max-height: 75vh;
+    background: var(--bg);
+    border-radius: 16px;
+    box-shadow: 0 -8px 30px rgba(0,0,0,.25);
+    padding: 14px;
+    z-index: 700;
+    overflow-y: auto;
+    transform: translateY(120%);
+    transition: transform .25s ease;
+  }
+  #chatAdminPage .chat-sidebar.open {
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 1200px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
