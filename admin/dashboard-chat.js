@@ -393,12 +393,17 @@ function addTagAlert(msg) {
 
 function renderTagAlerts() {
   const list = document.getElementById("tagAlertList");
-  if (!list) return;
+  const badge = document.getElementById("tagBadge");
+  const toggleBadge = document.getElementById("chatToggleBadge");
+
   if (!tagAlerts.length) {
-    list.innerHTML = '<div style="text-align:center;padding:16px 0;color:var(--text-muted);">Chưa có tag nào</div>';
+    if (list) list.innerHTML = '<div style="text-align:center;padding:16px 0;color:var(--text-muted);">Chưa có tag nào</div>';
+    if (badge) badge.style.display = "none";
+    if (toggleBadge) toggleBadge.style.display = "none";
     return;
   }
-  list.innerHTML = tagAlerts.map(msg => `
+
+  if (list) list.innerHTML = tagAlerts.map(msg => `
     <div style="padding:8px 10px;border-radius:8px;background:#fffbf0;border:1px solid #fde8b4;margin-bottom:6px;cursor:pointer;"
       onclick="document.getElementById('adminChatInput').value='';document.getElementById('adminChatInput').focus();">
       <div style="font-size:11px;font-weight:700;color:#b7791f;margin-bottom:3px;">${escHtml(msg.user)} · ${formatTime(msg.time)}</div>
@@ -406,8 +411,8 @@ function renderTagAlerts() {
     </div>
   `).join("");
 
-  const badge = document.getElementById("tagBadge");
-  if (badge) { badge.textContent = tagAlerts.length; badge.style.display = "inline-flex"; }
+  if (badge)       { badge.textContent = tagAlerts.length; badge.style.display = "inline-flex"; }
+  if (toggleBadge) { toggleBadge.textContent = tagAlerts.length; toggleBadge.style.display = "flex"; }
 }
 
 function scrollToBottom() {
@@ -537,6 +542,30 @@ function initChatLogic() {
     } catch(err) {
       alert("Lỗi: " + err.message);
     }
+  });
+
+/* ── Back button: đóng chat, về Dashboard ── */
+  document.getElementById("chatBackBtn")?.addEventListener("click", () => {
+    closeChatPage();
+    if (typeof window.showDashboard === "function") window.showDashboard();
+  });
+
+  /* ── Sidebar (Tag quán + Trả lời nhanh) → bottom sheet trên mobile ── */
+  const sidebarToggle  = document.getElementById("chatSidebarToggle");
+  const sidebarEl      = document.querySelector("#chatAdminPage .chat-sidebar");
+  const sidebarOverlay = document.getElementById("chatSidebarOverlay");
+
+  function toggleChatSidebar(force) {
+    const open = force ?? !sidebarEl?.classList.contains("open");
+    sidebarEl?.classList.toggle("open", open);
+    sidebarOverlay?.classList.toggle("show", open);
+  }
+  sidebarToggle?.addEventListener("click", () => toggleChatSidebar());
+  sidebarOverlay?.addEventListener("click", () => toggleChatSidebar(false));
+
+  /* Đóng bottom sheet sau khi chọn 1 câu trả lời nhanh (mobile) */
+  document.getElementById("quickReplies")?.addEventListener("click", e => {
+    if (e.target.closest(".quick-reply-btn")) toggleChatSidebar(false);
   });
 }
 
