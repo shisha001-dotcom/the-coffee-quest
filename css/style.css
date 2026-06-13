@@ -1522,6 +1522,7 @@ body {
 }
 
 /* Mobile nhỏ ≤ 660px */
+@media (max-width: 660px) {
 /* Header chuyển 2 dòng trên mobile: dòng 1 = menu+logo+count, dòng 2 = search */
 .site-header {
   position: static;     /* bỏ sticky vì header giờ cao 2 dòng */
