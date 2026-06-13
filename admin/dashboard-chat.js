@@ -159,6 +159,7 @@ function updateBadge(n) {
 /* ══════════════════════════════════════════════
    INJECT CHAT PAGE HTML
    ══════════════════════════════════════════════ */
+/* admin/dashboard-chat.js — IIFE injectChatPageHTML mới, dán thay khối cũ */
 (function injectChatPageHTML() {
   const main = document.querySelector(".main-content");
   if (!main) return;
@@ -167,33 +168,39 @@ function updateBadge(n) {
   page.id = "chatAdminPage";
   page.style.display = "none";
   page.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
-      <div>
+    <div class="chat-page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:10px;">
+      <button id="chatBackBtn" class="chat-back-btn" title="Quay lại Dashboard" aria-label="Quay lại Dashboard">←</button>
+
+      <div class="chat-page-title" style="min-width:0;flex:1;">
         <h1 style="font-size:26px;font-weight:700;color:var(--text)">💬 Cộng đồng</h1>
-        <p style="font-size:14px;color:var(--text-muted);margin-top:4px">
+        <p class="chat-page-subtitle" style="font-size:14px;color:var(--text-muted);margin-top:4px">
           Chat real-time với khách — gửi với tư cách
           <span style="background:#1a1a2e;color:#fff;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.3px">THE COFFEEQUEST</span>
         </p>
       </div>
-      <div style="display:flex;gap:10px;align-items:center;">
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 16px;font-size:13px;color:var(--text-muted);">
+
+      <div class="chat-page-actions" style="display:flex;gap:10px;align-items:center;">
+        <div class="chat-online-pill" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 16px;font-size:13px;color:var(--text-muted);">
           👥 Online: <b id="adminOnlineCount" style="color:var(--primary)">0</b>
         </div>
+        <button id="chatSidebarToggle" class="btn btn-secondary" title="Tag quán & Trả lời nhanh">
+          ⚡<span id="chatToggleBadge" class="chat-toggle-badge" style="display:none"></span>
+        </button>
         <button id="adminClearChatBtn" class="btn btn-secondary" style="font-size:13px;">
-          🗑️ Xóa chat hôm nay
+          🗑️ <span class="chat-clear-label">Xóa chat hôm nay</span>
         </button>
       </div>
     </div>
 
-    <div style="display:flex;gap:20px;flex:1;min-height:0;height:calc(100vh - 200px);">
+    <div class="chat-body-row" style="display:flex;gap:20px;flex:1;min-height:0;height:calc(100vh - 200px);">
 
-      <div style="flex:1;display:flex;flex-direction:column;gap:0;min-width:0;">
-        <div style="background:var(--card);border-radius:var(--radius) var(--radius) 0 0;border:1px solid var(--border);border-bottom:none;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;">
+      <div class="chat-main-col" style="flex:1;display:flex;flex-direction:column;gap:0;min-width:0;">
+        <div class="chat-history-bar" style="background:var(--card);border-radius:var(--radius) var(--radius) 0 0;border:1px solid var(--border);border-bottom:none;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:13px;font-weight:600;color:var(--text-muted);">LỊCH SỬ CHAT</span>
           <span id="adminMsgCount" style="font-size:12px;color:var(--text-muted);">0 tin nhắn</span>
         </div>
 
-        <div id="adminChatMessages" style="
+        <div id="adminChatMessages" class="chat-messages-area" style="
           flex:1; overflow-y:auto;
           background:var(--card);
           border:1px solid var(--border);
@@ -207,7 +214,7 @@ function updateBadge(n) {
           </div>
         </div>
 
-        <div style="
+        <div class="chat-input-bar" style="
           background:var(--card);
           border:1px solid var(--border);
           border-radius:0 0 var(--radius) var(--radius);
@@ -233,14 +240,14 @@ function updateBadge(n) {
           </button>
         </div>
 
-        <div style="padding:8px 4px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
+        <div class="chat-sent-by" style="padding:8px 4px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
           <span>Gửi bởi:</span>
           <span style="background:#1a1a2e;color:#fff;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">THE COFFEEQUEST</span>
           <span style="color:#a0aec0;">· ${staffSession?.displayName || staffSession?.username || "Nhân viên"}</span>
         </div>
       </div>
 
-      <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;">
+      <div class="chat-sidebar" style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;">
         <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
           <div style="background:#fff8f3;border-bottom:1px solid #fde8d8;padding:12px 16px;display:flex;align-items:center;gap:8px;">
             <span style="font-size:16px;">🔔</span>
@@ -274,7 +281,10 @@ function updateBadge(n) {
           </div>
         </div>
       </div>
+
     </div>
+
+    <div id="chatSidebarOverlay"></div>
   `;
 
   main.appendChild(page);
