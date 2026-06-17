@@ -335,42 +335,91 @@ window.GAMES_READY.then(() => {
   routeFromHash();
 });
 
-/* ═══ DAILY PICK — Hôm nay chơi gì ═══ */
+/* ═══ BANNERS (trang News) ═══
+   Thêm hàm này vào cuối app.js
+   ═══════════════════════════════════════════ */
+function renderBanners(){
+  const wrap = document.getElementById('news-banners-wrap');
+  if(!wrap) return;
+  const config = window.BANNER_CONFIG;
+  if(!config || !config.length) return;
+  const visible = config.filter(b => b.visible && b.url);
+  if(!visible.length){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = visible.map(b => `
+    <div class="banner-slide">
+      <img class="banner-img" src="${esc(b.url)}" alt="Banner" loading="lazy"
+           onerror="this.parentElement.style.display='none'">
+    </div>
+  `).join('');
+}
+
+
+/* ═══ DAILY PICK — Hôm nay chơi gì (3 game ngẫu nhiên) ═══
+   Thay hàm renderDailyPick() cũ bằng hàm này
+   ═══════════════════════════════════════════ */
 function renderDailyPick(){
   renderBanners();
+
   const wrap = document.getElementById('daily-pick-card');
   if(!wrap || !GAMES || !GAMES.length) return;
 
-  const pick = GAMES[Math.floor(Math.random() * GAMES.length)];
-  const idx  = GAMES.indexOf(pick);
+  /* Chọn 3 game ngẫu nhiên không trùng nhau */
+  function pick3(arr){
+    const pool = [...arr];
+    const result = [];
+    while(result.length < Math.min(3, pool.length)){
+      const i = Math.floor(Math.random() * pool.length);
+      result.push(pool.splice(i, 1)[0]);
+    }
+    return result;
+  }
 
-  wrap.innerHTML = `
-    <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
-      <div class="daily-pick-color-bar" style="background:${pick.color}"></div>
-      <div class="daily-pick-body">
-        <div class="daily-pick-top">
-          <div class="daily-pick-emoji">${pick.emoji}</div>
-          <div class="daily-pick-info">
-            <div class="daily-pick-name">${esc(pick.name)}</div>
-            <div class="daily-pick-tags">
-              <span class="tag">${esc(pick.category)}</span>
-              <span class="tag">👥 ${esc(pick.players)}</span>
-              <span class="tag">⏱ ${esc(pick.time)}</span>
-              <span class="tag ${diffClass(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
-            </div>
-          </div>
-        </div>
-        <div class="daily-pick-objective">
-          <strong>Mục tiêu:</strong> ${esc(pick.objective)}
-        </div>
-        <div class="daily-pick-footer">
-          <div class="daily-pick-cta">Xem luật chơi ngay</div>
-          <button class="daily-reroll-btn" onclick="event.stopPropagation(); renderDailyPick()">
-            🎲 Thử game khác
-          </button>
-        </div>
+  function renderCards(){
+    const picks = pick3(GAMES);
+
+    wrap.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:16px;">
+        ${picks.map(pick => {
+          const idx = GAMES.indexOf(pick);
+          const cats = Array.isArray(pick.categories) ? pick.categories : [pick.category];
+          return `
+            <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
+              <div class="daily-pick-color-bar" style="background:${pick.color}"></div>
+              <div class="daily-pick-body">
+                <div class="daily-pick-top">
+                  <div class="daily-pick-emoji">${pick.emoji}</div>
+                  <div class="daily-pick-info">
+                    <div class="daily-pick-name">${esc(pick.name)}</div>
+                    <div class="daily-pick-tags">
+                      ${cats.map(c => `<span class="tag">${esc(c)}</span>`).join('')}
+                      <span class="tag">👥 ${esc(pick.players)}</span>
+                      <span class="tag">⏱ ${esc(pick.time)}</span>
+                      <span class="tag ${diffClass(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="daily-pick-objective">
+                  <strong>Mục tiêu:</strong> ${esc(pick.objective)}
+                </div>
+                <div class="daily-pick-footer">
+                  <div class="daily-pick-cta">Xem luật chơi ngay</div>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
       </div>
-    </div>`;
+      <div style="text-align:center;">
+        <button class="daily-reroll-btn" id="reroll-btn">
+          🎲 Thử 3 game khác
+        </button>
+      </div>
+    `;
+
+    /* Gắn event cho nút reroll sau khi render xong */
+    document.getElementById('reroll-btn')?.addEventListener('click', renderCards);
+  }
+
+  renderCards();
 }
 
 /* ═══ BANNERS (trang News) ═══ */
