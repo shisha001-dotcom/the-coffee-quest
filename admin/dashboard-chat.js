@@ -51,6 +51,7 @@ const ALL_PAGE_IDS = [
   'drinksPage',
   'analyticsPage',
   'chatAdminPage',
+  'bannersPage',
 ];
 
 // Ẩn toàn bộ page
