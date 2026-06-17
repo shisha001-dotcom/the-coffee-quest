@@ -646,7 +646,7 @@ function _showPage(pageId) {
     window.__showPage(pageId);
   } else {
     // Fallback: ẩn tất cả page đã biết rồi hiện page cần
-    ['dashboardPage','boardgamesPage','drinksPage','analyticsPage','chatAdminPage']
+    ['dashboardPage','boardgamesPage','drinksPage','analyticsPage','chatAdminPage','bannersPage']
       .forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -929,6 +929,7 @@ syncOnlineCountToDashboard();
 
 <!-- Analytics module — ES module -->
 <script type="module" src="./dashboard-analytics.js"></script>
+<script type="module" src="./dashboard-banners.js"></script>
 
 </body>
 </html>
