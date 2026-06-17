@@ -337,6 +337,7 @@ window.GAMES_READY.then(() => {
 
 /* ═══ DAILY PICK — Hôm nay chơi gì ═══ */
 function renderDailyPick(){
+  renderBanners();
   const wrap = document.getElementById('daily-pick-card');
   if(!wrap || !GAMES || !GAMES.length) return;
 
@@ -370,4 +371,23 @@ function renderDailyPick(){
         </div>
       </div>
     </div>`;
+}
+
+/* ═══ BANNERS (trang News) ═══ */
+function renderBanners(){
+  const wrap = document.getElementById('news-banners-wrap');
+  if(!wrap) return;
+
+  const config = window.BANNER_CONFIG;
+  if(!config || !config.length) return;
+
+  const visible = config.filter(b => b.visible && b.url);
+  if(!visible.length){ wrap.innerHTML = ''; return; }
+
+  wrap.innerHTML = visible.map(b => `
+    <div class="banner-slide">
+      <img class="banner-img" src="${esc(b.url)}" alt="Banner" loading="lazy"
+           onerror="this.parentElement.style.display='none'">
+    </div>
+  `).join('');
 }
