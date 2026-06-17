@@ -13,6 +13,13 @@ function getYtId(url){
   return null;
 }
 
+/* ── Helper: lấy categories chuẩn (luôn trả về array) ── */
+function getCategories(g){
+  return Array.isArray(g.categories) && g.categories.length
+    ? g.categories
+    : (g.category ? [g.category] : []);
+}
+
 /* ═══ MENU ═══ */
 const menuToggle  = document.getElementById('menu-toggle');
 const sideMenu    = document.getElementById('side-menu');
@@ -40,18 +47,17 @@ function updateHeader(type){
   }
 }
 
-/* ═══ ROUTER — load page vào #app ═══ */
+/* ═══ ROUTER ═══ */
 async function loadPage(pageName){
   const app = document.getElementById('app');
   try {
     const res = await fetch('pages/' + pageName + '.html');
     if(!res.ok) throw new Error('HTTP ' + res.status + ' — pages/' + pageName + '.html');
-    const html = await res.text();
-    app.innerHTML = html;
+    app.innerHTML = await res.text();
     window.scrollTo(0, 0);
     if(pageName === 'boardgame') initBoardgame();
     if(pageName === 'settings')  initSettings();
-    if(pageName === 'news')       renderDailyPick();
+    if(pageName === 'news')      renderDailyPick();
   } catch(e){
     app.innerHTML = '<div style="padding:60px 24px;text-align:center">'
       + '<div style="font-size:3rem;margin-bottom:12px">⚠️</div>'
@@ -69,12 +75,29 @@ function setActive(fn){
   });
 }
 
-function goNews(){      if(location.hash==='#news') routeFromHash(); else location.hash='news'; closeMenu(); }
-function goBoardgame(){ if(location.hash==='#boardgame') routeFromHash(); else location.hash='boardgame'; closeMenu(); }
-function goContact(){   if(location.hash==='#contact') routeFromHash(); else location.hash='contact'; closeMenu(); }
-function goSettings(){  if(location.hash==='#settings') routeFromHash(); else location.hash='settings'; closeMenu(); }
+/* BUG FIX: tránh loop khi hash đã đúng — dùng replace thay vì gán hash lại */
+function goNews(){
+  closeMenu();
+  if(location.hash === '#news'){ routeFromHash(); return; }
+  location.hash = 'news';
+}
+function goBoardgame(){
+  closeMenu();
+  if(location.hash === '#boardgame'){ routeFromHash(); return; }
+  location.hash = 'boardgame';
+}
+function goContact(){
+  closeMenu();
+  if(location.hash === '#contact'){ routeFromHash(); return; }
+  location.hash = 'contact';
+}
+function goSettings(){
+  closeMenu();
+  if(location.hash === '#settings'){ routeFromHash(); return; }
+  location.hash = 'settings';
+}
 
-/* ═══ BOARDGAME — List & Detail dùng classList.active (khớp CSS) ═══ */
+/* ═══ BOARDGAME — List & Detail ═══ */
 function showInApp(id){
   document.querySelectorAll('#app .page').forEach(p => p.classList.remove('active'));
   const el = document.getElementById(id);
@@ -86,49 +109,39 @@ function goList(){
   const v = document.getElementById('d-video');
   if(v) v.innerHTML = '';
   window.scrollTo(0,0);
-  history.pushState(null,'','#');
+  history.pushState(null,'','#boardgame');
 }
 
 function goDetail(idx){
+  /* BUG FIX: guard nếu idx không hợp lệ */
+  if(idx < 0 || idx >= GAMES.length) return;
   currentIdx = idx;
   showInApp('page-detail');
   renderDetail(idx);
   window.scrollTo(0,0);
   history.pushState(null,'','#game-'+idx);
-
-  /* ── TRACKING: ghi lượt xem lên Firebase ── */
   trackGameView(idx);
 }
 
-/* ═══════════════════════════════════════════
-   TRACKING — ghi lượt xem game vào Firebase
-   Path: analytics/gameViews/{YYYY-MM-DD}/{gameId}
-          analytics/hourly/{YYYY-MM-DD}/{HH}
-   ═══════════════════════════════════════════ */
-function getDateStr(){
-  return new Date().toISOString().slice(0,10); // "2026-06-11"
-}
-function getHourStr(){
-  return String(new Date().getHours()).padStart(2,'0'); // "09"
-}
+/* ═══ TRACKING ═══ */
+function getDateStr(){ return new Date().toISOString().slice(0,10); }
 
-async function trackGameView(idx){
-  /* Chờ Firebase từ chat.js sẵn sàng — nó được import dưới dạng module */
+function trackGameView(idx){
+  /* BUG FIX: guard + không await (fire-and-forget intentional, nhưng wrap try/catch trong __fbTrack) */
   if(typeof window.__fbTrack !== 'function') return;
   const game = GAMES[idx];
   if(!game) return;
-  const dateStr = getDateStr();
-  const gameKey = String(game.id);
-  window.__fbTrack('gameViews', dateStr, gameKey, game.name || gameKey);
+  window.__fbTrack('gameViews', getDateStr(), String(game.id), game.name || String(game.id));
 }
 
 /* ═══ BOARDGAME LIST ═══ */
 function filteredGames(){
+  const q = searchQ.toLowerCase();
   return GAMES.filter(g=>{
-    const cats = Array.isArray(g.categories) ? g.categories : [g.category];
-    const mc = activeFilter === '🧩 Tất cả' || cats.includes(activeFilter);
-    const q  = searchQ.toLowerCase();
-    return mc && (!q || g.name.toLowerCase().includes(q) || (g.category||'').toLowerCase().includes(q));
+    const cats = getCategories(g);
+    const matchCat = activeFilter === '🧩 Tất cả' || cats.includes(activeFilter);
+    const matchQ   = !q || g.name.toLowerCase().includes(q) || cats.some(c => c.toLowerCase().includes(q));
+    return matchCat && matchQ;
   });
 }
 
@@ -136,20 +149,23 @@ function renderGrid(){
   const games   = filteredGames();
   const countEl = document.getElementById('countNum');
   if(countEl) countEl.textContent = games.length;
+
   const grid  = document.getElementById('grid');
   const empty = document.getElementById('empty');
   if(!grid) return;
-  if(!games.length){ grid.innerHTML=''; if(empty) empty.style.display='block'; return; }
-  if(empty) empty.style.display='none';
-  grid.innerHTML = games.map((g,i)=>{
 
-  const ri = GAMES.indexOf(g);
+  if(!games.length){
+    grid.innerHTML = '';
+    if(empty) empty.style.display = 'block';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
 
-  const cats = Array.isArray(g.categories)
-    ? g.categories
-    : [g.category];
-
-  return `<div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i*0.04}s">
+  /* BUG FIX: dùng GAMES.indexOf(g) để lấy đúng real index kể cả khi đang filter */
+  grid.innerHTML = games.map((g, i) => {
+    const ri   = GAMES.indexOf(g);
+    const cats = getCategories(g);
+    return `<div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i*0.04}s">
       <div class="card-stripe" style="background:${g.color}"></div>
       <div class="card-body">
         <div class="card-top">
@@ -173,11 +189,11 @@ function renderGrid(){
 
 /* ═══ BOARDGAME DETAIL ═══ */
 function renderDetail(idx){
-  const g = GAMES[idx];
+  const g    = GAMES[idx];
+  const cats = getCategories(g); /* BUG FIX: dùng helper thay vì g.category */
+
   const set  = (id,val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
   const setH = (id,val) => { const el=document.getElementById(id); if(el) el.innerHTML=val; };
-
-  const cats = Array.isArray(g.categories) ? g.categories : [g.category];
 
   set('d-crumb', g.name);
   set('d-emoji', g.emoji);
@@ -186,13 +202,16 @@ function renderDetail(idx){
   set('d-win', g.win);
 
   const bg = document.getElementById('d-hero-bg');
-  if(bg) bg.style.backgroundImage = g.heroBg ? `url('${g.heroBg}')` : `linear-gradient(135deg,${g.color}cc,${g.color}44)`;
+  if(bg) bg.style.backgroundImage = g.heroBg
+    ? `url('${g.heroBg}')`
+    : `linear-gradient(135deg,${g.color}cc,${g.color}44)`;
 
   setH('d-tags',
-    `${cats.map(c => `<span class="hero-tag hl">${esc(c)}</span>`).join('')}`
-    +`<span class="hero-tag">👥 ${esc(g.players)} người</span>`
-    +`<span class="hero-tag">⏱ ${esc(g.time)}</span>`
-    +`<span class="hero-tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>`);
+    cats.map(c => `<span class="hero-tag hl">${esc(c)}</span>`).join('')
+    + `<span class="hero-tag">👥 ${esc(g.players)} người</span>`
+    + `<span class="hero-tag">⏱ ${esc(g.time)}</span>`
+    + `<span class="hero-tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>`
+  );
 
   const imgEl = document.getElementById('d-images');
   if(imgEl){
@@ -214,7 +233,9 @@ function renderDetail(idx){
     if(g.tips && g.tips.length){
       tw.style.display = 'block';
       setH('d-tips', g.tips.map(t=>`<div class="tip-item"><div class="turn-icon">💡</div><div>${esc(t)}</div></div>`).join(''));
-    } else tw.style.display = 'none';
+    } else {
+      tw.style.display = 'none';
+    }
   }
 
   const vw  = document.getElementById('d-video-wrap');
@@ -222,22 +243,20 @@ function renderDetail(idx){
   if(vw && vid){
     vw.style.display = 'block';
     const ytId = getYtId(g.youtubeUrl);
-    if(ytId){
-      vid.innerHTML = `<div class="video-frame"><iframe src="https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1" title="Hướng dẫn ${esc(g.name)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
-    } else {
-      vid.innerHTML = `<div class="no-video"><div class="nv-icon">📽️</div><p>Chưa có video hướng dẫn.</p><a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to play '+g.name)}" target="_blank" rel="noopener">Tìm trên YouTube →</a></div>`;
-    }
+    vid.innerHTML = ytId
+      ? `<div class="video-frame"><iframe src="https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1" title="Hướng dẫn ${esc(g.name)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      : `<div class="no-video"><div class="nv-icon">📽️</div><p>Chưa có video hướng dẫn.</p><a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to play '+g.name)}" target="_blank" rel="noopener">Tìm trên YouTube →</a></div>`;
   }
 
-  const related = GAMES.filter((_,i) => {
-  if(i === idx) return false;
-  const otherCats = Array.isArray(GAMES[i].categories) ? GAMES[i].categories : [GAMES[i].category];
-  return cats.some(c => otherCats.includes(c));
-}).slice(0,4);
+  /* BUG FIX: so sánh categories đúng cách */
+  const related = GAMES
+    .filter((r, i) => i !== idx && getCategories(r).some(c => cats.includes(c)))
+    .slice(0, 4);
+
   const relEl = document.getElementById('d-related');
   if(relEl){
     relEl.innerHTML = related.length
-      ? related.map(r=>{
+      ? related.map(r => {
           const ri = GAMES.indexOf(r);
           return `<div class="rel-card" onclick="goDetail(${ri})">
             <div class="rel-stripe" style="background:${r.color}"></div>
@@ -250,16 +269,22 @@ function renderDetail(idx){
             </div></div>
             <div class="rel-go">Xem luật chơi</div></div>`;
         }).join('')
-      : `<p style="color:var(--muted);font-size:.9rem;grid-column:1/-1">Chưa có game cùng thể loại "${esc(g.category)}".</p>`;
+      : `<p style="color:var(--muted);font-size:.9rem;grid-column:1/-1">Chưa có game cùng thể loại.</p>`;
   }
 }
 
 /* ═══ INIT BOARDGAME PAGE ═══ */
 function initBoardgame(){
   renderGrid();
+  /* Sync search input với state hiện tại (nếu quay lại từ detail) */
   const si = document.getElementById('searchInput');
-  if(si) si.addEventListener('input', e=>{ searchQ=e.target.value; renderGrid(); });
+  if(si){
+    si.value = searchQ;
+    si.addEventListener('input', e=>{ searchQ = e.target.value; renderGrid(); });
+  }
   document.querySelectorAll('.chip').forEach(c=>{
+    /* Đánh dấu chip đang active */
+    if(c.getAttribute('data-filter') === activeFilter) c.classList.add('active');
     c.addEventListener('click', ()=>{
       document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
       c.classList.add('active');
@@ -314,8 +339,10 @@ function routeFromHash(){
     loadPage('boardgame').then(()=>{
       updateHeader('boardgame'); setActive('goBoardgame');
       if(hash.startsWith('game-')){
-        const idx = parseInt(hash.replace('game-',''));
-        if(!isNaN(idx)) setTimeout(()=>goDetail(idx), 80);
+        const idx = parseInt(hash.replace('game-',''), 10);
+        if(!isNaN(idx) && idx >= 0 && idx < GAMES.length){
+          setTimeout(()=>goDetail(idx), 80);
+        }
       }
     });
   } else if(hash === 'contact'){
@@ -323,21 +350,19 @@ function routeFromHash(){
   } else if(hash === 'settings'){
     loadPage('settings'); updateHeader('settings'); setActive('goSettings');
   } else {
-    location.hash = 'news';
+    /* BUG FIX: dùng replace() tránh thêm entry vào history khi đang ở news */
+    if(location.hash !== '#news') history.replaceState(null,'','#news');
     loadPage('news'); updateHeader('news'); setActive('goNews');
   }
 }
 
 window.addEventListener('hashchange', routeFromHash);
 
-/* ═══ BOOT ═══ */
 window.GAMES_READY.then(() => {
   routeFromHash();
 });
 
-/* ═══ BANNERS (trang News) ═══
-   Thêm hàm này vào cuối app.js
-   ═══════════════════════════════════════════ */
+/* ═══ BANNERS (trang News) ═══ */
 function renderBanners(){
   const wrap = document.getElementById('news-banners-wrap');
   if(!wrap) return;
@@ -353,21 +378,18 @@ function renderBanners(){
   `).join('');
 }
 
-
-/* ═══ DAILY PICK — Hôm nay chơi gì (3 game ngẫu nhiên) ═══
-   Thay hàm renderDailyPick() cũ bằng hàm này
-   ═══════════════════════════════════════════ */
+/* ═══ DAILY PICK — 3 game ngẫu nhiên ═══ */
 function renderDailyPick(){
   renderBanners();
 
   const wrap = document.getElementById('daily-pick-card');
   if(!wrap || !GAMES || !GAMES.length) return;
 
-  /* Chọn 3 game ngẫu nhiên không trùng nhau */
-  function pick3(arr){
-    const pool = [...arr];
+  /* Chọn n game ngẫu nhiên không trùng */
+  function pickRandom(arr, n){
+    const pool   = [...arr];
     const result = [];
-    while(result.length < Math.min(3, pool.length)){
+    while(result.length < Math.min(n, pool.length)){
       const i = Math.floor(Math.random() * pool.length);
       result.push(pool.splice(i, 1)[0]);
     }
@@ -375,68 +397,50 @@ function renderDailyPick(){
   }
 
   function renderCards(){
-    const picks = pick3(GAMES);
+    const picks = pickRandom(GAMES, 3);
+
+    const cards = picks.map(pick => {
+      const idx  = GAMES.indexOf(pick);
+      const cats = getCategories(pick);
+      return `
+        <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
+          <div class="daily-pick-color-bar" style="background:${pick.color}"></div>
+          <div class="daily-pick-body">
+            <div class="daily-pick-top">
+              <div class="daily-pick-emoji">${pick.emoji}</div>
+              <div class="daily-pick-info">
+                <div class="daily-pick-name">${esc(pick.name)}</div>
+                <div class="daily-pick-tags">
+                  ${cats.map(c => `<span class="tag">${esc(c)}</span>`).join('')}
+                  <span class="tag">👥 ${esc(pick.players)}</span>
+                  <span class="tag">⏱ ${esc(pick.time)}</span>
+                  <span class="tag ${diffClass(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
+                </div>
+              </div>
+            </div>
+            <div class="daily-pick-objective">
+              <strong>Mục tiêu:</strong> ${esc(pick.objective)}
+            </div>
+            <div class="daily-pick-footer">
+              <div class="daily-pick-cta">Xem luật chơi ngay</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
 
     wrap.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:16px;">
-        ${picks.map(pick => {
-          const idx = GAMES.indexOf(pick);
-          const cats = Array.isArray(pick.categories) ? pick.categories : [pick.category];
-          return `
-            <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
-              <div class="daily-pick-color-bar" style="background:${pick.color}"></div>
-              <div class="daily-pick-body">
-                <div class="daily-pick-top">
-                  <div class="daily-pick-emoji">${pick.emoji}</div>
-                  <div class="daily-pick-info">
-                    <div class="daily-pick-name">${esc(pick.name)}</div>
-                    <div class="daily-pick-tags">
-                      ${cats.map(c => `<span class="tag">${esc(c)}</span>`).join('')}
-                      <span class="tag">👥 ${esc(pick.players)}</span>
-                      <span class="tag">⏱ ${esc(pick.time)}</span>
-                      <span class="tag ${diffClass(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="daily-pick-objective">
-                  <strong>Mục tiêu:</strong> ${esc(pick.objective)}
-                </div>
-                <div class="daily-pick-footer">
-                  <div class="daily-pick-cta">Xem luật chơi ngay</div>
-                </div>
-              </div>
-            </div>`;
-        }).join('')}
+        ${cards}
       </div>
       <div style="text-align:center;">
-        <button class="daily-reroll-btn" id="reroll-btn">
-          🎲 Thử 3 game khác
-        </button>
-      </div>
-    `;
+        <button class="daily-reroll-btn" id="reroll-btn">🎲 Thử 3 game khác</button>
+      </div>`;
 
-    /* Gắn event cho nút reroll sau khi render xong */
-    document.getElementById('reroll-btn')?.addEventListener('click', renderCards);
+    document.getElementById('reroll-btn')?.addEventListener('click', e => {
+      e.stopPropagation();
+      renderCards();
+    });
   }
 
   renderCards();
-}
-
-/* ═══ BANNERS (trang News) ═══ */
-function renderBanners(){
-  const wrap = document.getElementById('news-banners-wrap');
-  if(!wrap) return;
-
-  const config = window.BANNER_CONFIG;
-  if(!config || !config.length) return;
-
-  const visible = config.filter(b => b.visible && b.url);
-  if(!visible.length){ wrap.innerHTML = ''; return; }
-
-  wrap.innerHTML = visible.map(b => `
-    <div class="banner-slide">
-      <img class="banner-img" src="${esc(b.url)}" alt="Banner" loading="lazy"
-           onerror="this.parentElement.style.display='none'">
-    </div>
-  `).join('');
 }
