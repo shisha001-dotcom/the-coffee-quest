@@ -7,17 +7,15 @@ function getSession() {
   try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); }
   catch { return null; }
 }
-
 function requireAuth() {
   const session = getSession();
-  if (!session || !session.username) {
+  if (!session?.username) {
     sessionStorage.removeItem(SESSION_KEY);
     location.replace("login.html");
     throw new Error("Unauthenticated");
   }
   return session;
 }
-
 function logout() {
   sessionStorage.removeItem(SESSION_KEY);
   location.replace("login.html");
@@ -26,50 +24,38 @@ function logout() {
 const currentSession = requireAuth();
 
 /* ══════════════════════════════════════════════
-   SUPABASE
+   SUPABASE — dùng window.APP_CONFIG (không khai báo lại const)
    ══════════════════════════════════════════════ */
-const SUPABASE_URL = window.APP_CONFIG.supabaseUrl;
-const SUPABASE_KEY = window.APP_CONFIG.supabaseKey;
-
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const client = supabase.createClient(
+  window.APP_CONFIG.supabaseUrl,
+  window.APP_CONFIG.supabaseKey
+);
 
 /* ══════════════════════════════════════════════
-   INJECT USER BAR
+   USER BAR
    ══════════════════════════════════════════════ */
 (function injectUserBar() {
   const sidebar = document.querySelector(".sidebar");
   if (!sidebar) return;
 
-  const roleLabel = currentSession.role === "superadmin" ? "Super Admin" : "Editor";
-  const roleBadge = currentSession.role === "superadmin"
-    ? `<span style="background:#6c5ce7;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.4px">${roleLabel}</span>`
-    : `<span style="background:#00b894;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.4px">${roleLabel}</span>`;
+  const isSuper    = currentSession.role === "superadmin";
+  const roleLabel  = isSuper ? "Super Admin" : "Editor";
+  const roleBg     = isSuper ? "#6c5ce7" : "#00b894";
+  const initial    = (currentSession.displayName || "A")[0].toUpperCase();
+  const displayName = currentSession.displayName || currentSession.username;
 
   const userBar = document.createElement("div");
-  userBar.style.cssText = `
-    margin-top: auto;
-    border-top: 1px solid rgba(255,255,255,.08);
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  `;
+  userBar.style.cssText = "margin-top:auto;border-top:1px solid rgba(255,255,255,.08);padding:16px 20px;display:flex;align-items:center;gap:12px;";
   userBar.innerHTML = `
-    <div style="width:38px;height:38px;border-radius:50%;background:#6c5ce7;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;">
-      ${(currentSession.displayName||"A")[0].toUpperCase()}
-    </div>
+    <div style="width:38px;height:38px;border-radius:50%;background:#6c5ce7;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;">${initial}</div>
     <div style="flex:1;min-width:0;">
-      <div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-        ${currentSession.displayName || currentSession.username}
-      </div>
-      <div style="margin-top:4px">${roleBadge}</div>
+      <div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${displayName}</div>
+      <div style="margin-top:4px"><span style="background:${roleBg};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.4px">${roleLabel}</span></div>
     </div>
     <button id="logoutBtn" title="Đăng xuất"
       style="background:rgba(255,255,255,.08);border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;color:#a0a8c0;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s,color .2s;flex-shrink:0;"
       onmouseover="this.style.background='rgba(225,112,85,.25)';this.style.color='#e17055'"
-      onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.color='#a0a8c0'">
-      ⏏
-    </button>
+      onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.color='#a0a8c0'">⏏</button>
   `;
   sidebar.appendChild(userBar);
   document.getElementById("logoutBtn")?.addEventListener("click", () => {
@@ -78,7 +64,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 })();
 
 /* ══════════════════════════════════════════════
-   DOM REFS (Boardgames page)
+   DOM REFS
    ══════════════════════════════════════════════ */
 const tableBody     = document.getElementById("gameTableBody");
 const searchInput   = document.getElementById("searchInput");
@@ -130,16 +116,17 @@ function buildCategoryTabs() {
 }
 
 function renderEmojiGrid(list) {
-  emojiGrid.innerHTML = "";
-  list.forEach(emoji => {
-    const btn = document.createElement("button");
-    btn.className = "emoji-item" + (emoji === currentEmoji ? " selected" : "");
-    btn.textContent = emoji;
-    btn.title = emoji;
-    btn.addEventListener("click", () => selectEmoji(emoji));
-    emojiGrid.appendChild(btn);
-  });
+  /* TỐI ƯU: dùng event delegation thay vì gắn listener cho từng emoji */
+  emojiGrid.innerHTML = list.map(emoji =>
+    `<button class="emoji-item${emoji === currentEmoji ? ' selected' : ''}" data-emoji="${emoji}" title="${emoji}">${emoji}</button>`
+  ).join('');
 }
+
+/* Event delegation cho emoji grid */
+emojiGrid.addEventListener("click", e => {
+  const btn = e.target.closest(".emoji-item[data-emoji]");
+  if (btn) selectEmoji(btn.dataset.emoji);
+});
 
 function selectEmoji(emoji) {
   currentEmoji = emoji;
@@ -147,7 +134,6 @@ function selectEmoji(emoji) {
   emojiPreview.textContent = emoji;
   closePicker();
 }
-
 function openPicker() {
   pickerOpen = true;
   emojiPicker.classList.remove("hidden");
@@ -156,7 +142,6 @@ function openPicker() {
   renderEmojiGrid(EMOJI_CATEGORIES[currentCategory].emojis);
   emojiSearch.focus();
 }
-
 function closePicker() {
   pickerOpen = false;
   emojiPicker.classList.add("hidden");
@@ -167,9 +152,7 @@ emojiToggleBtn.addEventListener("click", e => { e.stopPropagation(); pickerOpen 
 emojiInput.addEventListener("click", e => { e.stopPropagation(); if (!pickerOpen) openPicker(); });
 emojiSearch.addEventListener("input", e => {
   const q = e.target.value.trim();
-  if (!q) { renderEmojiGrid(EMOJI_CATEGORIES[currentCategory].emojis); return; }
-  const filtered = UNIQUE_EMOJIS.filter(em => em.includes(q));
-  renderEmojiGrid(filtered.length ? filtered : UNIQUE_EMOJIS.slice(0, 64));
+  renderEmojiGrid(q ? UNIQUE_EMOJIS.filter(em => em.includes(q)) || UNIQUE_EMOJIS.slice(0, 64) : EMOJI_CATEGORIES[currentCategory].emojis);
 });
 document.addEventListener("click", e => {
   if (pickerOpen && !emojiPicker.contains(e.target) && e.target !== emojiToggleBtn && e.target !== emojiInput) closePicker();
@@ -180,23 +163,17 @@ emojiPicker.addEventListener("click", e => e.stopPropagation());
    ARRAY FIELD HELPERS
    ══════════════════════════════════════════════ */
 function parseLines(id) {
-  const val = document.getElementById(id)?.value || "";
-  return val.split("\n").map(s => s.trim()).filter(Boolean);
+  return (document.getElementById(id)?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
 }
-
 function parseImages(id) {
-  const val = document.getElementById(id)?.value || "";
-  return val.split("\n").map(line => {
-    const parts = line.split("|");
-    return { url: (parts[0]||"").trim(), caption: (parts[1]||"").trim() };
-  }).filter(img => img.url);
+  return (document.getElementById(id)?.value || "").split("\n")
+    .map(line => { const [url, caption] = line.split("|"); return { url: (url||"").trim(), caption: (caption||"").trim() }; })
+    .filter(img => img.url);
 }
-
 function setLines(id, arr) {
   const el = document.getElementById(id);
   if (el) el.value = Array.isArray(arr) ? arr.join("\n") : "";
 }
-
 function setImages(id, arr) {
   const el = document.getElementById(id);
   if (el) el.value = Array.isArray(arr) ? arr.map(img => `${img.url} | ${img.caption||""}`).join("\n") : "";
@@ -211,9 +188,7 @@ async function loadGames() {
   gameTable.classList.add("hidden");
 
   const { data, error } = await client
-    .from("games")
-    .select("*")
-    .order("sort_order", { ascending: true });
+    .from("games").select("*").order("sort_order", { ascending: true });
 
   loadingMsg.classList.add("hidden");
 
@@ -230,63 +205,57 @@ async function loadGames() {
 }
 
 /* ══════════════════════════════════════════════
-   STATS (updated from dashboard.html structure)
+   STATS
    ══════════════════════════════════════════════ */
 function updateStats(data) {
-  const totalEl = document.getElementById("totalGames");
-  if (totalEl) totalEl.textContent = data.length;
-
+  /* TỐI ƯU: 1 vòng loop thay vì nhiều filter riêng */
   let youtubeCount = 0, imageCount = 0;
-  data.forEach(game => {
+  for (const game of data) {
     if (game.youtube_url) youtubeCount++;
     if (game.hero_bg)     imageCount++;
-  });
-
-  const ytEl  = document.getElementById("youtubeCount");
-  const imgEl = document.getElementById("imageCount");
-  if (ytEl)  ytEl.textContent  = youtubeCount;
-  if (imgEl) imgEl.textContent = imageCount;
+  }
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set("totalGames",   data.length);
+  set("youtubeCount", youtubeCount);
+  set("imageCount",   imageCount);
 }
 
 /* ══════════════════════════════════════════════
    DIFFICULTY
    ══════════════════════════════════════════════ */
 function difficultyClass(value) {
-  if (!value) return "medium";
-  const v = value.toLowerCase();
-  if (v.includes("easy") || v.includes("dễ"))  return "easy";
-  if (v.includes("hard") || v.includes("khó")) return "hard";
-  return "medium";
+  const v = (value || "").toLowerCase();
+  return v.includes("dễ") || v.includes("easy") ? "easy"
+    : v.includes("khó") || v.includes("hard")   ? "hard"
+    : "medium";
 }
 
 /* ══════════════════════════════════════════════
    RENDER TABLE
    ══════════════════════════════════════════════ */
 function renderGames(data) {
-  tableBody.innerHTML = "";
   if (!data.length) {
     tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Không tìm thấy game nào.</td></tr>`;
     return;
   }
-  data.forEach(game => {
-    const tr      = document.createElement("tr");
-    const imgSrc  = game.hero_bg || "https://placehold.co/48x48";
-    const name    = game.name   || "(không tên)";
-    const emoji   = game.emoji  || "🎲";
-    const diff    = game.difficulty || "Medium";
-    const cats    = Array.isArray(game.categories) ? game.categories : [];
-    const yt      = game.youtube_url || "#";
-    const colorDot = game.color
+  /* TỐI ƯU: build string 1 lần, gán innerHTML 1 lần */
+  tableBody.innerHTML = data.map(game => {
+    const name   = game.name   || "(không tên)";
+    const emoji  = game.emoji  || "🎲";
+    const diff   = game.difficulty || "Medium";
+    const cats   = Array.isArray(game.categories) ? game.categories : [];
+    const imgSrc = game.hero_bg || "https://placehold.co/48x48";
+    const ytHref = game.youtube_url || "#";
+    const color  = game.color
       ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${game.color};margin-right:4px;vertical-align:middle"></span>`
       : "";
-
-    tr.innerHTML = `
+    return `<tr>
       <td>
         <div class="game-info">
           <img class="game-image" src="${imgSrc}" alt="${name}" onerror="this.src='https://placehold.co/48x48'">
           <div>
             <div class="game-name">${emoji} ${name}</div>
-            <div class="game-id">${colorDot}ID: ${game.id} · Order: ${game.sort_order ?? '—'}</div>
+            <div class="game-id">${color}ID: ${game.id} · Order: ${game.sort_order ?? '—'}</div>
           </div>
         </div>
       </td>
@@ -297,23 +266,27 @@ function renderGames(data) {
       <td>
         <div style="display:flex;gap:8px;align-items:center;">
           <button class="btn btn-primary edit-btn" data-id="${game.id}">✏️ Sửa</button>
-          <a class="youtube-link" href="${yt}" target="_blank" title="YouTube">▶</a>
+          <a class="youtube-link" href="${ytHref}" target="_blank" title="YouTube">▶</a>
         </div>
-      </td>`;
-    tableBody.appendChild(tr);
-  });
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 /* ══════════════════════════════════════════════
-   SEARCH
+   SEARCH — debounce để không filter mỗi keystroke
    ══════════════════════════════════════════════ */
+let _searchTimer;
 searchInput?.addEventListener("input", e => {
-  const v = e.target.value.toLowerCase();
-  renderGames(games.filter(g => (g.name||"").toLowerCase().includes(v)));
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => {
+    const v = e.target.value.toLowerCase();
+    renderGames(games.filter(g => (g.name || "").toLowerCase().includes(v)));
+  }, 200);
 });
 
 /* ══════════════════════════════════════════════
-   OPEN ADD MODAL
+   MODAL OPEN/CLOSE
    ══════════════════════════════════════════════ */
 addGameBtn?.addEventListener("click", () => {
   clearForm();
@@ -321,29 +294,26 @@ addGameBtn?.addEventListener("click", () => {
   deleteBtn.style.display = "none";
   modal.classList.remove("hidden");
 });
-
-/* ══════════════════════════════════════════════
-   CLOSE MODAL
-   ══════════════════════════════════════════════ */
 closeModalBtn?.addEventListener("click", () => modal.classList.add("hidden"));
 modal?.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
 
 /* ══════════════════════════════════════════════
-   SAVE (INSERT + UPDATE)
+   SAVE
    ══════════════════════════════════════════════ */
 async function saveGame() {
   const rawId = document.getElementById("gameId").value;
   const id    = rawId ? Number(rawId) : null;
+  const name  = document.getElementById("nameInput").value.trim();
+  if (!name) { alert("Vui lòng nhập tên game."); return; }
 
   const colorVal = document.getElementById("colorInput")?.value.trim() || "#6c5ce7";
-
-  const catRaw = document.getElementById("categoryInput").value.trim();
+  const catRaw   = document.getElementById("categoryInput").value.trim();
   const categories = catRaw
     ? catRaw.split(/[,\n]/).map(s => s.trim()).filter(Boolean)
     : [];
 
   const payload = {
-    name:        document.getElementById("nameInput").value.trim(),
+    name,
     emoji:       emojiInput.value.trim() || currentEmoji,
     color:       colorVal,
     players:     document.getElementById("playersInput").value.trim(),
@@ -361,8 +331,6 @@ async function saveGame() {
     sort_order:  Number(document.getElementById("sortInput")?.value) || null,
   };
 
-  if (!payload.name) { alert("Vui lòng nhập tên game."); return; }
-
   saveBtn.disabled    = true;
   saveBtn.textContent = "Đang lưu...";
 
@@ -370,9 +338,9 @@ async function saveGame() {
     if (id) {
       const { data, error } = await client.from("games").update(payload).eq("id", id).select();
       if (error) throw error;
-      if (!data || !data.length) throw new Error(`UPDATE không ảnh hưởng dòng nào (id=${id}).`);
+      if (!data?.length) throw new Error(`UPDATE không ảnh hưởng dòng nào (id=${id}).`);
     } else {
-      const { data, error } = await client.from("games").insert(payload).select();
+      const { error } = await client.from("games").insert(payload).select();
       if (error) throw error;
     }
     modal.classList.add("hidden");
@@ -385,7 +353,6 @@ async function saveGame() {
     saveBtn.textContent = "💾 Lưu";
   }
 }
-
 saveBtn?.addEventListener("click", saveGame);
 
 /* ══════════════════════════════════════════════
@@ -413,26 +380,24 @@ async function deleteGame() {
     deleteBtn.textContent = "🗑️ Xóa";
   }
 }
-
 deleteBtn?.addEventListener("click", deleteGame);
 
 /* ══════════════════════════════════════════════
    CLEAR FORM
    ══════════════════════════════════════════════ */
 function clearForm() {
-  ["gameId","nameInput","playersInput","timeInput","difficultyInput",
-   "objectiveInput","heroInput","youtubeInput","categoryInput",
-   "winInput","setupInput","turnInput","tipsInput","imagesInput","sortInput"]
-    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  [
+    "gameId","nameInput","playersInput","timeInput","difficultyInput",
+    "objectiveInput","heroInput","youtubeInput","categoryInput",
+    "winInput","setupInput","turnInput","tipsInput","imagesInput","sortInput"
+  ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
 
-  const ci = document.getElementById("colorInput");
-  if (ci) ci.value = "#6c5ce7";
-  const cp = document.getElementById("colorPicker");
-  if (cp) cp.value = "#6c5ce7";
+  document.getElementById("colorInput") && (document.getElementById("colorInput").value  = "#6c5ce7");
+  document.getElementById("colorPicker") && (document.getElementById("colorPicker").value = "#6c5ce7");
 
   currentEmoji = "🎲";
-  if (emojiInput) emojiInput.value = "🎲";
-  if (emojiPreview) emojiPreview.textContent = "🎲";
+  if (emojiInput)   emojiInput.value         = "🎲";
+  if (emojiPreview) emojiPreview.textContent  = "🎲";
   closePicker();
 }
 
@@ -440,36 +405,33 @@ function clearForm() {
    EDIT — event delegation
    ══════════════════════════════════════════════ */
 document.addEventListener("click", e => {
-  if (!e.target.classList.contains("edit-btn")) return;
+  const btn = e.target.closest(".edit-btn");
+  if (!btn) return;
 
-  const id   = Number(e.target.dataset.id);
+  const id   = Number(btn.dataset.id);
   const game = games.find(g => g.id === id);
   if (!game) return;
 
-  document.getElementById("modalTitle").innerText          = "✏️ Chỉnh sửa Boardgame";
-  document.getElementById("gameId").value                  = game.id;
-  document.getElementById("nameInput").value               = game.name        || "";
-  document.getElementById("playersInput").value            = game.players     || "";
-  document.getElementById("timeInput").value               = game.time        || "";
-  document.getElementById("difficultyInput").value         = game.difficulty  || "";
-  document.getElementById("objectiveInput").value          = game.objective   || "";
-  document.getElementById("heroInput").value               = game.hero_bg     || "";
-  document.getElementById("youtubeInput").value            = game.youtube_url || "";
+  document.getElementById("modalTitle").innerText = "✏️ Chỉnh sửa Boardgame";
+
+  /* Điền form */
+  const fields = {
+    gameId: game.id, nameInput: game.name, playersInput: game.players,
+    timeInput: game.time, difficultyInput: game.difficulty, objectiveInput: game.objective,
+    heroInput: game.hero_bg, youtubeInput: game.youtube_url,
+    sortInput: game.sort_order ?? "", winInput: game.win || "",
+  };
+  Object.entries(fields).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || "";
+  });
 
   const cats = Array.isArray(game.categories) ? game.categories : [];
   document.getElementById("categoryInput").value = cats.join(", ");
 
   const colorVal = game.color || "#6c5ce7";
-  const ci = document.getElementById("colorInput");
-  const cp = document.getElementById("colorPicker");
-  if (ci) ci.value = colorVal;
-  if (cp) cp.value = colorVal;
-
-  const so = document.getElementById("sortInput");
-  if (so) so.value = game.sort_order ?? "";
-
-  const wi = document.getElementById("winInput");
-  if (wi) wi.value = game.win || "";
+  document.getElementById("colorInput")  && (document.getElementById("colorInput").value  = colorVal);
+  document.getElementById("colorPicker") && (document.getElementById("colorPicker").value = colorVal);
 
   setLines("setupInput",   game.setup);
   setLines("turnInput",    game.turn);
@@ -478,7 +440,7 @@ document.addEventListener("click", e => {
 
   const em = game.emoji || "🎲";
   currentEmoji = em;
-  if (emojiInput)   emojiInput.value          = em;
+  if (emojiInput)   emojiInput.value         = em;
   if (emojiPreview) emojiPreview.textContent  = em;
   closePicker();
 
@@ -487,10 +449,14 @@ document.addEventListener("click", e => {
 });
 
 /* ══════════════════════════════════════════════
-   TOAST
+   TOAST — dùng chung, không duplicate với dashboard-chat.js
    ══════════════════════════════════════════════ */
 function showToast(msg, bg = "#00b894") {
+  const existing = document.getElementById("_toast");
+  if (existing) existing.remove();
+
   const t = document.createElement("div");
+  t.id = "_toast";
   t.textContent = msg;
   Object.assign(t.style, {
     position:"fixed", bottom:"28px", right:"28px",
@@ -498,21 +464,24 @@ function showToast(msg, bg = "#00b894") {
     padding:"12px 22px", borderRadius:"10px",
     fontWeight:"600", fontSize:"14px",
     boxShadow:"0 4px 16px rgba(0,0,0,.15)", zIndex:"9999",
+    transition:"opacity .3s",
   });
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+  setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 300); }, 2700);
 }
 
+/* Expose toàn cục để dashboard-chat.js dùng chung */
+window.showToast = showToast;
+
 /* ══════════════════════════════════════════════
-   REFRESH (dashboard page)
+   REFRESH
    ══════════════════════════════════════════════ */
 document.getElementById("refreshBtn")?.addEventListener("click", async () => {
   await loadGames();
-  // also reload drinks total if table exists
   if (typeof loadDrinks === "function") await loadDrinks();
 });
 
 /* ══════════════════════════════════════════════
-   INIT — preload stats for dashboard
+   INIT
    ══════════════════════════════════════════════ */
 loadGames();
