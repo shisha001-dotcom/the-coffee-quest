@@ -4,7 +4,9 @@
 
    Chức năng:
    - Lưu trữ danh sách ảnh (URL) dùng làm banner / poster
+   - Thêm ảnh qua popup (modal), dùng chung style modal/form sẵn có của dashboard
    - Tự động nhận diện link Google Drive → chuyển sang link ảnh trực tiếp
+   - Hiển thị dung lượng ảnh (best-effort, phụ thuộc server có cho phép đọc header không)
    - Gắn tag + tìm kiếm/lọc theo tag hoặc từ khóa ghi chú
    - Ai cũng thêm được link mới (mọi role đã đăng nhập)
    - Chỉ superadmin mới được xóa
@@ -16,6 +18,77 @@
 
 /* ── Supabase client + currentSession dùng lại từ dashboard.js ── */
 const isSuperAdminMedia = currentSession.role === 'superadmin';
+
+/* ══════════════════════════════════════════════
+   STYLE riêng cho module (hover, spinner...) — chỉ inject 1 lần
+   ══════════════════════════════════════════════ */
+(function injectMediaStyles() {
+  if (document.getElementById('mediaLibraryStyles')) return;
+  const style = document.createElement('style');
+  style.id = 'mediaLibraryStyles';
+  style.textContent = `
+    #mediaGrid .media-card {
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+    #mediaGrid .media-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 14px 28px rgba(20,20,40,.10);
+    }
+    #mediaGrid .media-thumb img { transition: transform .35s ease; display:block; }
+    #mediaGrid .media-card:hover .media-thumb img { transform: scale(1.05); }
+
+    .media-icon-btn {
+      width: 36px; height: 36px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 14px; flex-shrink: 0;
+      transition: background .15s, border-color .15s, transform .1s;
+      color: var(--text);
+    }
+    .media-icon-btn:hover { background: #eef1f8; border-color: #d8dcec; }
+    .media-icon-btn:active { transform: scale(.94); }
+    .media-icon-btn.grow { flex: 1; width: auto; gap: 6px; font-size: 12px; font-weight: 600; }
+    .media-icon-btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+    .media-icon-btn.danger:hover { background: var(--danger-dark); }
+
+    .media-size-badge {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(15,15,25,.62); color: #fff;
+      font-size: 10px; font-weight: 700; letter-spacing: .2px;
+      padding: 4px 9px; border-radius: 20px;
+      display: flex; align-items: center; gap: 5px;
+      backdrop-filter: blur(3px);
+    }
+    .media-spinner {
+      width: 9px; height: 9px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+      animation: mediaSpin .6s linear infinite;
+    }
+    @keyframes mediaSpin { to { transform: rotate(360deg); } }
+
+    .media-tag-chip { transition: all .15s ease; }
+    .media-tag-chip:hover { filter: brightness(0.97); }
+
+    .media-card-tag {
+      transition: background .15s ease, color .15s ease;
+    }
+    .media-card-tag:hover { background: var(--primary) !important; color: #fff !important; }
+
+    #mediaModal .modal-box { max-width: 560px; }
+    .media-preview-box {
+      width: 100%; height: 200px; border-radius: 12px;
+      border: 1.5px dashed var(--border); overflow: hidden;
+      background: var(--bg); display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .media-gdrive-hint {
+      font-size: 12px; color: #0984e3; background: #e8f3ff;
+      border: 1px solid #0984e344; border-radius: 8px; padding: 8px 12px;
+      display: flex; align-items: center; gap: 6px;
+    }
+  `;
+  document.head.appendChild(style);
+})();
 
 /* ══════════════════════════════════════════════
    INJECT MENU ITEM
@@ -40,7 +113,7 @@ const isSuperAdminMedia = currentSession.role === 'superadmin';
 })();
 
 /* ══════════════════════════════════════════════
-   INJECT PAGE HTML
+   INJECT PAGE HTML (grid, thống kê, tìm kiếm)
    ══════════════════════════════════════════════ */
 (function injectMediaPage() {
   const main = document.querySelector('.main-content');
@@ -56,61 +129,42 @@ const isSuperAdminMedia = currentSession.role === 'superadmin';
         <h1 style="font-size:26px;font-weight:700;color:var(--text)">🗂️ Thư viện Media</h1>
         <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Lưu link ảnh banner/poster để dễ dàng copy hoặc tải xuống đăng mạng xã hội</p>
       </div>
+      <button class="btn btn-primary" onclick="openMediaModal()">➕ Thêm ảnh mới</button>
     </div>
 
-    <!-- ── Form thêm link mới ── -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:26px;">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">➕ Thêm ảnh mới</div>
-      <div style="display:grid;grid-template-columns:1.6fr 1fr auto;gap:14px;align-items:flex-end;">
-
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <label style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;">URL ảnh *</label>
-          <input type="text" id="mediaUrlInput" placeholder="https://... (dán cả link Google Drive cũng được)"
-            style="height:44px;border:1.5px solid var(--border);border-radius:10px;padding:0 14px;font-size:14px;font-family:'Inter',sans-serif;color:var(--text);outline:none;">
+    <!-- ── Thống kê nhanh ── -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">
+      <div class="stat-card" style="flex:1;min-width:180px;">
+        <div class="stat-icon">🖼️</div>
+        <div>
+          <div class="stat-value" id="mediaStatCount">0</div>
+          <div class="stat-label">Ảnh trong thư viện</div>
         </div>
-
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <label style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;">Ghi chú (tuỳ chọn)</label>
-          <input type="text" id="mediaLabelInput" placeholder="VD: Banner sự kiện Noel"
-            style="height:44px;border:1.5px solid var(--border);border-radius:10px;padding:0 14px;font-size:14px;font-family:'Inter',sans-serif;color:var(--text);outline:none;">
+      </div>
+      <div class="stat-card" style="flex:1;min-width:180px;">
+        <div class="stat-icon">🏷️</div>
+        <div>
+          <div class="stat-value" id="mediaStatTags">0</div>
+          <div class="stat-label">Tag đang sử dụng</div>
         </div>
-
-        <button id="mediaAddBtn" class="btn btn-primary" style="height:44px;white-space:nowrap;" onclick="addMedia()">➕ Thêm vào thư viện</button>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:14px;">
-        <label style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;">Tag (phân cách bằng dấu phẩy)</label>
-        <input type="text" id="mediaTagsInput" placeholder="VD: banner, noel, sukien"
-          style="height:44px;border:1.5px solid var(--border);border-radius:10px;padding:0 14px;font-size:14px;font-family:'Inter',sans-serif;color:var(--text);outline:none;max-width:480px;">
-      </div>
-
-      <!-- Thông báo tự động chuyển link Google Drive -->
-      <div id="mediaGDriveHint" style="display:none;margin-top:12px;font-size:12px;color:#0984e3;background:#e8f3ff;border:1px solid #0984e344;border-radius:8px;padding:8px 12px;">
-        🔄 Đã phát hiện link Google Drive — sẽ tự động chuyển sang link ảnh trực tiếp khi thêm.
-      </div>
-
-      <!-- Live preview khi gõ URL -->
-      <div id="mediaAddPreviewWrap" style="display:none;margin-top:16px;">
-        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Xem trước</div>
-        <div id="mediaAddPreview" style="width:220px;height:120px;border-radius:10px;border:1.5px solid var(--border);overflow:hidden;background:var(--bg);display:flex;align-items:center;justify-content:center;"></div>
       </div>
     </div>
-
-    <div id="mediaMsg" style="display:none;margin-bottom:20px;padding:12px 18px;border-radius:10px;font-size:14px;font-weight:600;"></div>
 
     <!-- ── Tìm kiếm + lọc tag ── -->
-    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
-      <input type="text" id="mediaSearchInput" placeholder="🔍 Tìm theo ghi chú, URL hoặc tag..."
-        style="flex:1;min-width:220px;height:42px;border:1.5px solid var(--border);border-radius:10px;padding:0 14px;font-size:14px;font-family:'Inter',sans-serif;color:var(--text);outline:none;">
+    <div class="search-bar" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+      <input type="text" id="mediaSearchInput" class="search-input" style="max-width:420px;" placeholder="🔍 Tìm theo ghi chú, URL hoặc tag...">
     </div>
-    <div id="mediaTagFilterWrap" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;"></div>
+    <div id="mediaTagFilterWrap" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;"></div>
+
+    <div id="mediaMsg" style="display:none;margin-bottom:20px;padding:12px 18px;border-radius:10px;font-size:14px;font-weight:600;"></div>
 
     <!-- ── Grid danh sách ── -->
     <div id="mediaGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;"></div>
 
     <div id="mediaEmptyState" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted);">
       <div style="font-size:40px;margin-bottom:10px;">🖼️</div>
-      <div id="mediaEmptyStateText" style="font-size:14px;">Chưa có ảnh nào trong thư viện — thêm link đầu tiên ở form phía trên</div>
+      <div id="mediaEmptyStateText" style="font-size:14px;margin-bottom:16px;">Chưa có ảnh nào trong thư viện</div>
+      <button class="btn btn-primary" onclick="openMediaModal()">➕ Thêm ảnh đầu tiên</button>
     </div>
 
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-top:28px;">
@@ -119,26 +173,12 @@ const isSuperAdminMedia = currentSession.role === 'superadmin';
         <li>Dán link Google Drive (dạng .../file/d/ID/view) → hệ thống <strong>tự động chuyển</strong> sang link ảnh trực tiếp, nhớ để chế độ chia sẻ file là "Anyone with the link"</li>
         <li>Mọi tài khoản đăng nhập đều có thể <strong>thêm</strong> link ảnh mới; chỉ <strong>Super Admin</strong> mới <strong>xóa</strong> được</li>
         <li>Gắn tag để lọc nhanh (VD: banner, poster, sukien, noel...) — bấm vào tag trên thẻ ảnh để lọc nhanh theo tag đó</li>
-        <li>Dữ liệu lưu vào bảng <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px">media_library</code> trên Supabase</li>
+        <li>Dung lượng ảnh hiển thị dạng ước tính — một số nguồn ảnh không cho phép đọc dung lượng từ trình duyệt nên sẽ hiện dấu "—"</li>
       </ul>
     </div>
   `;
 
   main.appendChild(page);
-
-  /* live preview + phát hiện Google Drive khi gõ URL ở form thêm mới */
-  const urlInput = page.querySelector('#mediaUrlInput');
-  urlInput.addEventListener('input', () => {
-    updateAddPreview(urlInput.value.trim());
-  });
-  /* tự chuyển link Google Drive ngay khi rời khỏi ô nhập, để người dùng thấy trước link đã đổi */
-  urlInput.addEventListener('blur', () => {
-    const converted = convertGDriveUrl(urlInput.value.trim());
-    if (converted && converted !== urlInput.value.trim()) {
-      urlInput.value = converted;
-      updateAddPreview(converted);
-    }
-  });
 
   /* tìm kiếm */
   const searchInput = page.querySelector('#mediaSearchInput');
@@ -150,19 +190,118 @@ const isSuperAdminMedia = currentSession.role === 'superadmin';
   loadMedia();
 })();
 
-function updateAddPreview(url) {
+/* ══════════════════════════════════════════════
+   INJECT MODAL "THÊM ẢNH MỚI" — gắn vào <body>, dùng chung
+   style .modal-overlay / .modal-box / .form-group đã có sẵn
+   ══════════════════════════════════════════════ */
+(function injectMediaModal() {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay hidden';
+  modal.id = 'mediaModal';
+  modal.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>➕ Thêm ảnh vào thư viện</h2>
+        <button class="close-btn" onclick="closeMediaModal()">✕</button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <div class="form-group">
+          <label>URL ảnh *</label>
+          <input type="text" id="mediaUrlInput" placeholder="https://... (dán cả link Google Drive cũng được)">
+        </div>
+
+        <div id="mediaGDriveHint" class="media-gdrive-hint hidden">
+          🔄 Đã phát hiện link Google Drive — sẽ tự động chuyển sang link ảnh trực tiếp khi thêm.
+        </div>
+
+        <div class="form-group">
+          <label>Xem trước</label>
+          <div class="media-preview-box" id="mediaAddPreview">
+            <span style="font-size:12px;color:var(--text-muted);">Dán URL ảnh phía trên để xem trước</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Ghi chú (tuỳ chọn)</label>
+          <input type="text" id="mediaLabelInput" placeholder="VD: Banner sự kiện Noel">
+        </div>
+
+        <div class="form-group">
+          <label>Tag (phân cách bằng dấu phẩy)</label>
+          <input type="text" id="mediaTagsInput" placeholder="VD: banner, noel, sukien">
+        </div>
+
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeMediaModal()">Hủy</button>
+        <button id="mediaAddBtn" class="btn btn-primary" onclick="addMedia()">➕ Thêm vào thư viện</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  /* đóng modal khi bấm ra ngoài vùng modal-box */
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeMediaModal();
+  });
+
+  /* live preview + phát hiện Google Drive + kiểm tra dung lượng khi gõ URL */
+  const urlInput = modal.querySelector('#mediaUrlInput');
+  let previewDebounce;
+  urlInput.addEventListener('input', () => {
+    clearTimeout(previewDebounce);
+    const raw = urlInput.value.trim();
+    previewDebounce = setTimeout(() => updateAddPreview(raw), 350);
+  });
+  urlInput.addEventListener('blur', () => {
+    const converted = convertGDriveUrl(urlInput.value.trim());
+    if (converted && converted !== urlInput.value.trim()) {
+      urlInput.value = converted;
+      updateAddPreview(converted);
+    }
+  });
+})();
+
+window.openMediaModal = function () {
+  document.getElementById('mediaUrlInput').value = '';
+  document.getElementById('mediaLabelInput').value = '';
+  document.getElementById('mediaTagsInput').value = '';
+  document.getElementById('mediaGDriveHint').classList.add('hidden');
+  document.getElementById('mediaAddPreview').innerHTML =
+    '<span style="font-size:12px;color:var(--text-muted);">Dán URL ảnh phía trên để xem trước</span>';
+  document.getElementById('mediaModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('mediaUrlInput').focus(), 50);
+};
+window.closeMediaModal = function () {
+  document.getElementById('mediaModal').classList.add('hidden');
+};
+
+async function updateAddPreview(url) {
   const hint = document.getElementById('mediaGDriveHint');
-  const wrap = document.getElementById('mediaAddPreviewWrap');
   const box  = document.getElementById('mediaAddPreview');
 
-  hint.style.display = (url && isGDriveUrl(url) && !isDirectGDriveUrl(url)) ? 'block' : 'none';
+  hint.classList.toggle('hidden', !(url && isGDriveUrl(url) && !isDirectGDriveUrl(url)));
 
   const previewUrl = convertGDriveUrl(url) || url;
-  if (!previewUrl) { wrap.style.display = 'none'; return; }
-  wrap.style.display = 'block';
-  box.innerHTML = `<img src="${escMediaAttr(previewUrl)}" alt="Preview"
+  if (!previewUrl) {
+    box.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">Dán URL ảnh phía trên để xem trước</span>';
+    return;
+  }
+
+  box.innerHTML = `
+    <img src="${escMediaAttr(previewUrl)}" alt="Preview"
       style="width:100%;height:100%;object-fit:cover;display:block;"
-      onerror="this.parentElement.innerHTML='<span style=\\'font-size:11px;color:var(--text-muted);text-align:center;padding:8px;\\'>⚠️ Không tải được ảnh — kiểm tra lại URL / quyền chia sẻ</span>'">`;
+      onerror="this.parentElement.innerHTML='<span style=&quot;font-size:12px;color:var(--text-muted);text-align:center;padding:8px;&quot;>⚠️ Không tải được ảnh — kiểm tra lại URL / quyền chia sẻ</span>'">
+    <span id="mediaAddPreviewSize" class="media-size-badge"><span class="media-spinner"></span> đang đo...</span>
+  `;
+
+  const sizeEl = document.getElementById('mediaAddPreviewSize');
+  const size = await fetchMediaSize(previewUrl);
+  if (!sizeEl || !document.body.contains(sizeEl)) return; // modal đã đóng / URL đã đổi
+  sizeEl.innerHTML = size ? size : '— KB';
 }
 
 /* ══════════════════════════════════════════════
@@ -171,6 +310,7 @@ function updateAddPreview(url) {
 let mediaList = [];
 let mediaSearchQuery = '';
 let mediaActiveTag = null;
+const mediaSizeCache = new Map(); // url -> "245 KB" | null (không xác định được)
 
 /* ══════════════════════════════════════════════
    SHOW PAGE
@@ -196,33 +336,27 @@ function isGDriveUrl(url) {
 function isDirectGDriveUrl(url) {
   return /^https:\/\/lh3\.googleusercontent\.com\/d\//i.test(url || '');
 }
-/* Trả về link ảnh trực tiếp nếu nhận diện được link Google Drive, ngược lại trả về null */
 function convertGDriveUrl(url) {
   if (!url) return null;
   url = url.trim();
-
-  if (isDirectGDriveUrl(url)) return url; // đã đúng định dạng rồi
+  if (isDirectGDriveUrl(url)) return url;
 
   let fileId = null;
   let m;
 
-  // https://drive.google.com/file/d/FILE_ID/view?usp=sharing
   m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (m) fileId = m[1];
 
-  // https://drive.google.com/open?id=FILE_ID
   if (!fileId) {
-    m = url.match(/drive\.google\.com\/open\?.*[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+    m = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
     if (m) fileId = m[1];
   }
 
-  // https://drive.google.com/uc?id=FILE_ID&export=download  (hoặc export=view)
   if (!fileId) {
     m = url.match(/drive\.google\.com\/uc\?.*[?&]id=([a-zA-Z0-9_-]+)/);
     if (m) fileId = m[1];
   }
 
-  // fallback: bất kỳ id=FILE_ID nào trong URL drive
   if (!fileId && isGDriveUrl(url)) {
     m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (m) fileId = m[1];
@@ -230,6 +364,32 @@ function convertGDriveUrl(url) {
 
   if (!fileId) return null;
   return `https://lh3.googleusercontent.com/d/${fileId}`;
+}
+
+/* ══════════════════════════════════════════════
+   DUNG LƯỢNG ẢNH — best-effort qua HEAD request
+   (nhiều CDN không cho đọc header qua CORS → trả về null)
+   ══════════════════════════════════════════════ */
+function formatBytes(bytes) {
+  if (bytes === null || bytes === undefined || isNaN(bytes)) return null;
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+async function fetchMediaSize(url) {
+  if (mediaSizeCache.has(url)) return mediaSizeCache.get(url);
+  try {
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000));
+    const res = await Promise.race([fetch(url, { method: 'HEAD', mode: 'cors' }), timeout]);
+    const len = res.headers.get('content-length');
+    const result = len ? formatBytes(Number(len)) : null;
+    mediaSizeCache.set(url, result);
+    return result;
+  } catch {
+    mediaSizeCache.set(url, null);
+    return null;
+  }
 }
 
 /* ══════════════════════════════════════════════
@@ -248,12 +408,20 @@ async function loadMedia() {
     mediaList = [];
     showMediaMsg('❌ Không tải được thư viện: ' + err.message, 'error');
   }
+  updateMediaStats();
   renderTagFilters();
   renderMediaGrid();
 }
 
+function updateMediaStats() {
+  const countEl = document.getElementById('mediaStatCount');
+  const tagsEl  = document.getElementById('mediaStatTags');
+  if (countEl) countEl.textContent = mediaList.length;
+  if (tagsEl)  tagsEl.textContent  = new Set(mediaList.flatMap(m => m.tags || [])).size;
+}
+
 /* ══════════════════════════════════════════════
-   FILTER — theo tag đang chọn + từ khóa tìm kiếm
+   FILTER
    ══════════════════════════════════════════════ */
 function getFilteredMedia() {
   const q = mediaSearchQuery.trim().toLowerCase();
@@ -276,15 +444,14 @@ function renderTagFilters() {
   if (!wrap) return;
 
   const allTags = [...new Set(mediaList.flatMap(m => m.tags || []))].sort((a, b) => a.localeCompare(b, 'vi'));
-
   if (!allTags.length) { wrap.innerHTML = ''; return; }
 
   const chip = (label, value, active) => `
     <button class="media-tag-chip" data-tag-value="${escMediaAttr(value ?? '')}"
-      style="height:30px;padding:0 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
+      style="height:32px;padding:0 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
       border:1.5px solid ${active ? 'var(--primary)' : 'var(--border)'};
       background:${active ? 'var(--primary)' : 'var(--card)'};
-      color:${active ? '#fff' : 'var(--text-muted)'};transition:all .15s;">
+      color:${active ? '#fff' : 'var(--text-muted)'};">
       ${escMediaAttr(label)}
     </button>`;
 
@@ -294,8 +461,7 @@ function renderTagFilters() {
 
   wrap.querySelectorAll('.media-tag-chip').forEach(btn => {
     btn.addEventListener('click', () => {
-      const v = btn.dataset.tagValue;
-      mediaActiveTag = v ? v : null;
+      mediaActiveTag = btn.dataset.tagValue || null;
       renderTagFilters();
       renderMediaGrid();
     });
@@ -320,7 +486,7 @@ function renderMediaGrid() {
       if (emptyText) {
         emptyText.textContent = mediaList.length
           ? 'Không tìm thấy ảnh phù hợp — thử từ khóa hoặc tag khác'
-          : 'Chưa có ảnh nào trong thư viện — thêm link đầu tiên ở form phía trên';
+          : 'Chưa có ảnh nào trong thư viện';
       }
     }
     return;
@@ -328,12 +494,13 @@ function renderMediaGrid() {
   if (empty) empty.style.display = 'none';
 
   grid.innerHTML = filtered.map(m => `
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;">
+    <div class="media-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;">
 
-      <div style="width:100%;height:150px;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;">
+      <div class="media-thumb" style="position:relative;width:100%;aspect-ratio:16/10;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;">
         <img src="${escMediaAttr(m.url)}" alt="${escMediaAttr(m.label || 'media')}"
-          style="width:100%;height:100%;object-fit:cover;display:block;"
-          onerror="this.parentElement.innerHTML='<span style=\\'font-size:11px;color:var(--text-muted);text-align:center;padding:8px;\\'>⚠️ Không tải được ảnh</span>'">
+          style="width:100%;height:100%;object-fit:cover;"
+          onerror="this.parentElement.innerHTML='<span style=&quot;font-size:11px;color:var(--text-muted);text-align:center;padding:8px;&quot;>⚠️ Không tải được ảnh</span>'">
+        <span class="media-size-badge" id="media-size-${m.id}"><span class="media-spinner"></span></span>
       </div>
 
       <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;flex:1;">
@@ -358,14 +525,11 @@ function renderMediaGrid() {
           ${m.added_by ? '👤 ' + escMediaAttr(m.added_by) + ' · ' : ''}${formatMediaDate(m.created_at)}
         </div>
 
-        <div style="display:flex;gap:8px;margin-top:auto;padding-top:6px;flex-wrap:wrap;">
-          <button class="btn" data-media-copy="${m.id}"
-            style="flex:1;min-width:90px;height:36px;font-size:12px;border:1px solid var(--border);background:var(--bg);border-radius:8px;cursor:pointer;">📋 Copy</button>
-          <button class="btn" data-media-download="${m.id}"
-            style="flex:1;min-width:90px;height:36px;font-size:12px;border:1px solid var(--border);background:var(--bg);border-radius:8px;cursor:pointer;">⬇️ Tải xuống</button>
+        <div style="display:flex;gap:8px;margin-top:auto;padding-top:6px;">
+          <button class="media-icon-btn grow" data-media-copy="${m.id}" title="Copy link">📋 Copy</button>
+          <button class="media-icon-btn grow" data-media-download="${m.id}" title="Tải xuống">⬇️ Tải</button>
           ${isSuperAdminMedia
-            ? `<button class="btn btn-danger" data-media-delete="${m.id}"
-                style="height:36px;width:36px;font-size:14px;border-radius:8px;cursor:pointer;flex-shrink:0;">🗑️</button>`
+            ? `<button class="media-icon-btn danger" data-media-delete="${m.id}" title="Xóa">🗑️</button>`
             : ''
           }
         </div>
@@ -374,6 +538,19 @@ function renderMediaGrid() {
   `).join('');
 
   attachMediaEvents();
+  loadCardSizes(filtered);
+}
+
+/* Nạp dung lượng cho từng ảnh đang hiển thị, không block render */
+function loadCardSizes(items) {
+  items.forEach(async m => {
+    const el = document.getElementById(`media-size-${m.id}`);
+    if (!el) return;
+    const size = await fetchMediaSize(m.url);
+    const stillThere = document.getElementById(`media-size-${m.id}`);
+    if (!stillThere) return; // đã re-render / lọc mất card này
+    stillThere.innerHTML = size || '—';
+  });
 }
 
 /* ══════════════════════════════════════════════
@@ -398,13 +575,11 @@ function attachMediaEvents() {
       if (item) deleteMedia(item.id);
     });
   });
-  /* bấm vào tag trên thẻ ảnh → lọc nhanh theo tag đó */
   document.querySelectorAll('.media-card-tag').forEach(el => {
     el.addEventListener('click', () => {
       mediaActiveTag = el.dataset.tagValue;
       renderTagFilters();
       renderMediaGrid();
-      document.getElementById('mediaTagFilterWrap')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   });
 }
@@ -424,7 +599,6 @@ window.addMedia = async function () {
 
   if (!url) { showMediaMsg('⚠️ Vui lòng nhập URL ảnh', 'error'); urlInput.focus(); return; }
 
-  /* tự động chuyển link Google Drive sang link ảnh trực tiếp */
   const converted = convertGDriveUrl(url);
   const wasGDriveConverted = converted && converted !== url;
   if (converted) url = converted;
@@ -441,12 +615,7 @@ window.addMedia = async function () {
     });
     if (error) throw error;
 
-    urlInput.value = '';
-    labelInput.value = '';
-    tagsInput.value = '';
-    document.getElementById('mediaAddPreviewWrap').style.display = 'none';
-    document.getElementById('mediaGDriveHint').style.display = 'none';
-
+    closeMediaModal();
     showMediaMsg(
       wasGDriveConverted
         ? '✅ Đã thêm ảnh! (Link Google Drive đã được tự động chuyển sang link ảnh trực tiếp)'
@@ -463,11 +632,7 @@ window.addMedia = async function () {
 
 function parseMediaTags(raw) {
   if (!raw) return [];
-  return [...new Set(
-    raw.split(',')
-      .map(t => t.trim().toLowerCase())
-      .filter(Boolean)
-  )];
+  return [...new Set(raw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean))];
 }
 
 /* ══════════════════════════════════════════════
