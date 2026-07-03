@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
+let gameSlugs = { slugById: {}, idBySlug: {} };
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 function diffClass(d){ return d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium' }
@@ -119,7 +120,9 @@ function goDetail(idx){
   showInApp('page-detail');
   renderDetail(idx);
   window.scrollTo(0,0);
-  history.pushState(null,'','#game-'+idx);
+  /* Link đẹp: #game-{slug-ten-game} thay vì #game-{index} */
+  const slug = gameSlugs.slugById[GAMES[idx].id] || idx;
+  history.pushState(null,'','#game-'+slug);
   trackGameView(idx);
 }
 
@@ -339,10 +342,22 @@ function routeFromHash(){
     loadPage('boardgame').then(()=>{
       updateHeader('boardgame'); setActive('goBoardgame');
       if(hash.startsWith('game-')){
-        const idx = parseInt(hash.replace('game-',''), 10);
-        if(!isNaN(idx) && idx >= 0 && idx < GAMES.length){
-          setTimeout(()=>goDetail(idx), 80);
+        const key = hash.replace('game-','');
+        let idx = -1;
+
+        /* Ưu tiên tra theo slug (link mới, dễ đọc: #game-catan) */
+        const idFromSlug = gameSlugs.idBySlug[key];
+        if(idFromSlug !== undefined){
+          idx = GAMES.findIndex(g => g.id === idFromSlug);
         }
+
+        /* Tương thích ngược: link/QR cũ dạng #game-2 (theo index) vẫn hoạt động */
+        if(idx === -1){
+          const numIdx = parseInt(key, 10);
+          if(!isNaN(numIdx) && numIdx >= 0 && numIdx < GAMES.length) idx = numIdx;
+        }
+
+        if(idx !== -1) setTimeout(()=>goDetail(idx), 80);
       }
     });
   } else if(hash === 'contact'){
@@ -359,6 +374,7 @@ function routeFromHash(){
 window.addEventListener('hashchange', routeFromHash);
 
 window.GAMES_READY.then(() => {
+  gameSlugs = window.buildGameSlugMap(GAMES);
   routeFromHash();
 });
 
