@@ -1,14 +1,14 @@
 /* ══════════════════════════════════════════════
    DASHBOARD ACCOUNTS MODULE — admin/modules/dashboard-accounts.js
    ─────────────────────────────────────────────
-   THAY ĐỔI so với bản gốc:
-   - Xóa IIFE injectAccountsMenu() (polling) → AdminDashboard.registerPage
-     với `guard: () => isSuperAdmin` (chỉ đăng ký trang này nếu là
-     superadmin — thay cho việc IIFE tự return sớm).
-   - escAcc() → dùng window.escHtml dùng chung.
+   THAY ĐỔI so với bản trước:
+   - Thêm role "Bar Staff" (barstaff) vào select chọn vai trò.
+   - isSuperAdmin / roleLabel / roleBg giờ đọc từ
+     window.AdminPermissions (nơi DUY NHẤT định nghĩa role)
+     thay vì so sánh chuỗi thủ công.
    ══════════════════════════════════════════════ */
 
-const isSuperAdmin = currentSession.role === 'superadmin';
+const isSuperAdmin = window.AdminPermissions.isSuperAdmin(currentSession.role);
 
 async function sha256(text) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -93,6 +93,7 @@ window.AdminDashboard.registerPage({
             <label>Vai trò *</label>
             <select id="accountRole" style="height:44px;border-radius:10px;border:1px solid var(--border);padding:0 14px;font-size:14px;font-family:'Inter',sans-serif;color:var(--text);outline:none;background:var(--card);">
               <option value="editor">Editor — chỉnh sửa nội dung</option>
+              <option value="barstaff">Bar Staff — chỉ xem, phục vụ quầy</option>
               <option value="superadmin">Super Admin — toàn quyền + quản lý tài khoản</option>
             </select>
           </div>
@@ -161,9 +162,7 @@ function renderAccountsTable(list) {
   }
 
   tbody.innerHTML = list.map(acc => {
-    const isSuper   = acc.role === 'superadmin';
-    const roleLabel = isSuper ? 'Super Admin' : 'Editor';
-    const roleBg    = isSuper ? '#6c5ce7' : '#00b894';
+    const { label: roleLabel, color: roleBg } = window.AdminPermissions.roleInfo(acc.role);
     const initial   = (acc.display_name || acc.username || 'A')[0].toUpperCase();
     const isSelf    = acc.id === currentSession.id;
 
@@ -177,7 +176,7 @@ function renderAccountsTable(list) {
           </div>
         </div>
       </td>
-      <td><span class="badge" style="background:${isSuper ? '#f0edff' : '#e6f9f5'};color:${roleBg};">${roleLabel}</span></td>
+      <td><span class="badge" style="background:${roleBg}22;color:${roleBg};">${window.escHtml(roleLabel)}</span></td>
       <td>${fmtLastLogin(acc.last_login)}</td>
       <td>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -230,7 +229,8 @@ function openEditAccount(id) {
   document.getElementById('accountUsername').value = acc.username || '';
   document.getElementById('accountUsername').disabled = true;
   document.getElementById('accountDisplayName').value = acc.display_name || '';
-  document.getElementById('accountRole').value = acc.role === 'superadmin' ? 'superadmin' : 'editor';
+  document.getElementById('accountRole').value =
+    ['superadmin', 'barstaff'].includes(acc.role) ? acc.role : 'editor';
 
   document.getElementById('accountModalTitle').textContent = '✏️ Chỉnh sửa tài khoản';
   document.getElementById('accountPasswordLabel').textContent = 'Mật khẩu mới';
