@@ -1,7 +1,11 @@
 /* ══════════════════════════════════════════════
    DASHBOARD GAMES MODULE — admin/modules/dashboard-games.js
    ─────────────────────────────────────────────
-   THAY ĐỔI so với bản trước:
+   THAY ĐỔI:
+   - Thêm window.getGameById(id) để module dashboard-game-detail.js
+     dùng lại dữ liệu games đã fetch, không cần gọi Supabase lại.
+   - Thêm 2 nút trong cột "Hành động": "📄 Chi tiết" (mở trang chi
+     tiết chỉnh sửa trực quan) và "📱 QR" (xem/tải nhanh mã QR).
    - Role "chỉ xem" (window.AdminPermissions.isReadOnly) sẽ:
      + Không thấy nút "+ Thêm Game"
      + Nút trong bảng đổi thành "👁️ Xem" thay vì "✏️ Sửa"
@@ -31,6 +35,9 @@ const errorMsg      = document.getElementById("errorMsg");
 const gameTable     = document.getElementById("gameTable");
 
 let games = [];
+
+/* Expose cho dashboard-game-detail.js truy cập không cần load lại */
+window.getGameById = id => games.find(g => g.id === id);
 
 /* ── Ẩn nút "+ Thêm Game" nếu chỉ được xem ── */
 if (isGamesReadOnly && addGameBtn) addGameBtn.style.display = "none";
@@ -233,8 +240,12 @@ function renderGames(data) {
       <td><div class="difficulty ${difficultyClass(game.difficulty)}">${diff}</div></td>
       <td>${cats.map(c => `<div class="badge" style="margin-bottom:3px">${window.escHtml(c)}</div>`).join("") || '<div class="badge">Boardgame</div>'}</td>
       <td>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <button class="btn btn-primary edit-btn" data-id="${game.id}">${actionLabel}</button>
+          <button class="btn btn-secondary detail-btn" data-id="${game.id}"
+            style="font-size:12px;padding:6px 10px;" title="Trang chi tiết">📄 Chi tiết</button>
+          <button class="btn btn-secondary qr-btn" data-id="${game.id}"
+            style="font-size:12px;padding:6px 10px;" title="Mã QR luật chơi">📱 QR</button>
           <a class="youtube-link" href="${ytHref}" target="_blank" title="YouTube">▶</a>
         </div>
       </td>
@@ -425,6 +436,21 @@ document.addEventListener("click", e => {
   deleteBtn.style.display = "inline-flex";
   setModalReadOnly(isGamesReadOnly);
   modal.classList.remove("hidden");
+});
+
+/* ══════════════════════════════════════════════
+   DETAIL PAGE + QR — event delegation
+   ══════════════════════════════════════════════ */
+document.addEventListener("click", e => {
+  const detailBtn = e.target.closest(".detail-btn");
+  if (detailBtn && typeof window.openGameDetail === "function") {
+    window.openGameDetail(Number(detailBtn.dataset.id));
+    return;
+  }
+  const qrBtn = e.target.closest(".qr-btn");
+  if (qrBtn && typeof window.openGameQR === "function") {
+    window.openGameQR(Number(qrBtn.dataset.id));
+  }
 });
 
 /* ══════════════════════════════════════════════
