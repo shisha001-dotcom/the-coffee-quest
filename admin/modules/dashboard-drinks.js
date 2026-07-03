@@ -1,20 +1,31 @@
 /* ══════════════════════════════════════════════
    DASHBOARD DRINKS MODULE — admin/modules/dashboard-drinks.js
    ─────────────────────────────────────────────
-   TRƯỚC ĐÂY: toàn bộ CRUD Drinks (loadDrinks, renderDrinkGrid,
-   saveDrink, deleteDrink, editDrink...) nằm trong khối <script>
-   inline của admin/dashboard.html — không nhất quán với các
-   module khác (games, chat, analytics... đều là file .js riêng).
+   THAY ĐỔI:
+   - Thêm isDrinksReadOnly (window.AdminPermissions.isReadOnly)
+     để đồng bộ với dashboard-games.js: Bar Staff chỉ được XEM,
+     không được thêm/sửa/xóa công thức đồ uống.
+     + Ẩn nút "+ Thêm công thức"
+     + Nút trên card đổi thành "👁️ Xem" thay vì "✏️ Sửa"
+     + Modal mở ở chế độ readonly: input/textarea/select bị khóa,
+       ẩn nút "💾 Lưu" và "🗑️ Xóa"
+     + saveDrink()/deleteDrink()/openAddDrink() chặn ở tầng hàm
+       (phòng khi bị gọi trực tiếp qua console)
 
-   BÂY GIỜ: tách ra file riêng, cùng chuẩn với các module khác.
-   Dùng window.escHtml / window.showToast thay vì tự viết escHtml()
-   cục bộ.
-
-   Cần: `client` (từ dashboard-auth.js).
+   Cần: `client` (từ dashboard-auth.js), `currentSession`,
+   window.AdminPermissions (từ core/dashboard-permissions.js).
    ══════════════════════════════════════════════ */
 
 window.activeDrinkFilter = 'all';
 let allDrinks = [];
+
+const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
+
+/* ── Ẩn nút "+ Thêm công thức" nếu chỉ được xem ── */
+(function hideAddDrinkBtnIfReadOnly() {
+  const btn = document.getElementById('addDrinkBtn');
+  if (isDrinksReadOnly && btn) btn.style.display = 'none';
+})();
 
 async function loadDrinks() {
   const grid = document.getElementById('drinkGrid');
@@ -55,6 +66,8 @@ function renderDrinkGrid() {
     'Sữa chua':    '#00b894',
   };
 
+  const actionLabel = isDrinksReadOnly ? '👁️ Xem' : '✏️ Sửa';
+
   grid.innerHTML = list.map(d => {
     const color = catColor[d.category] || '#888';
     const ing   = Array.isArray(d.ingredients) ? d.ingredients : [];
@@ -74,14 +87,36 @@ function renderDrinkGrid() {
           ${ing.length ? `<div style="font-size:12px;color:var(--text-muted);">🧪 ${ing.length} nguyên liệu</div>` : ''}
         </div>
         <div style="padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:8px;">
-          <button class="btn btn-primary" style="font-size:12px;padding:6px 14px;" onclick="editDrink(${d.id})">✏️ Sửa</button>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 14px;" onclick="editDrink(${d.id})">${actionLabel}</button>
         </div>
       </div>
     `;
   }).join('');
 }
 
+/* ══════════════════════════════════════════════
+   READ-ONLY MODE cho modal (giống dashboard-games.js)
+   ══════════════════════════════════════════════ */
+function setDrinkModalReadOnly(readonly) {
+  const modal = document.getElementById('drinkModal');
+  if (!modal) return;
+
+  modal.querySelectorAll('input, textarea, select').forEach(el => { el.disabled = readonly; });
+
+  const saveBtn   = document.getElementById('drinkSaveBtn');
+  const deleteBtn = document.getElementById('drinkDeleteBtn');
+
+  if (saveBtn) saveBtn.style.display = readonly ? 'none' : '';
+  if (deleteBtn) {
+    deleteBtn.style.display = readonly
+      ? 'none'
+      : (deleteBtn.dataset.wasVisible === '1' ? 'inline-flex' : 'none');
+  }
+}
+
 function openAddDrink() {
+  if (isDrinksReadOnly) return; /* chặn tầng hàm, phòng nút bị lộ */
+
   document.getElementById('drinkId').value   = '';
   document.getElementById('drinkName').value = '';
   document.getElementById('drinkCategory').value = '';
@@ -94,6 +129,8 @@ function openAddDrink() {
   document.getElementById('drinkImage').value = '';
   document.getElementById('drinkModalTitle').textContent = 'Thêm công thức';
   document.getElementById('drinkDeleteBtn').style.display = 'none';
+  document.getElementById('drinkDeleteBtn').dataset.wasVisible = '0';
+  setDrinkModalReadOnly(false);
   document.getElementById('drinkModal').classList.remove('hidden');
 }
 
@@ -110,8 +147,16 @@ function editDrink(id) {
   document.getElementById('drinkSteps').value     = Array.isArray(d.steps) ? d.steps.join('\n') : '';
   document.getElementById('drinkTips').value      = Array.isArray(d.tips) ? d.tips.join('\n') : '';
   document.getElementById('drinkImage').value     = d.image_url || '';
-  document.getElementById('drinkModalTitle').textContent = '✏️ Chỉnh sửa công thức';
-  document.getElementById('drinkDeleteBtn').style.display = 'inline-flex';
+
+  document.getElementById('drinkModalTitle').textContent = isDrinksReadOnly
+    ? '👁️ Xem chi tiết công thức'
+    : '✏️ Chỉnh sửa công thức';
+
+  const delBtn = document.getElementById('drinkDeleteBtn');
+  delBtn.dataset.wasVisible = '1';
+  delBtn.style.display = 'inline-flex';
+
+  setDrinkModalReadOnly(isDrinksReadOnly);
   document.getElementById('drinkModal').classList.remove('hidden');
 }
 
@@ -120,6 +165,8 @@ function parseDrinkLines(id) {
 }
 
 async function saveDrink() {
+  if (isDrinksReadOnly) return; /* chặn tầng hàm */
+
   const rawId = document.getElementById('drinkId').value;
   const id    = rawId ? Number(rawId) : null;
   const name  = document.getElementById('drinkName').value.trim();
@@ -154,6 +201,8 @@ async function saveDrink() {
 }
 
 async function deleteDrink() {
+  if (isDrinksReadOnly) return; /* chặn tầng hàm */
+
   const id = document.getElementById('drinkId').value;
   if (!id) return;
   if (!confirm('Xóa công thức này?\n\nHành động này không thể hoàn tác!')) return;
@@ -169,9 +218,9 @@ async function deleteDrink() {
 }
 
 /* Expose cho onclick="" trong HTML modal + nav.js */
-window.loadDrinks     = loadDrinks;
+window.loadDrinks      = loadDrinks;
 window.renderDrinkGrid = renderDrinkGrid;
-window.openAddDrink   = openAddDrink;
-window.editDrink      = editDrink;
+window.openAddDrink    = openAddDrink;
+window.editDrink       = editDrink;
 window.saveDrink       = saveDrink;
 window.deleteDrink     = deleteDrink;
