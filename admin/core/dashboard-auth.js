@@ -14,8 +14,8 @@
    scope, giống hệt cơ chế cũ — KHÔNG cần import/export.
 
    ⚠️ Bắt buộc load ĐẦU TIÊN trong các script admin (chỉ sau
-      shared-config.js, shared-emoji.js, shared-utils.js và
-      Supabase SDK CDN).
+      shared-config.js, shared-emoji.js, shared-utils.js,
+      core/dashboard-permissions.js và Supabase SDK CDN).
    ══════════════════════════════════════════════ */
 
 const SESSION_KEY = "bg_admin_session";
@@ -56,19 +56,17 @@ const client = supabase.createClient(
   const sidebar = document.querySelector(".sidebar");
   if (!sidebar) return;
 
-  const isSuper     = currentSession.role === "superadmin";
-  const roleLabel   = isSuper ? "Super Admin" : "Editor";
-  const roleBg      = isSuper ? "#6c5ce7" : "#00b894";
+  const { label: roleLabel, color: roleBg } = window.AdminPermissions.roleInfo(currentSession.role);
   const initial     = (currentSession.displayName || "A")[0].toUpperCase();
   const displayName = currentSession.displayName || currentSession.username;
 
   const userBar = document.createElement("div");
   userBar.style.cssText = "margin-top:auto;border-top:1px solid rgba(255,255,255,.08);padding:16px 20px;display:flex;align-items:center;gap:12px;";
   userBar.innerHTML = `
-    <div style="width:38px;height:38px;border-radius:50%;background:#6c5ce7;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;">${window.escHtml(initial)}</div>
+    <div style="width:38px;height:38px;border-radius:50%;background:${roleBg};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;">${window.escHtml(initial)}</div>
     <div style="flex:1;min-width:0;">
       <div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${window.escHtml(displayName)}</div>
-      <div style="margin-top:4px"><span style="background:${roleBg};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.4px">${roleLabel}</span></div>
+      <div style="margin-top:4px"><span style="background:${roleBg};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.4px">${window.escHtml(roleLabel)}</span></div>
     </div>
     <button id="logoutBtn" title="Đăng xuất"
       style="background:rgba(255,255,255,.08);border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;color:#a0a8c0;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s,color .2s;flex-shrink:0;"
