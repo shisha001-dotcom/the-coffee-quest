@@ -1,18 +1,20 @@
 /* ══════════════════════════════════════════════
    DASHBOARD GAMES MODULE — admin/modules/dashboard-games.js
-   (trước đây là admin/dashboard.js)
    ─────────────────────────────────────────────
-   THAY ĐỔI so với bản gốc:
-   - Auth guard + Supabase client + user bar → chuyển sang
-     admin/core/dashboard-auth.js (file này chỉ lo CRUD game).
-   - window.showToast → dùng bản dùng chung ở js/shared-utils.js,
-     không còn định nghĩa + export showToast() ở đây nữa.
-   - escHtml cho các chỗ hiển thị tên game trong bảng vẫn dùng
-     nội suy trực tiếp như bản gốc (giữ nguyên hành vi), nhưng
-     mọi chỗ cần escape đều gọi window.escHtml() thống nhất.
+   THAY ĐỔI so với bản trước:
+   - Role "chỉ xem" (window.AdminPermissions.isReadOnly) sẽ:
+     + Không thấy nút "+ Thêm Game"
+     + Nút trong bảng đổi thành "👁️ Xem" thay vì "✏️ Sửa"
+     + Modal mở ra ở chế độ chỉ đọc: mọi input/textarea bị
+       khóa (disabled), ẩn nút "💾 Lưu" và "🗑️ Xóa game"
+     + saveGame()/deleteGame() cũng chặn ở tầng hàm — phòng
+       trường hợp bị gọi trực tiếp qua console.
 
-   Cần: `client` (từ dashboard-auth.js).
+   Cần: `client` (từ dashboard-auth.js), `currentSession`,
+   window.AdminPermissions (từ core/dashboard-permissions.js).
    ══════════════════════════════════════════════ */
+
+const isGamesReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
 
 /* ══════════════════════════════════════════════
    DOM REFS
@@ -29,6 +31,9 @@ const errorMsg      = document.getElementById("errorMsg");
 const gameTable     = document.getElementById("gameTable");
 
 let games = [];
+
+/* ── Ẩn nút "+ Thêm Game" nếu chỉ được xem ── */
+if (isGamesReadOnly && addGameBtn) addGameBtn.style.display = "none";
 
 /* ══════════════════════════════════════════════
    EMOJI PICKER
@@ -73,6 +78,7 @@ function renderEmojiGrid(list) {
 }
 
 emojiGrid.addEventListener("click", e => {
+  if (isGamesReadOnly) return;
   const btn = e.target.closest(".emoji-item[data-emoji]");
   if (btn) selectEmoji(btn.dataset.emoji);
 });
@@ -84,6 +90,7 @@ function selectEmoji(emoji) {
   closePicker();
 }
 function openPicker() {
+  if (isGamesReadOnly) return;
   pickerOpen = true;
   emojiPicker.classList.remove("hidden");
   emojiToggleBtn.textContent = "▲";
@@ -107,6 +114,19 @@ document.addEventListener("click", e => {
   if (pickerOpen && !emojiPicker.contains(e.target) && e.target !== emojiToggleBtn && e.target !== emojiInput) closePicker();
 });
 emojiPicker.addEventListener("click", e => e.stopPropagation());
+
+/* ══════════════════════════════════════════════
+   READ-ONLY MODE cho modal
+   ══════════════════════════════════════════════ */
+function setModalReadOnly(readonly) {
+  const fields = modal.querySelectorAll(".form-grid input, .form-grid textarea");
+  fields.forEach(el => { el.disabled = readonly; });
+
+  emojiToggleBtn.disabled = readonly;
+
+  saveBtn.style.display   = readonly ? "none" : "";
+  deleteBtn.style.display = readonly ? "none" : (deleteBtn.dataset.wasVisible === "1" ? "inline-flex" : "none");
+}
 
 /* ══════════════════════════════════════════════
    ARRAY FIELD HELPERS
@@ -186,6 +206,8 @@ function renderGames(data) {
     tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Không tìm thấy game nào.</td></tr>`;
     return;
   }
+  const actionLabel = isGamesReadOnly ? "👁️ Xem" : "✏️ Sửa";
+
   tableBody.innerHTML = data.map(game => {
     const name   = window.escHtml(game.name || "(không tên)");
     const emoji  = game.emoji  || "🎲";
@@ -212,7 +234,7 @@ function renderGames(data) {
       <td>${cats.map(c => `<div class="badge" style="margin-bottom:3px">${window.escHtml(c)}</div>`).join("") || '<div class="badge">Boardgame</div>'}</td>
       <td>
         <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn btn-primary edit-btn" data-id="${game.id}">✏️ Sửa</button>
+          <button class="btn btn-primary edit-btn" data-id="${game.id}">${actionLabel}</button>
           <a class="youtube-link" href="${ytHref}" target="_blank" title="YouTube">▶</a>
         </div>
       </td>
@@ -236,9 +258,12 @@ searchInput?.addEventListener("input", e => {
    MODAL OPEN/CLOSE
    ══════════════════════════════════════════════ */
 addGameBtn?.addEventListener("click", () => {
+  if (isGamesReadOnly) return; /* chặn tầng hàm, phòng khi nút bị bỏ ẩn thủ công */
   clearForm();
   document.getElementById("modalTitle").innerText = "➕ Thêm Boardgame";
   deleteBtn.style.display = "none";
+  deleteBtn.dataset.wasVisible = "0";
+  setModalReadOnly(false);
   modal.classList.remove("hidden");
 });
 closeModalBtn?.addEventListener("click", () => modal.classList.add("hidden"));
@@ -248,6 +273,8 @@ modal?.addEventListener("click", e => { if (e.target === modal) modal.classList.
    SAVE
    ══════════════════════════════════════════════ */
 async function saveGame() {
+  if (isGamesReadOnly) return; /* chặn tầng hàm */
+
   const rawId = document.getElementById("gameId").value;
   const id    = rawId ? Number(rawId) : null;
   const name  = document.getElementById("nameInput").value.trim();
@@ -306,6 +333,8 @@ saveBtn?.addEventListener("click", saveGame);
    DELETE
    ══════════════════════════════════════════════ */
 async function deleteGame() {
+  if (isGamesReadOnly) return; /* chặn tầng hàm */
+
   const id   = document.getElementById("gameId").value;
   if (!id) return;
   const name = document.getElementById("nameInput").value || `ID=${id}`;
@@ -349,7 +378,7 @@ function clearForm() {
 }
 
 /* ══════════════════════════════════════════════
-   EDIT — event delegation
+   EDIT / VIEW — event delegation
    ══════════════════════════════════════════════ */
 document.addEventListener("click", e => {
   const btn = e.target.closest(".edit-btn");
@@ -359,7 +388,9 @@ document.addEventListener("click", e => {
   const game = games.find(g => g.id === id);
   if (!game) return;
 
-  document.getElementById("modalTitle").innerText = "✏️ Chỉnh sửa Boardgame";
+  document.getElementById("modalTitle").innerText = isGamesReadOnly
+    ? "👁️ Xem chi tiết Boardgame"
+    : "✏️ Chỉnh sửa Boardgame";
 
   const fields = {
     gameId: game.id, nameInput: game.name, playersInput: game.players,
@@ -390,7 +421,9 @@ document.addEventListener("click", e => {
   if (emojiPreview) emojiPreview.textContent  = em;
   closePicker();
 
+  deleteBtn.dataset.wasVisible = "1";
   deleteBtn.style.display = "inline-flex";
+  setModalReadOnly(isGamesReadOnly);
   modal.classList.remove("hidden");
 });
 
