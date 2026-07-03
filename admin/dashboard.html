@@ -73,7 +73,8 @@
       margin-top: 6px;
     }
 
-    /* ── SIDEBAR: sub-items (game subcategories / drink types) ── */
+    /* ── SIDEBAR: sub-items (không còn dùng cho Boardgames/Đồ uống,
+       nhưng giữ lại style phòng khi cần dùng chỗ khác) ── */
     .menu-sub-item {
       display: flex;
       align-items: center;
@@ -111,7 +112,8 @@
     }
     .menu-sub-item.active::before { background: var(--primary); }
 
-    /* ── SIDEBAR: collapsible parent ── */
+    /* ── SIDEBAR: collapsible parent (không còn dùng cho Boardgames/
+       Đồ uống, nhưng giữ lại style phòng khi cần dùng chỗ khác) ── */
     .menu-item-parent {
       display: flex;
       align-items: center;
@@ -229,29 +231,15 @@
           <span>📊</span> Dashboard
         </a>
 
-        <!-- Boardgames (collapsible) -->
-        <div class="menu-item-parent" id="bgParent" onclick="toggleBgMenu()">
+        <!-- Boardgames — vào thẳng trang, search + nút thêm đã có sẵn trên trang -->
+        <a class="menu-item" id="bgParent" onclick="showBoardgames()">
           <span>🎲</span> Boardgames
-          <span class="chevron">▼</span>
-        </div>
-        <div class="menu-children" id="bgChildren">
-          <a class="menu-sub-item" id="bgAllItem"    onclick="showBoardgames('all')">Tất cả game</a>
-          <a class="menu-sub-item" id="bgAddItem"    onclick="openAddGame()">+ Thêm game mới</a>
-          <a class="menu-sub-item" id="bgSearchItem" onclick="showBoardgames('search')">Tìm kiếm</a>
-        </div>
+        </a>
 
-        <!-- Đồ uống (collapsible) -->
-        <div class="menu-item-parent" id="drinkParent" onclick="toggleDrinkMenu()">
+        <!-- Đồ uống — vào thẳng trang, tab lọc theo loại đã có sẵn trên trang -->
+        <a class="menu-item" id="drinkParent" onclick="showDrinks('all')">
           <span>☕</span> Đồ uống
-          <span class="chevron">▼</span>
-        </div>
-        <div class="menu-children" id="drinkChildren">
-          <a class="menu-sub-item" id="drinkAllItem"     onclick="showDrinks('all')">Tất cả</a>
-          <a class="menu-sub-item" id="drinkCoffeeItem"  onclick="showDrinks('Cà phê')">Cà phê</a>
-          <a class="menu-sub-item" id="drinkTeaItem"     onclick="showDrinks('Trà hoa quả')">Trà hoa quả</a>
-          <a class="menu-sub-item" id="drinkMilkTeaItem" onclick="showDrinks('Trà sữa')">Trà sữa</a>
-          <a class="menu-sub-item" id="drinkYogurtItem"  onclick="showDrinks('Sữa chua')">Sữa chua</a>
-        </div>
+        </a>
       </div>
 
       <!-- ── QUẢN TRỊ ── -->
@@ -619,19 +607,24 @@
 
 <!-- ══════════════════════════════════════════════
      SCRIPTS — thứ tự quan trọng:
-     1) shared-config / shared-emoji / shared-utils / Supabase SDK
-     2) core/dashboard-auth.js   → tạo `client` + `currentSession` global
-     3) core/dashboard-page-registry.js → tạo window.AdminDashboard
-     4) modules/dashboard-games.js + modules/dashboard-drinks.js
+     1) shared-config / shared-emoji / shared-utils
+     2) core/dashboard-permissions.js → tạo window.AdminPermissions
+        (PHẢI load trước dashboard-auth.js vì auth.js dùng nó
+        để vẽ user bar, và trước mọi module dùng guard phân quyền)
+     3) Supabase SDK
+     4) core/dashboard-auth.js   → tạo `client` + `currentSession` global
+     5) core/dashboard-page-registry.js → tạo window.AdminDashboard
+     6) modules/dashboard-games.js + modules/dashboard-drinks.js
         (script thường — cần onclick="" global hoạt động được)
-     5) core/dashboard-nav.js    → điều hướng, dùng loadGames/loadDrinks
-     6) các module ES module (type="module") — chat/analytics/banners/media/accounts
-        đều gọi AdminDashboard.registerPage() nên phải load SAU bước 3
-     7) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
+     7) core/dashboard-nav.js    → điều hướng, dùng loadGames/loadDrinks
+     8) các module ES module (type="module") — chat/analytics/banners/media/accounts
+        đều gọi AdminDashboard.registerPage() nên phải load SAU bước 5
+     9) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
      ══════════════════════════════════════════════ -->
 <script src="../js/shared-config.js"></script>
 <script src="../js/shared-emoji.js"></script>
 <script src="../js/shared-utils.js"></script>
+<script src="./core/dashboard-permissions.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="./core/dashboard-auth.js"></script>
