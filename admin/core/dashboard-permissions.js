@@ -1,17 +1,18 @@
 /* ══════════════════════════════════════════════
    ADMIN PERMISSIONS — admin/core/dashboard-permissions.js
    ─────────────────────────────────────────────
-   Nơi DUY NHẤT định nghĩa các role quản trị và trang nào
-   mỗi role được phép xem trong sidebar.
+   Nơi DUY NHẤT định nghĩa các role quản trị, trang nào mỗi
+   role được phép xem, và role nào chỉ được XEM (không được
+   thêm/sửa/xóa bất kỳ mục nào).
 
    Muốn thêm role mới hoặc đổi quyền truy cập → CHỈ sửa
-   ROLES / RESTRICTED_PAGES ở đây, không cần đụng vào
-   từng module khác.
+   ROLES / RESTRICTED_PAGES / READONLY_ROLES ở đây, không cần
+   đụng vào từng module khác.
 
    ⚠️ Load file này TRƯỚC admin/core/dashboard-auth.js
       (auth.js dùng AdminPermissions.roleInfo() để vẽ user bar)
-      và TRƯỚC mọi module có dùng AdminPermissions.can()
-      trong guard.
+      và TRƯỚC mọi module có dùng AdminPermissions.can() /
+      isReadOnly() trong guard hoặc render.
    ══════════════════════════════════════════════ */
 
 window.AdminPermissions = (function () {
@@ -32,6 +33,11 @@ window.AdminPermissions = (function () {
     editor:   [],
   };
 
+  /* ── Role nào CHỈ ĐƯỢC XEM — không được thêm/sửa/xóa bất kỳ
+     mục nào ở TẤT CẢ các trang mà role đó được phép truy cập
+     (Boardgames, Đồ uống...). ── */
+  const READONLY_ROLES = ["barstaff"];
+
   function roleInfo(role) {
     return ROLES[role] || { label: role || "—", color: "#888" };
   }
@@ -47,5 +53,11 @@ window.AdminPermissions = (function () {
     return !blocked.includes(pageId);
   }
 
-  return { ROLES, roleInfo, isSuperAdmin, can };
+  /* isReadOnly(role) → true nếu role chỉ được xem, không được
+     thêm/sửa/xóa ở bất kỳ trang nào */
+  function isReadOnly(role) {
+    return READONLY_ROLES.includes(role);
+  }
+
+  return { ROLES, roleInfo, isSuperAdmin, can, isReadOnly };
 })();
