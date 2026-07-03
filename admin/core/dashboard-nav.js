@@ -3,13 +3,18 @@
    ─────────────────────────────────────────────
    TRƯỚC ĐÂY: toàn bộ hàm điều hướng (showDashboard,
    toggleBgMenu, showBoardgames, showDrinks...) nằm trong
-   1 khối <script> ~300 dòng viết thẳng trong admin/dashboard.html
-   — không đúng chỗ, khó tìm, không được lint/format như các
-   file .js khác.
+   1 khối <script> ~300 dòng viết thẳng trong admin/dashboard.html.
 
-   BÂY GIỜ: chuyển hẳn ra file .js riêng, cùng vị trí với các
-   module admin khác. dashboard.html chỉ còn HTML thuần + 1
-   dòng <script src="...">.
+   BÂY GIỜ: chuyển hẳn ra file .js riêng.
+
+   THAY ĐỔI SO VỚI BẢN TRƯỚC:
+   - Bỏ toggleBgMenu()/toggleDrinkMenu() và các menu-sub-item
+     (submenu "Tất cả game"/"+ Thêm game mới"/"Tìm kiếm" và
+     tương tự cho Đồ uống) — Boardgames & Đồ uống giờ là
+     menu-item đơn, bấm là vào thẳng trang (search bar/nút thêm/
+     tab lọc đã có sẵn ngay trên trang rồi, không cần sổ ra ở
+     sidebar nữa).
+   - Bỏ openAddGame() (không còn nơi gọi).
 
    Chỉ xử lý 3 page TĨNH đã có sẵn trong HTML (Dashboard,
    Boardgames, Drinks) — các page ĐỘNG (chat/analytics/banners/
@@ -29,64 +34,23 @@ function showDashboard() {
   window.__showPage('dashboardPage');
 }
 
-/* ── Toggle Boardgames sub-menu ── */
-function toggleBgMenu() {
-  const parent   = document.getElementById('bgParent');
-  const children = document.getElementById('bgChildren');
-  const isOpen   = children.classList.contains('open');
-  document.getElementById('drinkChildren').classList.remove('open');
-  document.getElementById('drinkParent').classList.remove('open');
-  parent.classList.toggle('open', !isOpen);
-  children.classList.toggle('open', !isOpen);
-  if (!isOpen) showBoardgames('all');
-}
-
-/* ── Show Boardgames page ── */
-function showBoardgames(mode) {
+/* ── Show Boardgames page ──
+   Search bar + nút "+ Thêm Game" đã hiển thị sẵn trên trang này,
+   sidebar chỉ còn 1 mục "Boardgames" duy nhất, bấm là vào thẳng. */
+function showBoardgames() {
   clearActive();
-  document.getElementById('bgParent').classList.add('open');
-  document.getElementById('bgChildren').classList.add('open');
-  const itemId = mode === 'search' ? 'bgSearchItem' : 'bgAllItem';
-  document.getElementById(itemId)?.classList.add('active');
-
+  document.getElementById('bgParent').classList.add('active');
   window.__showPage('boardgamesPage');
-
-  if (mode === 'search') {
-    document.getElementById('searchInput')?.focus();
-  }
   loadGames();
 }
 
-/* ── Open Add Game directly from sidebar ── */
-function openAddGame() {
-  showBoardgames('all');
-  setTimeout(() => document.getElementById('addGameBtn')?.click(), 150);
-}
-
-/* ── Toggle Drinks sub-menu ── */
-function toggleDrinkMenu() {
-  const parent   = document.getElementById('drinkParent');
-  const children = document.getElementById('drinkChildren');
-  const isOpen   = children.classList.contains('open');
-  document.getElementById('bgChildren').classList.remove('open');
-  document.getElementById('bgParent').classList.remove('open');
-  parent.classList.toggle('open', !isOpen);
-  children.classList.toggle('open', !isOpen);
-  if (!isOpen) showDrinks('all');
-}
-
-/* ── Show Drinks page ── */
+/* ── Show Drinks page ──
+   Tương tự: filter theo loại đã có sẵn tab ngay trên trang. */
 function showDrinks(cat) {
   clearActive();
-  document.getElementById('drinkParent').classList.add('open');
-  document.getElementById('drinkChildren').classList.add('open');
+  document.getElementById('drinkParent').classList.add('active');
 
-  const subMap = {
-    'all': 'drinkAllItem', 'Cà phê': 'drinkCoffeeItem',
-    'Trà hoa quả': 'drinkTeaItem', 'Trà sữa': 'drinkMilkTeaItem', 'Sữa chua': 'drinkYogurtItem'
-  };
-  document.getElementById(subMap[cat] || 'drinkAllItem')?.classList.add('active');
-
+  cat = cat || 'all';
   window.__showPage('drinksPage');
 
   document.querySelectorAll('.drink-tab').forEach(btn => {
@@ -101,7 +65,7 @@ function showDrinks(cat) {
   loadDrinks();
 }
 
-/* ── Filter drinks by tab click ── */
+/* ── Filter drinks bằng tab ngay trên trang (không đổi trang) ── */
 function filterDrinks(cat, btnEl) {
   document.querySelectorAll('.drink-tab').forEach(b => {
     b.classList.toggle('btn-primary',   b === btnEl);
