@@ -8,28 +8,16 @@
       script khác cần dùng escHtml / showToast / formatTime
       (app.js, chat.js, admin/*.js).
 
-   Trước đây các hàm này bị viết lại 5 lần với 5 tên khác
-   nhau (esc, escHtml, escAcc, escBannerAttr, escMediaAttr)
-   rải rác trong app.js, dashboard-chat.js, dashboard-
-   accounts.js, dashboard-banners.js, dashboard-media.js.
-   Từ nay chỉ sửa 1 chỗ duy nhất là ở đây.
-
    Exports (window globals):
-     window.escHtml(s)          → escape HTML an toàn khi
-                                   chèn text động vào innerHTML
-     window.formatTime(ts)      → timestamp → "HH:MM"
-     window.formatDateVN(dateStr) → "2026-06-11" → "11/06/2026"
-     window.showToast(msg, bg)  → toast notification góc phải
-                                   dưới (dùng chung frontend & admin)
-     window.slugify(s)          → chuỗi → dạng slug an toàn cho
-                                   tên file / URL (bỏ dấu tiếng Việt)
+     window.escHtml(s)
+     window.formatTime(ts)
+     window.formatDateVN(dateStr)
+     window.showToast(msg, bg)
+     window.slugify(s)
+     window.buildGameSlugMap(games)   ← MỚI: sinh slug cho link chia sẻ game
    ══════════════════════════════════════════════ */
 
-/* ── ESCAPE HTML ──
-   Dùng khi chèn dữ liệu người dùng / dữ liệu động vào innerHTML
-   để tránh XSS và lỗi hiển thị ký tự đặc biệt (&, <, >, ", ').
-   Bản đầy đủ nhất (escape cả " và ') — an toàn để dùng cả trong
-   text node lẫn trong thuộc tính HTML (value="...", title="..."). */
+/* ── ESCAPE HTML ── */
 window.escHtml = function (s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;')
@@ -47,13 +35,12 @@ window.formatTime = function (ts) {
 };
 
 window.formatDateVN = function (dateStr) {
-  // "2026-06-11" → "11/06/2026"
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}/${y}`;
 };
 
-/* ── SLUGIFY (dùng khi đặt tên file tải xuống, vd: dashboard-media.js) ── */
+/* ── SLUGIFY ── */
 window.slugify = function (s) {
   if (!s) return '';
   return s.toString().trim().toLowerCase()
@@ -61,12 +48,7 @@ window.slugify = function (s) {
     .replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 };
 
-/* ── TOAST NOTIFICATION ──
-   Dùng chung cho cả trang khách (nếu cần) và admin dashboard.
-   Trước đây: dashboard.js định nghĩa showToast() rồi gán
-   window.showToast = showToast; các module khác (dashboard-chat.js)
-   phải tự viết bản fallback phòng khi module load trước.
-   Từ nay chỉ cần load file này sớm nhất → không còn cần fallback. */
+/* ── TOAST NOTIFICATION ── */
 window.showToast = function (msg, bg = '#00b894') {
   const existing = document.getElementById('_toast');
   if (existing) existing.remove();
@@ -84,4 +66,29 @@ window.showToast = function (msg, bg = '#00b894') {
   });
   document.body.appendChild(t);
   setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2700);
+};
+
+/* ── SLUG CHO GAME (dùng cho link chia sẻ #game-{slug} + mã QR) ──
+   Trả về { slugById, idBySlug }. Tự xử lý trùng tên bằng hậu tố -2, -3...
+   Admin và frontend cùng fetch bảng `games` order theo sort_order,
+   nên slug sinh ra ở 2 nơi luôn khớp nhau. */
+window.buildGameSlugMap = function (games) {
+  const slugById = {};
+  const idBySlug = {};
+  const seen = {};
+
+  (games || []).forEach(g => {
+    const base = window.slugify(g.name) || 'game';
+    let slug = base;
+    let n = 2;
+    while (seen[slug] && seen[slug] !== g.id) {
+      slug = `${base}-${n}`;
+      n++;
+    }
+    seen[slug] = g.id;
+    slugById[g.id] = slug;
+    idBySlug[slug] = g.id;
+  });
+
+  return { slugById, idBySlug };
 };
