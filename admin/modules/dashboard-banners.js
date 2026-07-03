@@ -1,9 +1,10 @@
 /* ══════════════════════════════════════════════
    DASHBOARD BANNERS MODULE — admin/modules/dashboard-banners.js
    ─────────────────────────────────────────────
-   THAY ĐỔI so với bản gốc:
-   - Xóa IIFE injectBannersMenu() (polling) → AdminDashboard.registerPage.
-   - escBannerAttr() → dùng window.escHtml dùng chung.
+   THAY ĐỔI so với bản trước:
+   - Thêm guard + early-return dựa trên window.AdminPermissions
+     để chặn role "Bar Staff" xem trang này (không hiện menu item,
+     không inject page HTML).
    ══════════════════════════════════════════════ */
 
 window.AdminDashboard.registerPage({
@@ -11,9 +12,12 @@ window.AdminDashboard.registerPage({
   menuId: "bannersMenuItem",
   icon: "🖼️",
   label: "Banners",
+  guard: () => window.AdminPermissions.can(currentSession.role, "bannersPage"),
 });
 
 (function injectBannersPage() {
+  if (!window.AdminPermissions.can(currentSession.role, "bannersPage")) return;
+
   const main = document.querySelector('.main-content');
   if (!main) return;
 
