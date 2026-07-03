@@ -1,15 +1,14 @@
 /* ══════════════════════════════════════════════
    DASHBOARD MEDIA LIBRARY MODULE — admin/modules/dashboard-media.js
    ─────────────────────────────────────────────
-   THAY ĐỔI so với bản gốc:
-   - Xóa IIFE injectMediaMenu() (polling) → AdminDashboard.registerPage
-     với insertBeforeMenuId: "chatMenuItem" (giữ đúng vị trí "trước
-     mục Cộng đồng" như bản gốc).
-   - escMediaAttr() → dùng window.escHtml dùng chung.
-   - slugifyMedia() → dùng window.slugify dùng chung.
+   THAY ĐỔI so với bản trước:
+   - isSuperAdminMedia đọc từ window.AdminPermissions.isSuperAdmin()
+     thay vì so sánh chuỗi thủ công (chỉ Super Admin mới xóa được ảnh).
+   - Thêm guard + early-return dựa trên window.AdminPermissions.can()
+     để chặn role "Bar Staff" xem toàn bộ trang này.
    ══════════════════════════════════════════════ */
 
-const isSuperAdminMedia = currentSession.role === 'superadmin';
+const isSuperAdminMedia = window.AdminPermissions.isSuperAdmin(currentSession.role);
 
 (function injectMediaStyles() {
   if (document.getElementById('mediaLibraryStyles')) return;
@@ -77,9 +76,12 @@ window.AdminDashboard.registerPage({
   icon: "🗂️",
   label: "Thư viện Media",
   insertBeforeMenuId: "chatMenuItem", // giữ đúng vị trí: trước mục "Cộng đồng"
+  guard: () => window.AdminPermissions.can(currentSession.role, "mediaPage"),
 });
 
 (function injectMediaPage() {
+  if (!window.AdminPermissions.can(currentSession.role, "mediaPage")) return;
+
   const main = document.querySelector('.main-content');
   if (!main) return;
 
@@ -151,6 +153,8 @@ window.AdminDashboard.registerPage({
 })();
 
 (function injectMediaModal() {
+  if (!window.AdminPermissions.can(currentSession.role, "mediaPage")) return;
+
   const modal = document.createElement('div');
   modal.className = 'modal-overlay hidden';
   modal.id = 'mediaModal';
