@@ -14,7 +14,7 @@
   gap: 16px;
   position: sticky;
   top: 0;
-  z-index: 200;
+  z-index: var(--z-header);
   box-shadow: 0 2px 16px rgba(0,0,0,.35);
   /* ► Xóa dòng border-bottom để bỏ line đỏ dưới header */
   border-bottom: 2px solid var(--accent);
@@ -37,16 +37,21 @@
 .logo:hover { opacity: .85; }
 .logo span { color: #fff; }
 
-/* Nút hamburger menu */
+/* Nút hamburger menu
+   ⚠️ SỬA: trước đây dùng ký tự "☰" (font-size 22px). Giờ chứa <svg>
+   nên cần flex căn giữa + đảm bảo vùng chạm tối thiểu 44×44px
+   (touch-target-size — UI/UX audit ưu tiên cao). */
 #menu-toggle {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 22px;
   color: #fff;
-  padding: 6px 8px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  line-height: 1;
   border-radius: var(--r-sm);
   transition: background var(--t);
 }
@@ -113,7 +118,7 @@
   width: var(--menu-w);
   height: 100vh;
 
-  z-index: 500;
+  z-index: var(--z-drawer);
 
   background: var(--menu-bg);
 
@@ -142,7 +147,7 @@
   visibility: hidden;
   pointer-events: none;
   transition: opacity .3s, visibility .3s;
-  z-index: 499;
+  z-index: var(--z-overlay);
   /* Blur nhẹ nội dung đằng sau */
   backdrop-filter: blur(2px);
 }
