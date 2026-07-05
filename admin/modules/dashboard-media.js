@@ -76,8 +76,8 @@ window.AdminDashboard.registerPage({
   menuId: "mediaMenuItem",
   icon: "🗂️",
   label: "Thư viện Media",
-  insertBeforeMenuId: "chatMenuItem", // giữ đúng vị trí: trước mục "Cộng đồng"
-  guard: () => window.AdminPermissions.can(currentSession.role, "mediaPage"),
+  insertBeforeMenuId: "chatMenuItem",
+  guard: () => canAccessMediaPage,   // ← dùng lại const, không gọi can() lần nữa
 });
 
 (function injectMediaPage() {
