@@ -7,7 +7,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.76);
-  z-index: 999999;
+  z-index: var(--z-modal);
   display: none;
   align-items: center;
   justify-content: center;
@@ -100,7 +100,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.94);
-  z-index: 999999;
+  z-index: var(--z-lightbox);
   align-items: center;
   justify-content: center;
   flex-direction: column;
@@ -126,6 +126,11 @@
   position: absolute;
   top: 18px;
   right: 22px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 30px;
   color: #fff;
   cursor: pointer;
@@ -135,7 +140,14 @@
   opacity: .65;
   transition: opacity var(--t), transform var(--t);
 }
+#lb-close svg { width: 22px; height: 22px; }
 #lb-close:hover {
   opacity: 1;
   transform: rotate(90deg) scale(1.1);  /* ► Xóa nếu không muốn nút X xoay */
 }
+
+/* Ghi chú: dialog xác nhận (thay window.confirm()) không đặt CSS ở đây
+   nữa — window.showConfirm() trong js/shared-utils.js tự inject style
+   riêng (namespace #tcq-confirm-*) để dùng chung được cho cả trang
+   khách (biến --accent...) lẫn admin (biến --primary...) mà không cần
+   sửa 2 bộ CSS khác nhau. Xem chi tiết trong shared-utils.js. */
