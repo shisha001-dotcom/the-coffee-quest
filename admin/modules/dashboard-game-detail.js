@@ -1,35 +1,24 @@
 /* ══════════════════════════════════════════════
    DASHBOARD GAME DETAIL + QR — admin/modules/dashboard-game-detail.js
    ─────────────────────────────────────────────
-   Tính năng 1: Trang CHI TIẾT chỉnh sửa game (thay thế popup khi cần
-   thao tác trực quan hơn) — tách rời hoàn toàn với modal popup trong
-   dashboard-games.js, ai muốn sửa nhanh vẫn dùng popup bình thường.
+   Trang CHI TIẾT chỉnh sửa game — thay thế popup khi cần thao tác
+   trực quan hơn, tách rời hoàn toàn với modal popup trong
+   dashboard-games.js.
 
-   Tính năng 2: Mã QR dẫn tới trang luật chơi của game trên site chính.
-   Link dạng #game-{slug-ten-game} (không dấu, có gạch nối) thay vì
-   #game-{id} để người quét link dễ nhận biết đang xem game nào.
-   Có 2 điểm truy cập:
-     - Nút "📱 QR" trong bảng  → mở modal nhỏ, xem/tải QR nhanh
-     - Trang chi tiết          → luôn hiển thị QR kèm nút tải
-
-   KHÔNG dùng AdminDashboard.registerPage() vì đây không phải trang
-   có mục cố định trên sidebar — nó chỉ mở khi bấm vào 1 game cụ thể
-   từ bảng Boardgames, giống cách dashboardPage/boardgamesPage/drinksPage
-   dùng thẳng window.__showPage().
+   MỚI:
+   - Xóa modal QR nhanh (qrQuickModal / window.openGameQR) vì nút
+     "📱 QR" trong bảng Boardgames đã bị bỏ theo yêu cầu — QR chỉ
+     còn hiển thị trong trang Chi tiết (vẫn giữ nguyên).
+   - Thêm LIVE PREVIEW cho 3 field: Hero Background URL, Ảnh hướng
+     dẫn (mỗi dòng URL | Chú thích), YouTube URL — hiển thị ảnh/
+     thumbnail xem trước ngay khi người dùng nhập/dán link, để biết
+     ngay link đã đúng hay chưa mà không cần lưu trước.
 
    Cần: `client`, `currentSession`, `isGamesReadOnly`, `games`, `parseLines`,
    `parseImages`, `setLines`, `setImages` (tất cả từ dashboard-games.js —
    load TRƯỚC file này), window.escHtml / window.showToast / window.slugify /
    window.buildGameSlugMap (shared-utils.js), thư viện QRCode (CDN, load
    trước file này).
-
-   ⚠️ FIX (2026-07): renderGameQR() trước đây fail-silent khi thư viện
-   QRCode (CDN) load thất bại/bị chặn mạng — canvas trắng tinh, không có
-   bất kỳ log/cảnh báo nào, khiến lỗi rất khó phát hiện. Giờ đây nếu
-   window.QRCode không tồn tại, hàm sẽ:
-     - In cảnh báo rõ ràng ra console
-     - Chèn thông báo lỗi ngay trong khung canvas (cả modal nhanh lẫn
-       trang chi tiết) để người dùng biết ngay thay vì đoán mò
    ══════════════════════════════════════════════ */
 
 /* ⚠️ Đổi domain tại đây nếu deploy sang địa chỉ khác */
@@ -39,16 +28,11 @@ const SITE_BASE_URL = "https://shisha001-dotcom.github.io/the-coffee-quest/";
    HELPER DÙNG CHUNG: sinh URL + render QR vào canvas + tải PNG
    ══════════════════════════════════════════════ */
 function gameQrUrl(gameId) {
-  /* `games` là mảng global từ dashboard-games.js — cùng thứ tự
-     (sort_order ascending) với GAMES bên frontend nên slug sinh
-     ra ở 2 nơi luôn khớp nhau */
   const { slugById } = window.buildGameSlugMap(games || []);
   const slug = slugById[gameId] || String(gameId);
   return `${SITE_BASE_URL}#game-${slug}`;
 }
 
-/* ── Hiển thị lỗi ngay tại vị trí canvas khi thư viện QRCode
-   chưa sẵn sàng (CDN load thất bại / bị chặn mạng / v.v.) ── */
 function showQrLoadError(canvasEl) {
   console.error(
     "[dashboard-game-detail] window.QRCode không tồn tại — thư viện QRCode " +
@@ -57,7 +41,6 @@ function showQrLoadError(canvasEl) {
   );
   if (!canvasEl || !canvasEl.parentElement) return;
 
-  /* Tránh chèn nhiều thông báo lỗi trùng lặp nếu gọi lại nhiều lần */
   const existing = canvasEl.parentElement.querySelector(".qr-load-error");
   if (existing) existing.remove();
 
@@ -79,7 +62,6 @@ function showQrLoadError(canvasEl) {
   canvasEl.parentElement.insertBefore(errBox, canvasEl);
 }
 
-/* ── Xóa thông báo lỗi (nếu có) khi render QR thành công trở lại ── */
 function clearQrLoadError(canvasEl) {
   if (!canvasEl || !canvasEl.parentElement) return;
   canvasEl.style.display = "";
@@ -130,43 +112,70 @@ function downloadCanvasQR(canvasEl, gameName) {
 }
 
 /* ══════════════════════════════════════════════
-   QR QUICK MODAL — mở nhanh từ nút "📱 QR" trong bảng
+   LIVE PREVIEW — Hero / Ảnh hướng dẫn / YouTube
    ══════════════════════════════════════════════ */
-(function injectQrQuickModal() {
-  if (document.getElementById("qrQuickModal")) return;
+function updateGdHeroPreview() {
+  const url = document.getElementById("gdHero")?.value.trim();
+  const box = document.getElementById("gdHeroPreview");
+  if (!box) return;
+  if (!url) {
+    box.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">Chưa có ảnh</span>';
+    return;
+  }
+  box.innerHTML = `<img src="${window.escHtml(url)}" alt="Hero preview"
+    style="width:100%;height:100%;object-fit:cover;"
+    onerror="this.parentElement.innerHTML='<span style=&quot;font-size:12px;color:var(--danger);text-align:center;padding:8px;&quot;>⚠️ Không tải được ảnh — kiểm tra lại URL</span>'">`;
+}
 
-  const modal = document.createElement("div");
-  modal.className = "modal-overlay hidden";
-  modal.id = "qrQuickModal";
-  modal.innerHTML = `
-    <div class="modal-box" style="max-width:340px;text-align:center;">
-      <div class="modal-header">
-        <h2 id="qrQuickTitle">📱 Mã QR</h2>
-        <button class="close-btn" id="qrQuickCloseBtn">✕</button>
+function updateGdImagesPreview() {
+  const box = document.getElementById("gdImagesPreview");
+  if (!box) return;
+  const images = parseImages("gdImages");
+  if (!images.length) {
+    box.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">Chưa có ảnh hướng dẫn</span>';
+    return;
+  }
+  box.innerHTML = images.map(img => `
+    <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card);">
+      <div style="width:100%;height:80px;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;">
+        <img src="${window.escHtml(img.url)}" alt="${window.escHtml(img.caption || '')}"
+          style="width:100%;height:100%;object-fit:cover;"
+          onerror="this.parentElement.innerHTML='<span style=&quot;font-size:10px;color:var(--danger);text-align:center;padding:4px;&quot;>⚠️ Lỗi ảnh</span>'">
       </div>
-      <canvas id="qrQuickCanvas" width="220" height="220"
-        style="margin:0 auto;display:block;border-radius:10px;border:1px solid var(--border);"></canvas>
-      <div id="qrQuickUrl" style="font-size:11px;color:var(--text-muted);margin:12px 0;word-break:break-all;"></div>
-      <button class="btn btn-primary" id="qrQuickDownloadBtn" style="width:100%;">⬇️ Tải mã QR (PNG)</button>
+      <div style="font-size:10px;color:var(--text-muted);padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        ${window.escHtml(img.caption || '(không có chú thích)')}
+      </div>
     </div>
-  `;
-  document.body.appendChild(modal);
+  `).join('');
+}
 
-  modal.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
-  document.getElementById("qrQuickCloseBtn").addEventListener("click", () => modal.classList.add("hidden"));
-})();
+function getGdYoutubeId(url) {
+  if (!url) return null;
+  const patterns = [
+    /[?&]v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /embed\/([a-zA-Z0-9_-]{11})/,
+    /shorts\/([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
+  return null;
+}
 
-window.openGameQR = function (id) {
-  const game = window.getGameById ? window.getGameById(id) : null;
-  if (!game) { alert("Không tìm thấy game."); return; }
-
-  document.getElementById("qrQuickTitle").textContent = "📱 QR — " + game.name;
-  const canvas = document.getElementById("qrQuickCanvas");
-  const url = renderGameQR(id, canvas);
-  document.getElementById("qrQuickUrl").textContent = url;
-  document.getElementById("qrQuickDownloadBtn").onclick = () => downloadCanvasQR(canvas, game.name);
-  document.getElementById("qrQuickModal").classList.remove("hidden");
-};
+function updateGdYoutubePreview() {
+  const url = document.getElementById("gdYoutube")?.value.trim();
+  const box = document.getElementById("gdYoutubePreview");
+  if (!box) return;
+  const ytId = getGdYoutubeId(url);
+  if (!ytId) {
+    box.innerHTML = url
+      ? '<span style="font-size:12px;color:var(--danger);text-align:center;padding:8px;">⚠️ Link YouTube không hợp lệ</span>'
+      : '<span style="font-size:12px;color:var(--text-muted);">Chưa có video hướng dẫn</span>';
+    return;
+  }
+  box.innerHTML = `<img src="https://img.youtube.com/vi/${ytId}/hqdefault.jpg" alt="YouTube preview"
+    style="width:100%;display:block;"
+    onerror="this.parentElement.innerHTML='<span style=&quot;font-size:12px;color:var(--danger);&quot;>⚠️ Không tải được thumbnail</span>'">`;
+}
 
 /* ══════════════════════════════════════════════
    TRANG CHI TIẾT GAME — inject vào .main-content
@@ -287,16 +296,25 @@ window.openGameQR = function (id) {
             <label>Ảnh hướng dẫn</label>
             <textarea id="gdImages" placeholder="https://... | Chú thích"></textarea>
             <div class="hint">Mỗi dòng: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">URL ảnh | Chú thích</code></div>
+            <div id="gdImagesPreview" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:6px;">
+              <span style="font-size:12px;color:var(--text-muted);">Chưa có ảnh hướng dẫn</span>
+            </div>
           </div>
 
           <div class="form-group full-width">
             <label>Hero Background URL</label>
             <input type="text" id="gdHero" placeholder="https://...">
+            <div id="gdHeroPreview" style="width:100%;height:140px;border-radius:10px;border:1.5px dashed var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-top:6px;">
+              <span style="font-size:12px;color:var(--text-muted);">Chưa có ảnh</span>
+            </div>
           </div>
 
           <div class="form-group full-width">
             <label>YouTube URL</label>
             <input type="text" id="gdYoutube" placeholder="https://youtube.com/watch?v=...">
+            <div id="gdYoutubePreview" style="width:220px;border-radius:10px;overflow:hidden;border:1.5px dashed var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;min-height:120px;margin-top:6px;">
+              <span style="font-size:12px;color:var(--text-muted);">Chưa có video hướng dẫn</span>
+            </div>
           </div>
 
         </div>
@@ -362,6 +380,11 @@ function fillGameDetailForm(game) {
   emojiInput.oninput = () => {
     document.getElementById("gdEmojiPreview").textContent = emojiInput.value.trim() || "🎲";
   };
+
+  /* MỚI: cập nhật preview ngay khi mở form */
+  updateGdHeroPreview();
+  updateGdImagesPreview();
+  updateGdYoutubePreview();
 }
 
 /* ══════════════════════════════════════════════
@@ -491,5 +514,20 @@ function bindGameDetailEvents() {
     const canvas = document.getElementById("gdQrCanvas");
     const name = document.getElementById("gdName").value || "boardgame";
     downloadCanvasQR(canvas, name);
+  });
+
+  /* MỚI: live preview khi nhập/dán link — debounce 300ms */
+  let _gdHeroTimer, _gdImagesTimer, _gdYoutubeTimer;
+  document.getElementById("gdHero")?.addEventListener("input", () => {
+    clearTimeout(_gdHeroTimer);
+    _gdHeroTimer = setTimeout(updateGdHeroPreview, 300);
+  });
+  document.getElementById("gdImages")?.addEventListener("input", () => {
+    clearTimeout(_gdImagesTimer);
+    _gdImagesTimer = setTimeout(updateGdImagesPreview, 300);
+  });
+  document.getElementById("gdYoutube")?.addEventListener("input", () => {
+    clearTimeout(_gdYoutubeTimer);
+    _gdYoutubeTimer = setTimeout(updateGdYoutubePreview, 300);
   });
 }
