@@ -287,12 +287,16 @@
         <a class="menu-item" id="drinkParent" onclick="showDrinks('all')">
           <span>☕</span> Đồ uống
         </a>
+
+        <!-- Cộng đồng — MỚI: chuyển từ nhóm "Quản trị" lên đây, ngay sau
+             "Đồ uống". Placeholder này được dashboard-chat.js tự nâng cấp
+             qua registerPage({ placeholderId: "chatMenuItemPlaceholder" }). -->
+        <a class="menu-item" id="chatMenuItemPlaceholder"><span>💬</span> Cộng đồng</a>
       </div>
 
       <!-- ── QUẢN TRỊ ── -->
       <div class="menu-group">
         <div class="menu-group-label">Quản trị</div>
-        <a class="menu-item" id="chatMenuItemPlaceholder"><span>💬</span> Cộng đồng</a>
         <a class="menu-item"><span>⚙️</span> Settings</a>
       </div>
 
@@ -668,6 +672,9 @@
      7) core/dashboard-nav.js    → điều hướng, dùng loadGames/loadDrinks
      8) các module ES module (type="module") — chat/analytics/banners/media/accounts
         đều gọi AdminDashboard.registerPage() nên phải load SAU bước 5
+        → dashboard-chat.js sẽ tự nâng cấp placeholder
+          #chatMenuItemPlaceholder (giờ nằm trong nhóm "Hệ thống",
+          ngay sau "Đồ uống")
      9) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
      ══════════════════════════════════════════════ -->
 <script src="../js/shared-config.js"></script>
