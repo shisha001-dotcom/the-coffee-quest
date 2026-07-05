@@ -7,6 +7,22 @@
      không inject page HTML).
    ══════════════════════════════════════════════ */
 
+const canAccessBannersPage = window.AdminPermissions.can(currentSession.role, "bannersPage");
+
+window.AdminDashboard.registerPage({
+  pageId: "bannersPage",
+  menuId: "bannersMenuItem",
+  icon: "🖼️",
+  label: "Banners",
+  guard: () => canAccessBannersPage,   // ← dùng lại const
+});
+
+(function injectBannersPage() {
+  if (!canAccessBannersPage) return;   // ← thay vì gọi lại window.AdminPermissions.can(...)
+
+  const main = document.querySelector('.main-content');
+  ...
+
 window.AdminDashboard.registerPage({
   pageId: "bannersPage",
   menuId: "bannersMenuItem",
