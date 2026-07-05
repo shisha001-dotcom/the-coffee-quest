@@ -22,6 +22,14 @@
    load TRƯỚC file này), window.escHtml / window.showToast / window.slugify /
    window.buildGameSlugMap (shared-utils.js), thư viện QRCode (CDN, load
    trước file này).
+
+   ⚠️ FIX (2026-07): renderGameQR() trước đây fail-silent khi thư viện
+   QRCode (CDN) load thất bại/bị chặn mạng — canvas trắng tinh, không có
+   bất kỳ log/cảnh báo nào, khiến lỗi rất khó phát hiện. Giờ đây nếu
+   window.QRCode không tồn tại, hàm sẽ:
+     - In cảnh báo rõ ràng ra console
+     - Chèn thông báo lỗi ngay trong khung canvas (cả modal nhanh lẫn
+       trang chi tiết) để người dùng biết ngay thay vì đoán mò
    ══════════════════════════════════════════════ */
 
 /* ⚠️ Đổi domain tại đây nếu deploy sang địa chỉ khác */
@@ -39,20 +47,75 @@ function gameQrUrl(gameId) {
   return `${SITE_BASE_URL}#game-${slug}`;
 }
 
+/* ── Hiển thị lỗi ngay tại vị trí canvas khi thư viện QRCode
+   chưa sẵn sàng (CDN load thất bại / bị chặn mạng / v.v.) ── */
+function showQrLoadError(canvasEl) {
+  console.error(
+    "[dashboard-game-detail] window.QRCode không tồn tại — thư viện QRCode " +
+    "(CDN qrcode.js) chưa load được. Kiểm tra thẻ <script> CDN trong " +
+    "dashboard.html, kết nối mạng, hoặc CDN có bị chặn không."
+  );
+  if (!canvasEl || !canvasEl.parentElement) return;
+
+  /* Tránh chèn nhiều thông báo lỗi trùng lặp nếu gọi lại nhiều lần */
+  const existing = canvasEl.parentElement.querySelector(".qr-load-error");
+  if (existing) existing.remove();
+
+  canvasEl.style.display = "none";
+  const errBox = document.createElement("div");
+  errBox.className = "qr-load-error";
+  errBox.style.cssText =
+    "width:220px;min-height:120px;margin:0 auto;display:flex;flex-direction:column;" +
+    "align-items:center;justify-content:center;gap:6px;text-align:center;" +
+    "background:#fff5f5;border:1.5px dashed var(--danger,#e17055);border-radius:10px;" +
+    "color:var(--danger,#e17055);font-size:12px;font-weight:600;padding:14px;";
+  errBox.innerHTML = `
+    <span style="font-size:22px;">⚠️</span>
+    <span>Không tải được thư viện tạo mã QR.</span>
+    <span style="font-weight:400;color:var(--text-muted,#718096);">
+      Kiểm tra kết nối mạng hoặc CDN đang bị chặn.
+    </span>
+  `;
+  canvasEl.parentElement.insertBefore(errBox, canvasEl);
+}
+
+/* ── Xóa thông báo lỗi (nếu có) khi render QR thành công trở lại ── */
+function clearQrLoadError(canvasEl) {
+  if (!canvasEl || !canvasEl.parentElement) return;
+  canvasEl.style.display = "";
+  canvasEl.parentElement.querySelector(".qr-load-error")?.remove();
+}
+
 function renderGameQR(gameId, canvasEl) {
   const url = gameQrUrl(gameId);
-  if (canvasEl && window.QRCode) {
-    QRCode.toCanvas(canvasEl, url, {
-      width: 220,
-      margin: 1,
-      color: { dark: "#1a1a1a", light: "#ffffff" },
-    }, err => { if (err) console.error("QR render error:", err); });
+
+  if (!canvasEl) return url;
+
+  if (!window.QRCode) {
+    showQrLoadError(canvasEl);
+    return url;
   }
+
+  clearQrLoadError(canvasEl);
+  QRCode.toCanvas(canvasEl, url, {
+    width: 220,
+    margin: 1,
+    color: { dark: "#1a1a1a", light: "#ffffff" },
+  }, err => {
+    if (err) {
+      console.error("QR render error:", err);
+      showQrLoadError(canvasEl);
+    }
+  });
   return url;
 }
 
 function downloadCanvasQR(canvasEl, gameName) {
   if (!canvasEl) return;
+  if (!window.QRCode || canvasEl.style.display === "none") {
+    alert("Mã QR chưa được tạo (thư viện QRCode chưa load) — không thể tải xuống.");
+    return;
+  }
   try {
     const dataUrl = canvasEl.toDataURL("image/png");
     const a = document.createElement("a");
