@@ -5,20 +5,18 @@
    trực quan hơn, tách rời hoàn toàn với modal popup trong
    dashboard-games.js.
 
-   MỚI:
-   - Xóa modal QR nhanh (qrQuickModal / window.openGameQR) vì nút
-     "📱 QR" trong bảng Boardgames đã bị bỏ theo yêu cầu — QR chỉ
-     còn hiển thị trong trang Chi tiết (vẫn giữ nguyên).
-   - Thêm LIVE PREVIEW cho 3 field: Hero Background URL, Ảnh hướng
-     dẫn (mỗi dòng URL | Chú thích), YouTube URL — hiển thị ảnh/
-     thumbnail xem trước ngay khi người dùng nhập/dán link, để biết
-     ngay link đã đúng hay chưa mà không cần lưu trước.
+   ⚠️ SỬA (UI/UX audit — ưu tiên cao):
+   - saveGameDetail(): validate tên game báo lỗi ngay tại field
+     (#gdName) thay vì alert(); lỗi server báo qua toast.
+   - deleteGameDetail(): window.confirm() → window.showConfirm().
+   - Các nút icon-only (gdQrDownloadBtn không đổi vì đã có text)
+     giữ nguyên; đã thêm aria-label cho khu vực preview lỗi ảnh.
 
    Cần: `client`, `currentSession`, `isGamesReadOnly`, `games`, `parseLines`,
    `parseImages`, `setLines`, `setImages` (tất cả từ dashboard-games.js —
-   load TRƯỚC file này), window.escHtml / window.showToast / window.slugify /
-   window.buildGameSlugMap (shared-utils.js), thư viện QRCode (CDN, load
-   trước file này).
+   load TRƯỚC file này), window.escHtml / window.showToast / window.showConfirm /
+   window.slugify / window.buildGameSlugMap (shared-utils.js), thư viện
+   QRCode (CDN, load trước file này).
    ══════════════════════════════════════════════ */
 
 /* ⚠️ Đổi domain tại đây nếu deploy sang địa chỉ khác */
@@ -47,13 +45,14 @@ function showQrLoadError(canvasEl) {
   canvasEl.style.display = "none";
   const errBox = document.createElement("div");
   errBox.className = "qr-load-error";
+  errBox.setAttribute("role", "alert");
   errBox.style.cssText =
     "width:220px;min-height:120px;margin:0 auto;display:flex;flex-direction:column;" +
     "align-items:center;justify-content:center;gap:6px;text-align:center;" +
     "background:#fff5f5;border:1.5px dashed var(--danger,#e17055);border-radius:10px;" +
     "color:var(--danger,#e17055);font-size:12px;font-weight:600;padding:14px;";
   errBox.innerHTML = `
-    <span style="font-size:22px;">⚠️</span>
+    <span style="font-size:22px;" aria-hidden="true">⚠️</span>
     <span>Không tải được thư viện tạo mã QR.</span>
     <span style="font-weight:400;color:var(--text-muted,#718096);">
       Kiểm tra kết nối mạng hoặc CDN đang bị chặn.
@@ -95,7 +94,7 @@ function renderGameQR(gameId, canvasEl) {
 function downloadCanvasQR(canvasEl, gameName) {
   if (!canvasEl) return;
   if (!window.QRCode || canvasEl.style.display === "none") {
-    alert("Mã QR chưa được tạo (thư viện QRCode chưa load) — không thể tải xuống.");
+    window.showToast("⚠️ Mã QR chưa được tạo — không thể tải xuống.", "#e17055");
     return;
   }
   try {
@@ -107,7 +106,7 @@ function downloadCanvasQR(canvasEl, gameName) {
     a.click();
     a.remove();
   } catch (err) {
-    alert("Không tải được mã QR: " + err.message);
+    window.showToast("❌ Không tải được mã QR: " + err.message, "#e17055");
   }
 }
 
@@ -122,9 +121,9 @@ function updateGdHeroPreview() {
     box.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">Chưa có ảnh</span>';
     return;
   }
-  box.innerHTML = `<img src="${window.escHtml(url)}" alt="Hero preview"
+  box.innerHTML = `<img src="${window.escHtml(url)}" alt="Xem trước ảnh nền hero"
     style="width:100%;height:100%;object-fit:cover;"
-    onerror="this.parentElement.innerHTML='<span style=&quot;font-size:12px;color:var(--danger);text-align:center;padding:8px;&quot;>⚠️ Không tải được ảnh — kiểm tra lại URL</span>'">`;
+    onerror="this.parentElement.innerHTML='<span role=&quot;alert&quot; style=&quot;font-size:12px;color:var(--danger);text-align:center;padding:8px;&quot;>⚠️ Không tải được ảnh — kiểm tra lại URL</span>'">`;
 }
 
 function updateGdImagesPreview() {
@@ -138,9 +137,9 @@ function updateGdImagesPreview() {
   box.innerHTML = images.map(img => `
     <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card);">
       <div style="width:100%;height:80px;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;">
-        <img src="${window.escHtml(img.url)}" alt="${window.escHtml(img.caption || '')}"
+        <img src="${window.escHtml(img.url)}" alt="${window.escHtml(img.caption || 'Ảnh hướng dẫn')}"
           style="width:100%;height:100%;object-fit:cover;"
-          onerror="this.parentElement.innerHTML='<span style=&quot;font-size:10px;color:var(--danger);text-align:center;padding:4px;&quot;>⚠️ Lỗi ảnh</span>'">
+          onerror="this.parentElement.innerHTML='<span role=&quot;alert&quot; style=&quot;font-size:10px;color:var(--danger);text-align:center;padding:4px;&quot;>⚠️ Lỗi ảnh</span>'">
       </div>
       <div style="font-size:10px;color:var(--text-muted);padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
         ${window.escHtml(img.caption || '(không có chú thích)')}
@@ -168,13 +167,40 @@ function updateGdYoutubePreview() {
   const ytId = getGdYoutubeId(url);
   if (!ytId) {
     box.innerHTML = url
-      ? '<span style="font-size:12px;color:var(--danger);text-align:center;padding:8px;">⚠️ Link YouTube không hợp lệ</span>'
+      ? '<span role="alert" style="font-size:12px;color:var(--danger);text-align:center;padding:8px;">⚠️ Link YouTube không hợp lệ</span>'
       : '<span style="font-size:12px;color:var(--text-muted);">Chưa có video hướng dẫn</span>';
     return;
   }
-  box.innerHTML = `<img src="https://img.youtube.com/vi/${ytId}/hqdefault.jpg" alt="YouTube preview"
+  box.innerHTML = `<img src="https://img.youtube.com/vi/${ytId}/hqdefault.jpg" alt="Ảnh xem trước video YouTube hướng dẫn"
     style="width:100%;display:block;"
-    onerror="this.parentElement.innerHTML='<span style=&quot;font-size:12px;color:var(--danger);&quot;>⚠️ Không tải được thumbnail</span>'">`;
+    onerror="this.parentElement.innerHTML='<span role=&quot;alert&quot; style=&quot;font-size:12px;color:var(--danger);&quot;>⚠️ Không tải được thumbnail</span>'">`;
+}
+
+/* ══════════════════════════════════════════════
+   VALIDATE FIELD ERROR — MỚI (giống dashboard-games.js)
+   ══════════════════════════════════════════════ */
+function clearGdFieldError(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = "";
+  document.getElementById(id + "Error")?.remove();
+}
+function showGdFieldError(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = "var(--danger)";
+  el.focus();
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  let err = document.getElementById(id + "Error");
+  if (!err) {
+    err = document.createElement("div");
+    err.id = id + "Error";
+    err.setAttribute("role", "alert");
+    err.style.cssText = "color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;grid-column:1/-1;";
+    el.closest(".form-group")?.insertAdjacentElement("afterend", err) ?? el.insertAdjacentElement("afterend", err);
+  }
+  err.textContent = msg;
+  el.addEventListener("input", () => clearGdFieldError(id), { once: true });
 }
 
 /* ══════════════════════════════════════════════
@@ -212,22 +238,22 @@ function updateGdYoutubePreview() {
           <div class="section-divider"><span>📋 Thông tin cơ bản</span></div>
 
           <div class="form-group">
-            <label>Tên game *</label>
+            <label for="gdName">Tên game *</label>
             <input type="text" id="gdName" placeholder="Catan, Cluedo...">
           </div>
 
           <div class="form-group">
-            <label>Emoji</label>
+            <label for="gdEmoji">Emoji</label>
             <div class="emoji-field">
-              <div class="emoji-preview" id="gdEmojiPreview">🎲</div>
+              <div class="emoji-preview" id="gdEmojiPreview" aria-hidden="true">🎲</div>
               <input type="text" id="gdEmoji" placeholder="🎲" autocomplete="off">
             </div>
           </div>
 
           <div class="form-group">
-            <label>Màu chủ đạo</label>
+            <label for="gdColorInput">Màu chủ đạo</label>
             <div class="color-row">
-              <input type="color" id="gdColorPicker" value="#6c5ce7"
+              <input type="color" id="gdColorPicker" value="#6c5ce7" aria-label="Chọn màu bằng bảng màu"
                      oninput="document.getElementById('gdColorInput').value=this.value">
               <input type="text" id="gdColorInput" placeholder="#6c5ce7"
                      oninput="document.getElementById('gdColorPicker').value=this.value">
@@ -235,27 +261,27 @@ function updateGdYoutubePreview() {
           </div>
 
           <div class="form-group">
-            <label>Thứ tự hiển thị</label>
+            <label for="gdSort">Thứ tự hiển thị</label>
             <input type="number" id="gdSort" placeholder="1, 2, 3...">
           </div>
 
           <div class="form-group">
-            <label>Số người chơi</label>
+            <label for="gdPlayers">Số người chơi</label>
             <input type="text" id="gdPlayers" placeholder="2-4 người">
           </div>
 
           <div class="form-group">
-            <label>Thời gian</label>
+            <label for="gdTime">Thời gian</label>
             <input type="text" id="gdTime" placeholder="30-60 phút">
           </div>
 
           <div class="form-group">
-            <label>Độ khó</label>
+            <label for="gdDifficulty">Độ khó</label>
             <input type="text" id="gdDifficulty" placeholder="Dễ / Trung bình / Khó">
           </div>
 
           <div class="form-group">
-            <label>Thể loại</label>
+            <label for="gdCategory">Thể loại</label>
             <input type="text" id="gdCategory" placeholder="🎉 Party, ♟️ Chiến lược">
             <div class="hint">Nhiều thể loại: phân cách bằng dấu phẩy</div>
           </div>
@@ -263,29 +289,29 @@ function updateGdYoutubePreview() {
           <div class="section-divider"><span>🎯 Nội dung game</span></div>
 
           <div class="form-group full-width">
-            <label>Mục tiêu</label>
+            <label for="gdObjective">Mục tiêu</label>
             <textarea id="gdObjective" placeholder="Mô tả mục tiêu của game..."></textarea>
           </div>
 
           <div class="form-group full-width">
-            <label>Điều kiện thắng</label>
+            <label for="gdWin">Điều kiện thắng</label>
             <textarea id="gdWin" placeholder="Người đầu tiên gom đủ... / Người có điểm cao nhất..."></textarea>
           </div>
 
           <div class="form-group full-width">
-            <label>Các bước chuẩn bị</label>
+            <label for="gdSetup">Các bước chuẩn bị</label>
             <textarea id="gdSetup" class="tall" placeholder="Mỗi dòng = 1 bước"></textarea>
             <div class="hint">Mỗi bước = 1 dòng</div>
           </div>
 
           <div class="form-group full-width">
-            <label>Các bước lượt chơi</label>
+            <label for="gdTurn">Các bước lượt chơi</label>
             <textarea id="gdTurn" class="tall" placeholder="Mỗi dòng = 1 bước"></textarea>
             <div class="hint">Mỗi bước = 1 dòng</div>
           </div>
 
           <div class="form-group full-width">
-            <label>Mẹo chơi</label>
+            <label for="gdTips">Mẹo chơi</label>
             <textarea id="gdTips" placeholder="Mỗi dòng = 1 mẹo"></textarea>
             <div class="hint">Mỗi mẹo = 1 dòng (có thể để trống)</div>
           </div>
@@ -293,7 +319,7 @@ function updateGdYoutubePreview() {
           <div class="section-divider"><span>🖼️ Media</span></div>
 
           <div class="form-group full-width">
-            <label>Ảnh hướng dẫn</label>
+            <label for="gdImages">Ảnh hướng dẫn</label>
             <textarea id="gdImages" placeholder="https://... | Chú thích"></textarea>
             <div class="hint">Mỗi dòng: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">URL ảnh | Chú thích</code></div>
             <div id="gdImagesPreview" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:6px;">
@@ -302,7 +328,7 @@ function updateGdYoutubePreview() {
           </div>
 
           <div class="form-group full-width">
-            <label>Hero Background URL</label>
+            <label for="gdHero">Hero Background URL</label>
             <input type="text" id="gdHero" placeholder="https://...">
             <div id="gdHeroPreview" style="width:100%;height:140px;border-radius:10px;border:1.5px dashed var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-top:6px;">
               <span style="font-size:12px;color:var(--text-muted);">Chưa có ảnh</span>
@@ -310,7 +336,7 @@ function updateGdYoutubePreview() {
           </div>
 
           <div class="form-group full-width">
-            <label>YouTube URL</label>
+            <label for="gdYoutube">YouTube URL</label>
             <input type="text" id="gdYoutube" placeholder="https://youtube.com/watch?v=...">
             <div id="gdYoutubePreview" style="width:220px;border-radius:10px;overflow:hidden;border:1.5px dashed var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;min-height:120px;margin-top:6px;">
               <span style="font-size:12px;color:var(--text-muted);">Chưa có video hướng dẫn</span>
@@ -326,7 +352,7 @@ function updateGdYoutubePreview() {
           <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">
             📱 Mã QR luật chơi
           </div>
-          <canvas id="gdQrCanvas" width="220" height="220"
+          <canvas id="gdQrCanvas" width="220" height="220" role="img" aria-label="Mã QR dẫn tới trang luật chơi"
             style="margin:0 auto;display:block;border-radius:10px;border:1px solid var(--border);"></canvas>
           <div id="gdQrUrl" style="font-size:11px;color:var(--text-muted);margin-top:10px;word-break:break-all;"></div>
           <button class="btn btn-primary" id="gdQrDownloadBtn" style="width:100%;margin-top:14px;">⬇️ Tải mã QR (PNG)</button>
@@ -359,6 +385,7 @@ function fillGameDetailForm(game) {
   document.getElementById("gdHero").value = game.hero_bg || "";
   document.getElementById("gdYoutube").value = game.youtube_url || "";
   document.getElementById("gdSort").value = game.sort_order ?? "";
+  clearGdFieldError("gdName");
 
   const cats = Array.isArray(game.categories) ? game.categories : [];
   document.getElementById("gdCategory").value = cats.join(", ");
@@ -404,7 +431,7 @@ function setGameDetailReadOnly(readonly) {
    ══════════════════════════════════════════════ */
 window.openGameDetail = function (id) {
   const game = window.getGameById ? window.getGameById(id) : null;
-  if (!game) { alert("Không tìm thấy game — thử refresh lại bảng."); return; }
+  if (!game) { window.showToast("⚠️ Không tìm thấy game — thử refresh lại bảng.", "#e17055"); return; }
   document.getElementById("gdDeleteBtn").dataset.wasVisible = "1";
   fillGameDetailForm(game);
   setGameDetailReadOnly(typeof isGamesReadOnly !== "undefined" && isGamesReadOnly);
@@ -426,7 +453,9 @@ async function saveGameDetail() {
   if (!id) return;
 
   const name = document.getElementById("gdName").value.trim();
-  if (!name) { alert("Vui lòng nhập tên game."); return; }
+  /* ⚠️ SỬA: lỗi hiển thị ngay tại field thay vì alert() */
+  if (!name) { showGdFieldError("gdName", "Vui lòng nhập tên game."); return; }
+  clearGdFieldError("gdName");
 
   const catRaw = document.getElementById("gdCategory").value.trim();
   const categories = catRaw ? catRaw.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [];
@@ -468,7 +497,8 @@ async function saveGameDetail() {
     window.showToast("✅ Đã lưu thành công!");
     if (typeof loadGames === "function") await loadGames();
   } catch (err) {
-    alert("❌ Lỗi khi lưu:\n\n" + err.message);
+    /* ⚠️ SỬA: lỗi server báo qua toast thay vì alert() */
+    window.showToast("❌ Lỗi khi lưu: " + err.message, "#e17055");
   } finally {
     btn.disabled = false; btn.textContent = "💾 Lưu thay đổi";
   }
@@ -483,7 +513,16 @@ async function deleteGameDetail() {
   const id = document.getElementById("gdId").value;
   if (!id) return;
   const name = document.getElementById("gdName").value || `ID=${id}`;
-  if (!confirm(`Xóa "${name}"?\n\nHành động này không thể hoàn tác!`)) return;
+
+  /* ⚠️ SỬA: window.confirm() → window.showConfirm() */
+  const ok = await window.showConfirm({
+    title: `Xóa "${name}"?`,
+    message: "Hành động này không thể hoàn tác.",
+    confirmText: "🗑️ Xóa",
+    cancelText: "Hủy",
+    danger: true,
+  });
+  if (!ok) return;
 
   const btn = document.getElementById("gdDeleteBtn");
   btn.disabled = true; btn.textContent = "Đang xóa...";
@@ -495,7 +534,7 @@ async function deleteGameDetail() {
     if (typeof loadGames === "function") await loadGames();
     if (typeof window.showBoardgames === "function") window.showBoardgames();
   } catch (err) {
-    alert("Lỗi: " + err.message);
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
   } finally {
     btn.disabled = false; btn.textContent = "🗑️ Xóa game";
   }
