@@ -319,7 +319,7 @@ function setGameDetailReadOnly(readonly) {
 window.openGameDetail = function (id) {
   const game = window.getGameById ? window.getGameById(id) : null;
   if (!game) { alert("Không tìm thấy game — thử refresh lại bảng."); return; }
-
+  document.getElementById("gdDeleteBtn").dataset.wasVisible = "1";
   fillGameDetailForm(game);
   setGameDetailReadOnly(typeof isGamesReadOnly !== "undefined" && isGamesReadOnly);
 
