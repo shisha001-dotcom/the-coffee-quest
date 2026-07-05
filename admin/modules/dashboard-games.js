@@ -13,9 +13,17 @@
        khóa (disabled), ẩn nút "💾 Lưu" và "🗑️ Xóa game"
      + saveGame()/deleteGame() cũng chặn ở tầng hàm — phòng
        trường hợp bị gọi trực tiếp qua console.
+   - MỚI: Thể loại giờ là category-picker (chip chọn nhiều, render
+     bởi window.renderCategoryPicker/getSelectedCategories từ
+     js/shared-categories.js) thay vì input text gõ tay. Độ khó
+     giờ là <select> (window.populateDifficultySelect) thay vì
+     input text tự do — tránh gõ sai chính tả / không đồng nhất
+     dữ liệu giữa các game.
 
    Cần: `client` (từ dashboard-auth.js), `currentSession`,
-   window.AdminPermissions (từ core/dashboard-permissions.js).
+   window.AdminPermissions (từ core/dashboard-permissions.js),
+   window.GAME_CATEGORIES/DIFFICULTY_LEVELS + các hàm picker
+   (từ js/shared-categories.js — PHẢI load trước file này).
    ══════════════════════════════════════════════ */
 
 const isGamesReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
@@ -33,6 +41,10 @@ const deleteBtn     = document.getElementById("deleteBtn");
 const loadingMsg    = document.getElementById("loadingMsg");
 const errorMsg      = document.getElementById("errorMsg");
 const gameTable     = document.getElementById("gameTable");
+
+/* MỚI: refs cho category picker + difficulty select */
+const categoryPicker   = document.getElementById("categoryPicker");
+const difficultySelect = document.getElementById("difficultyInput");
 
 let games = [];
 
@@ -126,6 +138,11 @@ emojiPicker.addEventListener("click", e => e.stopPropagation());
    READ-ONLY MODE cho modal
    (dùng chung window.AdminPermissions.applyReadOnlyForm —
    không tự viết lại logic disable/ẩn nút ở đây nữa)
+
+   Lưu ý: category-picker (button.cat-chip) được disable ngay tại
+   thời điểm render (renderCategoryPicker(..., readonly)) chứ không
+   qua applyReadOnlyForm, vì applyReadOnlyForm chỉ quét
+   input/textarea/select.
    ══════════════════════════════════════════════ */
 function setModalReadOnly(readonly) {
   window.AdminPermissions.applyReadOnlyForm(modal, {
@@ -292,11 +309,8 @@ async function saveGame() {
   const name  = document.getElementById("nameInput").value.trim();
   if (!name) { alert("Vui lòng nhập tên game."); return; }
 
-  const colorVal = document.getElementById("colorInput")?.value.trim() || "#6c5ce7";
-  const catRaw   = document.getElementById("categoryInput").value.trim();
-  const categories = catRaw
-    ? catRaw.split(/[,\n]/).map(s => s.trim()).filter(Boolean)
-    : [];
+  const colorVal   = document.getElementById("colorInput")?.value.trim() || "#6c5ce7";
+  const categories = window.getSelectedCategories(categoryPicker);
 
   const payload = {
     name,
@@ -304,7 +318,7 @@ async function saveGame() {
     color:       colorVal,
     players:     document.getElementById("playersInput").value.trim(),
     time:        document.getElementById("timeInput").value.trim(),
-    difficulty:  document.getElementById("difficultyInput").value.trim(),
+    difficulty:  difficultySelect.value.trim(),
     objective:   document.getElementById("objectiveInput").value.trim(),
     win:         document.getElementById("winInput")?.value.trim() || "",
     hero_bg:     document.getElementById("heroInput").value.trim(),
@@ -375,13 +389,17 @@ deleteBtn?.addEventListener("click", deleteGame);
    ══════════════════════════════════════════════ */
 function clearForm() {
   [
-    "gameId","nameInput","playersInput","timeInput","difficultyInput",
-    "objectiveInput","heroInput","youtubeInput","categoryInput",
+    "gameId","nameInput","playersInput","timeInput",
+    "objectiveInput","heroInput","youtubeInput",
     "winInput","setupInput","turnInput","tipsInput","imagesInput","sortInput"
   ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
 
   document.getElementById("colorInput") && (document.getElementById("colorInput").value  = "#6c5ce7");
   document.getElementById("colorPicker") && (document.getElementById("colorPicker").value = "#6c5ce7");
+
+  /* MỚI: reset category picker (bỏ chọn hết) + difficulty select */
+  window.renderCategoryPicker(categoryPicker, [], isGamesReadOnly);
+  window.populateDifficultySelect(difficultySelect, "");
 
   currentEmoji = "🎲";
   if (emojiInput)   emojiInput.value         = "🎲";
@@ -406,7 +424,7 @@ document.addEventListener("click", e => {
 
   const fields = {
     gameId: game.id, nameInput: game.name, playersInput: game.players,
-    timeInput: game.time, difficultyInput: game.difficulty, objectiveInput: game.objective,
+    timeInput: game.time, objectiveInput: game.objective,
     heroInput: game.hero_bg, youtubeInput: game.youtube_url,
     sortInput: game.sort_order ?? "", winInput: game.win || "",
   };
@@ -415,8 +433,11 @@ document.addEventListener("click", e => {
     if (el) el.value = val || "";
   });
 
+  /* MỚI: điền difficulty select + category picker thay vì input text */
+  window.populateDifficultySelect(difficultySelect, game.difficulty || "");
+
   const cats = Array.isArray(game.categories) ? game.categories : [];
-  document.getElementById("categoryInput").value = cats.join(", ");
+  window.renderCategoryPicker(categoryPicker, cats, isGamesReadOnly);
 
   const colorVal = game.color || "#6c5ce7";
   document.getElementById("colorInput")  && (document.getElementById("colorInput").value  = colorVal);
