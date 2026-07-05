@@ -9,6 +9,26 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./dashboard.css">
   <style>
+    /* ⚠️ MỚI (UI/UX audit — ưu tiên cao): skip-link + focus-visible cho
+       admin (dashboard.css chưa có, bổ sung tại đây để không phải sửa
+       lại toàn bộ file dashboard.css). */
+    .skip-link {
+      position: absolute; top: -60px; left: 12px; z-index: 99999;
+      background: var(--primary); color: #fff; font-weight: 700;
+      font-size: 13px; padding: 10px 18px; border-radius: 10px;
+      text-decoration: none; transition: top .18s ease;
+    }
+    .skip-link:focus { top: 12px; }
+    :focus-visible {
+      outline: 3px solid var(--primary);
+      outline-offset: 2px;
+    }
+    .visually-hidden {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
     /* ── SECTION DIVIDER trong modal ── */
     .section-divider {
       grid-column: 1 / -1;
@@ -81,6 +101,7 @@
       cursor: pointer;
       transition: all .15s;
       user-select: none;
+      min-height: 38px;
     }
     .cat-chip:hover { border-color: var(--primary); color: var(--primary); }
     .cat-chip.selected {
@@ -258,13 +279,20 @@
 </head>
 <body>
 
-<button id="adminMenuToggle" aria-label="Mở menu">☰</button>
+<!-- ══ SKIP LINK — MỚI ══ -->
+<a href="#mainContent" class="skip-link">Chuyển tới nội dung chính</a>
+
+<button id="adminMenuToggle" aria-label="Mở menu điều hướng" aria-expanded="false" aria-controls="side-menu-admin">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+</button>
 <div id="adminMenuOverlay"></div>
 
 <div class="dashboard-layout">
 
   <!-- ═══════════════ SIDEBAR ═══════════════ -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="side-menu-admin" role="navigation" aria-label="Menu quản trị">
     <div class="sidebar-logo">🎲 BG Admin</div>
 
     <div class="sidebar-menu">
@@ -275,29 +303,29 @@
 
         <!-- Dashboard -->
         <a class="menu-item active" id="dashboardMenuItem" onclick="showDashboard()">
-          <span>📊</span> Dashboard
+          <span aria-hidden="true">📊</span> Dashboard
         </a>
 
         <!-- Boardgames — vào thẳng trang, search + nút thêm đã có sẵn trên trang -->
         <a class="menu-item" id="bgParent" onclick="showBoardgames()">
-          <span>🎲</span> Boardgames
+          <span aria-hidden="true">🎲</span> Boardgames
         </a>
 
         <!-- Đồ uống — vào thẳng trang, tab lọc theo loại đã có sẵn trên trang -->
         <a class="menu-item" id="drinkParent" onclick="showDrinks('all')">
-          <span>☕</span> Đồ uống
+          <span aria-hidden="true">☕</span> Đồ uống
         </a>
 
         <!-- Cộng đồng — MỚI: chuyển từ nhóm "Quản trị" lên đây, ngay sau
              "Đồ uống". Placeholder này được dashboard-chat.js tự nâng cấp
              qua registerPage({ placeholderId: "chatMenuItemPlaceholder" }). -->
-        <a class="menu-item" id="chatMenuItemPlaceholder"><span>💬</span> Cộng đồng</a>
+        <a class="menu-item" id="chatMenuItemPlaceholder"><span aria-hidden="true">💬</span> Cộng đồng</a>
       </div>
 
       <!-- ── QUẢN TRỊ ── -->
       <div class="menu-group">
         <div class="menu-group-label">Quản trị</div>
-        <a class="menu-item"><span>⚙️</span> Settings</a>
+        <a class="menu-item"><span aria-hidden="true">⚙️</span> Settings</a>
       </div>
 
     </div>
@@ -305,7 +333,7 @@
   </aside>
 
   <!-- ═══════════════ MAIN ═══════════════ -->
-  <main class="main-content">
+  <main class="main-content" id="mainContent" tabindex="-1">
 
     <!-- ── DASHBOARD PAGE ── -->
     <div id="dashboardPage">
@@ -323,28 +351,28 @@
       <!-- Stats -->
       <div class="stats-grid" style="margin-bottom:28px;">
         <div class="stat-card">
-          <div class="stat-icon">🎲</div>
+          <div class="stat-icon" aria-hidden="true">🎲</div>
           <div class="stat-info">
             <div class="stat-value" id="totalGames">—</div>
             <div class="stat-label">Tổng số game</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">☕</div>
+          <div class="stat-icon" aria-hidden="true">☕</div>
           <div class="stat-info">
             <div class="stat-value" id="totalDrinks">—</div>
             <div class="stat-label">Công thức đồ uống</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">▶️</div>
+          <div class="stat-icon" aria-hidden="true">▶️</div>
           <div class="stat-info">
             <div class="stat-value" id="youtubeCount">—</div>
             <div class="stat-label">Game có YouTube</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">🖼️</div>
+          <div class="stat-icon" aria-hidden="true">🖼️</div>
           <div class="stat-info">
             <div class="stat-value" id="imageCount">—</div>
             <div class="stat-label">Game có hình ảnh</div>
@@ -355,7 +383,7 @@
       <!-- Online widget -->
       <div class="online-widget">
         <div class="online-widget-title">
-          <div class="online-pulse"></div>
+          <div class="online-pulse" aria-hidden="true"></div>
           Người dùng đang online
         </div>
         <div>
@@ -382,13 +410,14 @@
 
       <!-- Search -->
       <div class="search-bar">
+        <label for="searchInput" class="visually-hidden">Tìm boardgame</label>
         <input type="text" id="searchInput" placeholder="🔍 Tìm boardgame..." class="search-input">
       </div>
 
       <!-- Table -->
       <div class="table-card">
         <div id="loadingMsg" class="loading-msg">⏳ Đang tải dữ liệu...</div>
-        <div id="errorMsg" class="error-msg hidden"></div>
+        <div id="errorMsg" class="error-msg hidden" role="alert"></div>
         <table class="game-table hidden" id="gameTable">
           <thead>
             <tr>
@@ -421,7 +450,7 @@
       </div>
 
       <!-- Category filter tabs -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;" role="tablist" aria-label="Lọc theo loại đồ uống">
         <button class="btn btn-primary drink-tab active" data-cat="all"        onclick="filterDrinks('all',this)">🍹 Tất cả</button>
         <button class="btn btn-secondary drink-tab" data-cat="Cà phê"         onclick="filterDrinks('Cà phê',this)">☕ Cà phê</button>
         <button class="btn btn-secondary drink-tab" data-cat="Trà hoa quả"    onclick="filterDrinks('Trà hoa quả',this)">🍓 Trà hoa quả</button>
@@ -440,12 +469,12 @@
 </div>
 
 <!-- ═══════════ GAME MODAL ═══════════ -->
-<div class="modal-overlay hidden" id="gameModal">
+<div class="modal-overlay hidden" id="gameModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modal-box">
 
     <div class="modal-header">
       <h2 id="modalTitle">Thêm Boardgame</h2>
-      <button class="close-btn" id="closeModalBtn">✕</button>
+      <button class="close-btn" id="closeModalBtn" aria-label="Đóng cửa sổ">✕</button>
     </div>
 
     <input type="hidden" id="gameId">
@@ -455,31 +484,32 @@
       <div class="section-divider"><span>📋 Thông tin cơ bản</span></div>
 
       <div class="form-group">
-        <label>Tên game *</label>
+        <label for="nameInput">Tên game *</label>
         <input type="text" id="nameInput" placeholder="Catan, Cluedo...">
       </div>
 
       <!-- EMOJI PICKER -->
       <div class="form-group">
-        <label>Emoji</label>
+        <label for="emojiInput">Emoji</label>
         <div class="emoji-field">
-          <div class="emoji-preview" id="emojiPreview">🎲</div>
+          <div class="emoji-preview" id="emojiPreview" aria-hidden="true">🎲</div>
           <input type="text" id="emojiInput" placeholder="Chọn emoji..." autocomplete="off" readonly>
-          <button type="button" class="emoji-toggle-btn" id="emojiToggleBtn" title="Chọn emoji">▼</button>
+          <button type="button" class="emoji-toggle-btn" id="emojiToggleBtn" title="Chọn emoji" aria-label="Mở bảng chọn emoji" aria-expanded="false">▼</button>
         </div>
-        <div class="emoji-picker hidden" id="emojiPicker">
+        <div class="emoji-picker hidden" id="emojiPicker" role="dialog" aria-label="Chọn emoji cho game">
           <div class="emoji-picker-search">
+            <label for="emojiSearch" class="visually-hidden">Tìm emoji</label>
             <input type="text" id="emojiSearch" placeholder="🔍 Tìm emoji...">
           </div>
-          <div class="emoji-categories" id="emojiCategories"></div>
+          <div class="emoji-categories" id="emojiCategories" role="tablist" aria-label="Danh mục emoji"></div>
           <div class="emoji-grid"       id="emojiGrid"></div>
         </div>
       </div>
 
       <div class="form-group">
-        <label>Màu chủ đạo</label>
+        <label for="colorInput">Màu chủ đạo</label>
         <div class="color-row">
-          <input type="color" id="colorPicker" value="#6c5ce7"
+          <input type="color" id="colorPicker" value="#6c5ce7" aria-label="Chọn màu bằng bảng màu"
                  oninput="document.getElementById('colorInput').value=this.value">
           <input type="text"  id="colorInput"  placeholder="#6c5ce7"
                  oninput="document.getElementById('colorPicker').value=this.value">
@@ -487,57 +517,57 @@
       </div>
 
       <div class="form-group">
-        <label>Thứ tự hiển thị</label>
+        <label for="sortInput">Thứ tự hiển thị</label>
         <input type="number" id="sortInput" placeholder="1, 2, 3...">
       </div>
 
       <div class="form-group">
-        <label>Số người chơi</label>
+        <label for="playersInput">Số người chơi</label>
         <input type="text" id="playersInput" placeholder="2-4 người">
       </div>
 
       <div class="form-group">
-        <label>Thời gian</label>
+        <label for="timeInput">Thời gian</label>
         <input type="text" id="timeInput" placeholder="30-60 phút">
       </div>
 
       <div class="form-group">
-        <label>Độ khó</label>
+        <label for="difficultyInput">Độ khó</label>
         <select id="difficultyInput"></select>
       </div>
 
       <div class="form-group full-width">
-        <label>Thể loại</label>
-        <div class="category-picker" id="categoryPicker"></div>
+        <label id="categoryPickerLabel">Thể loại</label>
+        <div class="category-picker" id="categoryPicker" role="group" aria-labelledby="categoryPickerLabel"></div>
         <div class="hint">Bấm để chọn/bỏ chọn — có thể chọn nhiều thể loại</div>
       </div>
 
       <div class="section-divider"><span>🎯 Nội dung game</span></div>
 
       <div class="form-group full-width">
-        <label>Mục tiêu</label>
+        <label for="objectiveInput">Mục tiêu</label>
         <textarea id="objectiveInput" placeholder="Mô tả mục tiêu của game..."></textarea>
       </div>
 
       <div class="form-group full-width">
-        <label>Điều kiện thắng</label>
+        <label for="winInput">Điều kiện thắng</label>
         <textarea id="winInput" placeholder="Người đầu tiên gom đủ... / Người có điểm cao nhất..."></textarea>
       </div>
 
       <div class="form-group full-width">
-        <label>Các bước chuẩn bị</label>
+        <label for="setupInput">Các bước chuẩn bị</label>
         <textarea id="setupInput" class="tall" placeholder="Đặt bảng chơi vào giữa bàn&#10;Mỗi người lấy 5 lá bài&#10;Xáo trộn bộ bài..."></textarea>
         <div class="hint">Mỗi bước = 1 dòng</div>
       </div>
 
       <div class="form-group full-width">
-        <label>Các bước lượt chơi</label>
+        <label for="turnInput">Các bước lượt chơi</label>
         <textarea id="turnInput" class="tall" placeholder="Rút 2 lá bài&#10;Thực hiện 1 hành động&#10;Kết thúc lượt..."></textarea>
         <div class="hint">Mỗi bước = 1 dòng</div>
       </div>
 
       <div class="form-group full-width">
-        <label>Mẹo chơi</label>
+        <label for="tipsInput">Mẹo chơi</label>
         <textarea id="tipsInput" placeholder="Ưu tiên tích điểm sớm&#10;Chú ý bài của đối thủ&#10;Không nên giữ bài quá nhiều..."></textarea>
         <div class="hint">Mỗi mẹo = 1 dòng (có thể để trống)</div>
       </div>
@@ -545,18 +575,18 @@
       <div class="section-divider"><span>🖼️ Media</span></div>
 
       <div class="form-group full-width">
-        <label>Ảnh hướng dẫn</label>
+        <label for="imagesInput">Ảnh hướng dẫn</label>
         <textarea id="imagesInput" placeholder="https://i.imgur.com/abc.jpg | Sắp xếp bảng cờ&#10;https://i.imgur.com/xyz.jpg | Bộ bài ban đầu"></textarea>
         <div class="hint">Mỗi dòng: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">URL ảnh | Chú thích</code></div>
       </div>
 
       <div class="form-group full-width">
-        <label>Hero Background URL</label>
+        <label for="heroInput">Hero Background URL</label>
         <input type="text" id="heroInput" placeholder="https://...">
       </div>
 
       <div class="form-group full-width">
-        <label>YouTube URL</label>
+        <label for="youtubeInput">YouTube URL</label>
         <input type="text" id="youtubeInput" placeholder="https://youtube.com/watch?v=...">
       </div>
 
@@ -571,12 +601,12 @@
 </div>
 
 <!-- ═══════════ DRINK MODAL ═══════════ -->
-<div class="modal-overlay hidden" id="drinkModal">
+<div class="modal-overlay hidden" id="drinkModal" role="dialog" aria-modal="true" aria-labelledby="drinkModalTitle">
   <div class="modal-box">
 
     <div class="modal-header">
       <h2 id="drinkModalTitle">Thêm công thức</h2>
-      <button class="close-btn" onclick="document.getElementById('drinkModal').classList.add('hidden')">✕</button>
+      <button class="close-btn" aria-label="Đóng cửa sổ" onclick="document.getElementById('drinkModal').classList.add('hidden')">✕</button>
     </div>
 
     <input type="hidden" id="drinkId">
@@ -586,12 +616,12 @@
       <div class="section-divider"><span>📋 Thông tin cơ bản</span></div>
 
       <div class="form-group">
-        <label>Tên đồ uống *</label>
+        <label for="drinkName">Tên đồ uống *</label>
         <input type="text" id="drinkName" placeholder="Cà phê sữa đá, Trà đào...">
       </div>
 
       <div class="form-group">
-        <label>Loại *</label>
+        <label for="drinkCategory">Loại *</label>
         <select id="drinkCategory">
           <option value="">-- Chọn loại --</option>
           <option value="Cà phê">☕ Cà phê</option>
@@ -602,38 +632,38 @@
       </div>
 
       <div class="form-group">
-        <label>Emoji</label>
+        <label for="drinkEmoji">Emoji</label>
         <input type="text" id="drinkEmoji" placeholder="☕" maxlength="4">
       </div>
 
       <div class="form-group">
-        <label>Thứ tự hiển thị</label>
+        <label for="drinkSort">Thứ tự hiển thị</label>
         <input type="number" id="drinkSort" placeholder="1, 2, 3...">
       </div>
 
       <div class="form-group full-width">
-        <label>Mô tả ngắn</label>
+        <label for="drinkDesc">Mô tả ngắn</label>
         <input type="text" id="drinkDesc" placeholder="Thức uống đặc trưng của quán...">
       </div>
 
       <div class="section-divider"><span>🧪 Công thức</span></div>
 
       <div class="form-group full-width">
-        <label>Nguyên liệu</label>
+        <label for="drinkIngredients">Nguyên liệu</label>
         <textarea id="drinkIngredients" class="tall"
           placeholder="20ml espresso&#10;150ml sữa tươi&#10;30ml sữa đặc&#10;Đá viên vừa đủ"></textarea>
         <div class="hint">Mỗi nguyên liệu = 1 dòng</div>
       </div>
 
       <div class="form-group full-width">
-        <label>Các bước pha chế</label>
+        <label for="drinkSteps">Các bước pha chế</label>
         <textarea id="drinkSteps" class="tall"
           placeholder="Pha espresso vào ly&#10;Thêm sữa đặc, khuấy đều&#10;Cho đá viên vào ly&#10;Rót sữa tươi từ từ&#10;Thưởng thức ngay"></textarea>
         <div class="hint">Mỗi bước = 1 dòng</div>
       </div>
 
       <div class="form-group full-width">
-        <label>Mẹo pha chế</label>
+        <label for="drinkTips">Mẹo pha chế</label>
         <textarea id="drinkTips"
           placeholder="Nên dùng sữa ở nhiệt độ phòng&#10;Pha espresso đậm hơn bình thường 20%"></textarea>
         <div class="hint">Mỗi mẹo = 1 dòng (có thể để trống)</div>
@@ -642,7 +672,7 @@
       <div class="section-divider"><span>🖼️ Media</span></div>
 
       <div class="form-group full-width">
-        <label>URL ảnh minh hoạ</label>
+        <label for="drinkImage">URL ảnh minh hoạ</label>
         <input type="text" id="drinkImage" placeholder="https://...">
       </div>
 
