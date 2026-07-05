@@ -14,25 +14,11 @@ window.AdminDashboard.registerPage({
   menuId: "bannersMenuItem",
   icon: "🖼️",
   label: "Banners",
-  guard: () => canAccessBannersPage,   // ← dùng lại const
+  guard: () => canAccessBannersPage,
 });
 
 (function injectBannersPage() {
-  if (!canAccessBannersPage) return;   // ← thay vì gọi lại window.AdminPermissions.can(...)
-
-  const main = document.querySelector('.main-content');
-  ...
-
-window.AdminDashboard.registerPage({
-  pageId: "bannersPage",
-  menuId: "bannersMenuItem",
-  icon: "🖼️",
-  label: "Banners",
-  guard: () => window.AdminPermissions.can(currentSession.role, "bannersPage"),
-});
-
-(function injectBannersPage() {
-  if (!window.AdminPermissions.can(currentSession.role, "bannersPage")) return;
+  if (!canAccessBannersPage) return;
 
   const main = document.querySelector('.main-content');
   if (!main) return;
