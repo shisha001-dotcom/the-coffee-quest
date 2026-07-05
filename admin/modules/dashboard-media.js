@@ -81,7 +81,7 @@ window.AdminDashboard.registerPage({
 });
 
 (function injectMediaPage() {
-  if (!window.AdminPermissions.can(currentSession.role, "mediaPage")) return;
+  if (!canAccessMediaPage) return;
 
   const main = document.querySelector('.main-content');
   if (!main) return;
@@ -154,7 +154,7 @@ window.AdminDashboard.registerPage({
 })();
 
 (function injectMediaModal() {
-  if (!window.AdminPermissions.can(currentSession.role, "mediaPage")) return;
+  if (!canAccessMediaPage) return;
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay hidden';
