@@ -95,23 +95,14 @@ function renderDrinkGrid() {
 }
 
 /* ══════════════════════════════════════════════
-   READ-ONLY MODE cho modal (giống dashboard-games.js)
+   READ-ONLY MODE cho modal (dùng chung AdminPermissions.applyReadOnlyForm)
    ══════════════════════════════════════════════ */
 function setDrinkModalReadOnly(readonly) {
-  const modal = document.getElementById('drinkModal');
-  if (!modal) return;
-
-  modal.querySelectorAll('input, textarea, select').forEach(el => { el.disabled = readonly; });
-
+  const modal     = document.getElementById('drinkModal');
   const saveBtn   = document.getElementById('drinkSaveBtn');
   const deleteBtn = document.getElementById('drinkDeleteBtn');
 
-  if (saveBtn) saveBtn.style.display = readonly ? 'none' : '';
-  if (deleteBtn) {
-    deleteBtn.style.display = readonly
-      ? 'none'
-      : (deleteBtn.dataset.wasVisible === '1' ? 'inline-flex' : 'none');
-  }
+  window.AdminPermissions.applyReadOnlyForm(modal, { readonly, saveBtn, deleteBtn });
 }
 
 function openAddDrink() {
