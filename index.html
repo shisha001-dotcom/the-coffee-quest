@@ -4,8 +4,27 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>The Coffee Quest</title>
-  <link rel="stylesheet" href="css/style.css"/>
+
+  <!-- Preconnect sớm tới các dịch vụ external quan trọng -->
+  <link rel="preconnect" href="https://dklfwlgpomnrmxmbjpat.supabase.co">
+  <link rel="preconnect" href="https://doublevcute-default-rtdb.asia-southeast1.firebasedatabase.app">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- ► CSS tách thành <link> riêng thay vì @import trong style.css,
+       để trình duyệt tải song song thay vì tuần tự (waterfall).
+       Thứ tự PHẢI giữ nguyên: variables.css load đầu, responsive.css load cuối. -->
+  <link rel="stylesheet" href="css/base/variables.css"/>
+  <link rel="stylesheet" href="css/base/reset.css"/>
+  <link rel="stylesheet" href="css/base/header-menu.css"/>
+  <link rel="stylesheet" href="css/base/news-banner.css"/>
+  <link rel="stylesheet" href="css/base/boardgame-list.css"/>
+  <link rel="stylesheet" href="css/base/boardgame-detail.css"/>
+  <link rel="stylesheet" href="css/base/pages.css"/>
+  <link rel="stylesheet" href="css/base/modals.css"/>
+  <link rel="stylesheet" href="css/base/responsive.css"/>
   <link rel="stylesheet" href="css/chat.css"/>
+
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 </head>  
 <body>
