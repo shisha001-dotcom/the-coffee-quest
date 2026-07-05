@@ -9,11 +9,15 @@
   border-radius:50%;
   background:#e63946;
   color:#fff;
-  font-size:28px;
   cursor:pointer;
-  z-index:99999;
+  z-index:var(--z-widget);
   box-shadow:0 10px 25px rgba(0,0,0,.25);
   transition:transform .2s, box-shadow .2s;
+  /* ⚠️ SỬA: trước đây dùng emoji 💬 (font-size:28px). Giờ chứa <svg>
+     nên cần flex căn giữa. */
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 #chat-toggle:hover{
   transform:scale(1.08);
@@ -32,7 +36,7 @@
   overflow:hidden;
   display:none;
   flex-direction:column;
-  z-index:99999;
+  z-index:var(--z-widget);
   border:2px solid #e0d8cc;
   box-shadow:0 20px 60px rgba(0,0,0,.25);
   animation:chatFade .25s ease;
@@ -85,12 +89,19 @@
   background:none;
   border:none;
   color:#fff;
-  font-size:22px;
   cursor:pointer;
   opacity:.7;
+  width:36px;
+  height:36px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  transition:opacity .15s, background .15s;
 }
 #chat-close:hover{
   opacity:1;
+  background:rgba(255,255,255,.1);
 }
 
 /* ONLINE */
@@ -170,6 +181,11 @@
   padding:0 2px;
   line-height:1;
   flex-shrink:0;
+  width:44px;
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   transition:transform .15s;
 }
 #emoji-toggle:hover{
@@ -196,7 +212,7 @@
   color:#fff;
   border-radius:12px;
   padding:0 16px;
-  height:42px;
+  height:44px;
   cursor:pointer;
   font-weight:800;
   flex-shrink:0;
@@ -217,7 +233,7 @@
   border-radius:16px;
   box-shadow:0 8px 30px rgba(0,0,0,.18);
   padding:10px;
-  z-index:100000;
+  z-index:calc(var(--z-widget) + 10);
   animation:chatFade .2s ease;
 }
 
@@ -242,6 +258,8 @@
   padding:4px 2px;
   transition:background .15s, transform .1s;
   line-height:1;
+  min-width:36px;
+  min-height:36px;
 }
 
 .emoji-grid button:hover{
