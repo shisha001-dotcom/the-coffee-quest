@@ -302,14 +302,15 @@ function fillGameDetailForm(game) {
 }
 
 /* ══════════════════════════════════════════════
-   READ-ONLY (Bar Staff chỉ xem)
+   READ-ONLY (Bar Staff chỉ xem) — dùng chung AdminPermissions.applyReadOnlyForm
    ══════════════════════════════════════════════ */
 function setGameDetailReadOnly(readonly) {
   const page = document.getElementById("gameDetailPage");
-  if (!page) return;
-  page.querySelectorAll("input, textarea").forEach(el => { el.disabled = readonly; });
-  document.getElementById("gdSaveBtn").style.display = readonly ? "none" : "";
-  document.getElementById("gdDeleteBtn").style.display = readonly ? "none" : "";
+  window.AdminPermissions.applyReadOnlyForm(page, {
+    readonly,
+    saveBtn:   document.getElementById("gdSaveBtn"),
+    deleteBtn: document.getElementById("gdDeleteBtn"),
+  });
 }
 
 /* ══════════════════════════════════════════════
