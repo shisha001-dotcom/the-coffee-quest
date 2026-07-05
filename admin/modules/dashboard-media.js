@@ -8,7 +8,8 @@
      để chặn role "Bar Staff" xem toàn bộ trang này.
    ══════════════════════════════════════════════ */
 
-const isSuperAdminMedia = window.AdminPermissions.isSuperAdmin(currentSession.role);
+const isSuperAdminMedia  = window.AdminPermissions.isSuperAdmin(currentSession.role);
+const canAccessMediaPage = window.AdminPermissions.can(currentSession.role, "mediaPage");
 
 (function injectMediaStyles() {
   if (document.getElementById('mediaLibraryStyles')) return;
