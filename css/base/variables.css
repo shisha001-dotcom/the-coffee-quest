@@ -3,6 +3,17 @@
    ─────────────────────────────────────────────────────────────────
    ► Thay đổi các giá trị ở đây để ảnh hưởng toàn bộ giao diện.
    ► Không cần sửa ở nhiều chỗ khác nhau nữa.
+
+   ⚠️ SỬA (UI/UX audit — ưu tiên cao):
+   - --muted đổi từ #888888 → #6b6b6b: màu cũ trên nền --bg (#f5f0e8)
+     chỉ đạt tỷ lệ tương phản ~2.8:1, KHÔNG đạt chuẩn WCAG AA (4.5:1)
+     cho text thường. Giá trị mới đạt ~4.6:1 trên cả --bg và --card.
+   - Thêm --focus-ring: dùng cho outline khi điều hướng bằng bàn phím
+     (:focus-visible) — trước đây KHÔNG có nơi nào định nghĩa, người
+     dùng bàn phím không biết đang ở đâu trên trang.
+   - Thêm bộ token --z-*: trước đây z-index rải rác (100, 200, 499,
+     500, 99999, 999999...) không theo hệ thống nào, dễ xung đột khi
+     thêm component mới. Giờ quy về 1 thang chuẩn.
    ══════════════════════════════════════════════════════════════════ */
 :root {
   /* --- Màu nền & bề mặt --- */
@@ -13,7 +24,9 @@
 
   /* --- Màu chữ --- */
   --ink:         #1a1a1a;   /* chữ chính */
-  --muted:       #888888;   /* chữ phụ, placeholder */
+  /* ► FIX contrast: #888 cũ chỉ ~2.8:1 trên --bg, không đạt WCAG AA.
+       #6b6b6b đạt ~4.6:1 trên cả --bg và --card. */
+  --muted:       #6b6b6b;   /* chữ phụ, placeholder */
 
   /* --- Màu đường viền --- */
   --border:      #e0d8cc;
@@ -51,4 +64,20 @@
   /* --- Transition mặc định --- */
   /* ► Tăng thời gian lên (vd: .3s) để animation chậm hơn */
   --t: .18s ease;
+
+  /* --- Focus ring (bàn phím) — MỚI --- */
+  --focus-ring: 0 0 0 3px #fff, 0 0 0 6px var(--accent);
+
+  /* --- Z-index scale — MỚI, quy về 1 thang duy nhất ---
+     Dùng thay cho các số rời rạc cũ (100, 200, 499, 500, 99999,
+     999999...). Component mới chỉ cần chọn đúng tầng, không cần
+     đoán số. */
+  --z-sticky:   100;  /* filter-bar sticky */
+  --z-header:   200;  /* site-header */
+  --z-overlay:  499;  /* menu-overlay */
+  --z-drawer:   500;  /* side-menu */
+  --z-widget:   9000; /* chat widget nổi */
+  --z-modal:    9500; /* username modal, admin modal */
+  --z-lightbox: 9800; /* lightbox ảnh */
+  --z-toast:    9900; /* toast notification */
 }
