@@ -12,8 +12,17 @@
      + saveDrink()/deleteDrink()/openAddDrink() chặn ở tầng hàm
        (phòng khi bị gọi trực tiếp qua console)
 
+   ⚠️ SỬA (UI/UX audit — ưu tiên cao):
+   - deleteDrink(): thay window.confirm() bằng window.showConfirm()
+     (modal tùy chỉnh, không chặn UI thread, style nhất quán, hỗ trợ
+     Escape/Enter/focus — xem js/shared-utils.js).
+   - saveDrink(): thay alert() lỗi validate bằng lỗi hiển thị ngay
+     tại field (border đỏ + text lỗi dưới input), giống cách
+     admin/login.html đã làm — thay vì popup chặn màn hình.
+
    Cần: `client` (từ dashboard-auth.js), `currentSession`,
-   window.AdminPermissions (từ core/dashboard-permissions.js).
+   window.AdminPermissions (từ core/dashboard-permissions.js),
+   window.showConfirm / window.showToast (từ shared-utils.js).
    ══════════════════════════════════════════════ */
 
 window.activeDrinkFilter = 'all';
@@ -74,10 +83,10 @@ function renderDrinkGrid() {
     return `
       <div style="background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;">
         <div style="height:5px;background:${color};"></div>
-        ${d.image_url ? `<img src="${window.escHtml(d.image_url)}" alt="${window.escHtml(d.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.style.display='none'">` : ''}
+        ${d.image_url ? `<img src="${window.escHtml(d.image_url)}" alt="Ảnh minh hoạ ${window.escHtml(d.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.style.display='none'">` : ''}
         <div style="padding:16px 18px;flex:1;display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:24px;">${d.emoji || '☕'}</span>
+            <span style="font-size:24px;" aria-hidden="true">${d.emoji || '☕'}</span>
             <div>
               <div style="font-weight:700;font-size:15px;color:var(--text);">${window.escHtml(d.name)}</div>
               <div style="font-size:11px;font-weight:600;color:${color};margin-top:2px;">${window.escHtml(d.category)}</div>
@@ -87,7 +96,7 @@ function renderDrinkGrid() {
           ${ing.length ? `<div style="font-size:12px;color:var(--text-muted);">🧪 ${ing.length} nguyên liệu</div>` : ''}
         </div>
         <div style="padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:8px;">
-          <button class="btn btn-primary" style="font-size:12px;padding:6px 14px;" onclick="editDrink(${d.id})">${actionLabel}</button>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 14px;" onclick="editDrink(${d.id})">${actionLabel} ${window.escHtml(d.name)}</button>
         </div>
       </div>
     `;
@@ -105,6 +114,30 @@ function setDrinkModalReadOnly(readonly) {
   window.AdminPermissions.applyReadOnlyForm(modal, { readonly, saveBtn, deleteBtn });
 }
 
+/* ── Xóa lỗi field khi người dùng gõ lại (dùng cho validate mới) ── */
+function clearDrinkFieldError(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = '';
+  document.getElementById(id + 'Error')?.remove();
+}
+function showDrinkFieldError(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = 'var(--danger)';
+  el.focus();
+  let err = document.getElementById(id + 'Error');
+  if (!err) {
+    err = document.createElement('div');
+    err.id = id + 'Error';
+    err.setAttribute('role', 'alert');
+    err.style.cssText = 'color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;';
+    el.insertAdjacentElement('afterend', err);
+  }
+  err.textContent = msg;
+  el.addEventListener('input', () => clearDrinkFieldError(id), { once: true });
+}
+
 function openAddDrink() {
   if (isDrinksReadOnly) return; /* chặn tầng hàm, phòng nút bị lộ */
 
@@ -118,11 +151,13 @@ function openAddDrink() {
   document.getElementById('drinkSteps').value = '';
   document.getElementById('drinkTips').value  = '';
   document.getElementById('drinkImage').value = '';
+  clearDrinkFieldError('drinkName');
   document.getElementById('drinkModalTitle').textContent = 'Thêm công thức';
   document.getElementById('drinkDeleteBtn').style.display = 'none';
   document.getElementById('drinkDeleteBtn').dataset.wasVisible = '0';
   setDrinkModalReadOnly(false);
   document.getElementById('drinkModal').classList.remove('hidden');
+  document.getElementById('drinkName').focus();
 }
 
 function editDrink(id) {
@@ -138,6 +173,7 @@ function editDrink(id) {
   document.getElementById('drinkSteps').value     = Array.isArray(d.steps) ? d.steps.join('\n') : '';
   document.getElementById('drinkTips').value      = Array.isArray(d.tips) ? d.tips.join('\n') : '';
   document.getElementById('drinkImage').value     = d.image_url || '';
+  clearDrinkFieldError('drinkName');
 
   document.getElementById('drinkModalTitle').textContent = isDrinksReadOnly
     ? '👁️ Xem chi tiết công thức'
@@ -161,7 +197,10 @@ async function saveDrink() {
   const rawId = document.getElementById('drinkId').value;
   const id    = rawId ? Number(rawId) : null;
   const name  = document.getElementById('drinkName').value.trim();
-  if (!name) { alert('Vui lòng nhập tên đồ uống.'); return; }
+
+  /* ⚠️ SỬA: lỗi hiển thị ngay tại field thay vì alert() chặn màn hình */
+  if (!name) { showDrinkFieldError('drinkName', 'Vui lòng nhập tên đồ uống.'); return; }
+  clearDrinkFieldError('drinkName');
 
   const payload = {
     name,
@@ -175,6 +214,11 @@ async function saveDrink() {
     sort_order:  Number(document.getElementById('drinkSort').value) || null,
   };
 
+  const saveBtn = document.getElementById('drinkSaveBtn');
+  saveBtn.disabled = true;
+  const origText = saveBtn.textContent;
+  saveBtn.textContent = 'Đang lưu...';
+
   try {
     if (id) {
       const { error } = await client.from('drinks').update(payload).eq('id', id);
@@ -187,7 +231,11 @@ async function saveDrink() {
     window.showToast('✅ Đã lưu công thức!');
     loadDrinks();
   } catch (err) {
-    alert('❌ Lỗi: ' + err.message);
+    /* ⚠️ SỬA: lỗi từ server hiện qua toast đỏ thay vì alert() */
+    window.showToast('❌ Lỗi: ' + err.message, '#e17055');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = origText;
   }
 }
 
@@ -196,7 +244,20 @@ async function deleteDrink() {
 
   const id = document.getElementById('drinkId').value;
   if (!id) return;
-  if (!confirm('Xóa công thức này?\n\nHành động này không thể hoàn tác!')) return;
+
+  const name = document.getElementById('drinkName').value || 'công thức này';
+
+  /* ⚠️ SỬA: window.confirm() → window.showConfirm() (không chặn UI
+     thread, style nhất quán, hỗ trợ Escape/Enter/focus-trap). */
+  const ok = await window.showConfirm({
+    title: `Xóa "${name}"?`,
+    message: 'Hành động này không thể hoàn tác.',
+    confirmText: '🗑️ Xóa',
+    cancelText: 'Hủy',
+    danger: true,
+  });
+  if (!ok) return;
+
   try {
     const { error } = await client.from('drinks').delete().eq('id', id);
     if (error) throw error;
@@ -204,7 +265,7 @@ async function deleteDrink() {
     window.showToast('🗑️ Đã xóa công thức', '#e17055');
     loadDrinks();
   } catch (err) {
-    alert('Lỗi: ' + err.message);
+    window.showToast('❌ Lỗi: ' + err.message, '#e17055');
   }
 }
 
