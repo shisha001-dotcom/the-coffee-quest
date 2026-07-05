@@ -124,15 +124,16 @@ emojiPicker.addEventListener("click", e => e.stopPropagation());
 
 /* ══════════════════════════════════════════════
    READ-ONLY MODE cho modal
+   (dùng chung window.AdminPermissions.applyReadOnlyForm —
+   không tự viết lại logic disable/ẩn nút ở đây nữa)
    ══════════════════════════════════════════════ */
 function setModalReadOnly(readonly) {
-  const fields = modal.querySelectorAll(".form-grid input, .form-grid textarea");
-  fields.forEach(el => { el.disabled = readonly; });
-
-  emojiToggleBtn.disabled = readonly;
-
-  saveBtn.style.display   = readonly ? "none" : "";
-  deleteBtn.style.display = readonly ? "none" : (deleteBtn.dataset.wasVisible === "1" ? "inline-flex" : "none");
+  window.AdminPermissions.applyReadOnlyForm(modal, {
+    readonly,
+    saveBtn,
+    deleteBtn,
+    extraDisable: [emojiToggleBtn],
+  });
 }
 
 /* ══════════════════════════════════════════════
