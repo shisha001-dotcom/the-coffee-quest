@@ -21,10 +21,19 @@
      input text tự do — tránh gõ sai chính tả / không đồng nhất
      dữ liệu giữa các game.
 
+   ⚠️ SỬA (UI/UX audit — ưu tiên cao):
+   - saveGame(): validate tên game giờ báo lỗi ngay tại field
+     (border đỏ + text lỗi dưới #nameInput, có role="alert") thay
+     vì alert() chặn màn hình; lỗi lưu từ Supabase báo qua toast.
+   - deleteGame(): window.confirm() → window.showConfirm() (modal
+     tùy chỉnh không chặn UI thread, hỗ trợ Escape/Enter, style
+     nhất quán) + toast thay alert() khi lỗi.
+
    Cần: `client` (từ dashboard-auth.js), `currentSession`,
    window.AdminPermissions (từ core/dashboard-permissions.js),
    window.GAME_CATEGORIES/DIFFICULTY_LEVELS + các hàm picker
-   (từ js/shared-categories.js — PHẢI load trước file này).
+   (từ js/shared-categories.js — PHẢI load trước file này),
+   window.showConfirm / window.showToast (từ shared-utils.js).
    ══════════════════════════════════════════════ */
 
 const isGamesReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
@@ -81,6 +90,7 @@ function buildCategoryTabs() {
     btn.className = "emoji-cat-btn" + (i === currentCategory ? " active" : "");
     btn.textContent = cat.icon;
     btn.title = cat.label;
+    btn.setAttribute("aria-label", cat.label);
     btn.addEventListener("click", () => {
       currentCategory = i;
       emojiSearch.value = "";
@@ -93,7 +103,7 @@ function buildCategoryTabs() {
 
 function renderEmojiGrid(list) {
   emojiGrid.innerHTML = list.map(emoji =>
-    `<button class="emoji-item${emoji === currentEmoji ? ' selected' : ''}" data-emoji="${emoji}" title="${emoji}">${emoji}</button>`
+    `<button class="emoji-item${emoji === currentEmoji ? ' selected' : ''}" data-emoji="${emoji}" title="${emoji}" aria-label="Chọn emoji ${emoji}">${emoji}</button>`
   ).join('');
 }
 
@@ -114,6 +124,7 @@ function openPicker() {
   pickerOpen = true;
   emojiPicker.classList.remove("hidden");
   emojiToggleBtn.textContent = "▲";
+  emojiToggleBtn.setAttribute("aria-expanded", "true");
   buildCategoryTabs();
   renderEmojiGrid(EMOJI_CATEGORIES[currentCategory].emojis);
   emojiSearch.focus();
@@ -122,6 +133,7 @@ function closePicker() {
   pickerOpen = false;
   emojiPicker.classList.add("hidden");
   emojiToggleBtn.textContent = "▼";
+  emojiToggleBtn.setAttribute("aria-expanded", "false");
 }
 
 emojiToggleBtn.addEventListener("click", e => { e.stopPropagation(); pickerOpen ? closePicker() : openPicker(); });
@@ -134,16 +146,11 @@ document.addEventListener("click", e => {
   if (pickerOpen && !emojiPicker.contains(e.target) && e.target !== emojiToggleBtn && e.target !== emojiInput) closePicker();
 });
 emojiPicker.addEventListener("click", e => e.stopPropagation());
+/* ⚠️ MỚI: đóng emoji picker bằng phím Escape (trước đây chỉ đóng khi click ra ngoài) */
+emojiPicker.addEventListener("keydown", e => { if (e.key === "Escape") { closePicker(); emojiToggleBtn.focus(); } });
 
 /* ══════════════════════════════════════════════
    READ-ONLY MODE cho modal
-   (dùng chung window.AdminPermissions.applyReadOnlyForm —
-   không tự viết lại logic disable/ẩn nút ở đây nữa)
-
-   Lưu ý: category-picker (button.cat-chip) được disable ngay tại
-   thời điểm render (renderCategoryPicker(..., readonly)) chứ không
-   qua applyReadOnlyForm, vì applyReadOnlyForm chỉ quét
-   input/textarea/select.
    ══════════════════════════════════════════════ */
 function setModalReadOnly(readonly) {
   window.AdminPermissions.applyReadOnlyForm(modal, {
@@ -172,6 +179,33 @@ function setLines(id, arr) {
 function setImages(id, arr) {
   const el = document.getElementById(id);
   if (el) el.value = Array.isArray(arr) ? arr.map(img => `${img.url} | ${img.caption||""}`).join("\n") : "";
+}
+
+/* ══════════════════════════════════════════════
+   VALIDATE FIELD ERROR — MỚI
+   (thay cho alert() — báo lỗi ngay tại field, giống admin/login.html)
+   ══════════════════════════════════════════════ */
+function clearFieldError(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = "";
+  document.getElementById(id + "Error")?.remove();
+}
+function showFieldError(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = "var(--danger)";
+  el.focus();
+  let err = document.getElementById(id + "Error");
+  if (!err) {
+    err = document.createElement("div");
+    err.id = id + "Error";
+    err.setAttribute("role", "alert");
+    err.style.cssText = "color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;grid-column:1/-1;";
+    el.closest(".form-group")?.insertAdjacentElement("afterend", err) ?? el.insertAdjacentElement("afterend", err);
+  }
+  err.textContent = msg;
+  el.addEventListener("input", () => clearFieldError(id), { once: true });
 }
 
 /* ══════════════════════════════════════════════
@@ -226,8 +260,6 @@ function difficultyClass(value) {
 
 /* ══════════════════════════════════════════════
    RENDER TABLE
-   (ĐÃ BỎ nút "📱 QR" và link "▶ YouTube" khỏi cột Hành động —
-   chỉ còn nút Sửa/Xem + nút vào Trang chi tiết)
    ══════════════════════════════════════════════ */
 function renderGames(data) {
   if (!data.length) {
@@ -243,12 +275,12 @@ function renderGames(data) {
     const cats   = Array.isArray(game.categories) ? game.categories : [];
     const imgSrc = window.escHtml(game.hero_bg || "https://placehold.co/48x48");
     const color  = game.color
-      ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${game.color};margin-right:4px;vertical-align:middle"></span>`
+      ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${game.color};margin-right:4px;vertical-align:middle" aria-hidden="true"></span>`
       : "";
     return `<tr>
       <td>
         <div class="game-info">
-          <img class="game-image" src="${imgSrc}" alt="${name}" onerror="this.src='https://placehold.co/48x48'">
+          <img class="game-image" src="${imgSrc}" alt="Ảnh minh hoạ ${name}" onerror="this.src='https://placehold.co/48x48'">
           <div>
             <div class="game-name">${emoji} ${name}</div>
             <div class="game-id">${color}ID: ${game.id} · Order: ${game.sort_order ?? '—'}</div>
@@ -263,7 +295,7 @@ function renderGames(data) {
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <button class="btn btn-primary edit-btn" data-id="${game.id}">${actionLabel}</button>
           <button class="btn btn-secondary detail-btn" data-id="${game.id}"
-            style="font-size:12px;padding:6px 10px;" title="Trang chi tiết">📄 Chi tiết</button>
+            style="font-size:12px;padding:6px 10px;" title="Trang chi tiết" aria-label="Xem trang chi tiết ${name}">📄 Chi tiết</button>
         </div>
       </td>
     </tr>`;
@@ -293,9 +325,12 @@ addGameBtn?.addEventListener("click", () => {
   deleteBtn.dataset.wasVisible = "0";
   setModalReadOnly(false);
   modal.classList.remove("hidden");
+  document.getElementById("nameInput")?.focus();
 });
 closeModalBtn?.addEventListener("click", () => modal.classList.add("hidden"));
 modal?.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
+/* ⚠️ MỚI: đóng modal bằng Escape (trước đây chỉ đóng bằng nút ✕ hoặc click nền) */
+modal?.addEventListener("keydown", e => { if (e.key === "Escape") modal.classList.add("hidden"); });
 
 /* ══════════════════════════════════════════════
    SAVE
@@ -306,7 +341,10 @@ async function saveGame() {
   const rawId = document.getElementById("gameId").value;
   const id    = rawId ? Number(rawId) : null;
   const name  = document.getElementById("nameInput").value.trim();
-  if (!name) { alert("Vui lòng nhập tên game."); return; }
+
+  /* ⚠️ SỬA: lỗi hiển thị ngay tại field thay vì alert() chặn màn hình */
+  if (!name) { showFieldError("nameInput", "Vui lòng nhập tên game."); return; }
+  clearFieldError("nameInput");
 
   const colorVal   = document.getElementById("colorInput")?.value.trim() || "#6c5ce7";
   const categories = window.getSelectedCategories(categoryPicker);
@@ -346,7 +384,8 @@ async function saveGame() {
     await loadGames();
     window.showToast("✅ Đã lưu thành công!");
   } catch(err) {
-    alert("❌ Lỗi khi lưu:\n\n" + err.message);
+    /* ⚠️ SỬA: lỗi server báo qua toast thay vì alert() */
+    window.showToast("❌ Lỗi khi lưu: " + err.message, "#e17055");
   } finally {
     saveBtn.disabled    = false;
     saveBtn.textContent = "💾 Lưu";
@@ -363,7 +402,16 @@ async function deleteGame() {
   const id   = document.getElementById("gameId").value;
   if (!id) return;
   const name = document.getElementById("nameInput").value || `ID=${id}`;
-  if (!confirm(`Xóa "${name}"?\n\nHành động này không thể hoàn tác!`)) return;
+
+  /* ⚠️ SỬA: window.confirm() → window.showConfirm() */
+  const ok = await window.showConfirm({
+    title: `Xóa "${name}"?`,
+    message: "Hành động này không thể hoàn tác.",
+    confirmText: "🗑️ Xóa",
+    cancelText: "Hủy",
+    danger: true,
+  });
+  if (!ok) return;
 
   deleteBtn.disabled    = true;
   deleteBtn.textContent = "Đang xóa...";
@@ -375,7 +423,7 @@ async function deleteGame() {
     window.showToast("🗑️ Đã xóa thành công!", "#e17055");
     await loadGames();
   } catch(err) {
-    alert("Lỗi: " + err.message);
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
   } finally {
     deleteBtn.disabled    = false;
     deleteBtn.textContent = "🗑️ Xóa";
@@ -392,6 +440,8 @@ function clearForm() {
     "objectiveInput","heroInput","youtubeInput",
     "winInput","setupInput","turnInput","tipsInput","imagesInput","sortInput"
   ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+
+  clearFieldError("nameInput");
 
   document.getElementById("colorInput") && (document.getElementById("colorInput").value  = "#6c5ce7");
   document.getElementById("colorPicker") && (document.getElementById("colorPicker").value = "#6c5ce7");
@@ -415,6 +465,8 @@ document.addEventListener("click", e => {
   const id   = Number(btn.dataset.id);
   const game = games.find(g => g.id === id);
   if (!game) return;
+
+  clearForm(); // reset lỗi field cũ (nếu có) trước khi fill dữ liệu mới
 
   document.getElementById("modalTitle").innerText = isGamesReadOnly
     ? "👁️ Xem chi tiết Boardgame"
@@ -459,7 +511,6 @@ document.addEventListener("click", e => {
 
 /* ══════════════════════════════════════════════
    TRANG CHI TIẾT — event delegation
-   (đã bỏ nhánh QR vì nút "📱 QR" trong bảng không còn nữa)
    ══════════════════════════════════════════════ */
 document.addEventListener("click", e => {
   const detailBtn = e.target.closest(".detail-btn");
