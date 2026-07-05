@@ -4,8 +4,9 @@
 
 let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
 let gameSlugs = { slugById: {}, idBySlug: {} };
+let idxById = new Map();
 
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+const esc = window.escHtml;
 function diffClass(d){ return d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium' }
 function getYtId(url){
   if(!url||url.includes('/None')) return null;
