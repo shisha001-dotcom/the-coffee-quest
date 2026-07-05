@@ -4,8 +4,9 @@
    THAY ĐỔI:
    - Thêm window.getGameById(id) để module dashboard-game-detail.js
      dùng lại dữ liệu games đã fetch, không cần gọi Supabase lại.
-   - Thêm 2 nút trong cột "Hành động": "📄 Chi tiết" (mở trang chi
-     tiết chỉnh sửa trực quan) và "📱 QR" (xem/tải nhanh mã QR).
+   - Cột "Hành động" trong bảng CHỈ còn nút "Sửa/Xem" + "📄 Chi tiết"
+     — đã BỎ nút "📱 QR" và liên kết "▶ YouTube" (theo yêu cầu mới).
+     Mã QR + xem trước YouTube vẫn còn trong trang Chi tiết game.
    - Role "chỉ xem" (window.AdminPermissions.isReadOnly) sẽ:
      + Không thấy nút "+ Thêm Game"
      + Nút trong bảng đổi thành "👁️ Xem" thay vì "✏️ Sửa"
@@ -13,7 +14,7 @@
        khóa (disabled), ẩn nút "💾 Lưu" và "🗑️ Xóa game"
      + saveGame()/deleteGame() cũng chặn ở tầng hàm — phòng
        trường hợp bị gọi trực tiếp qua console.
-   - MỚI: Thể loại giờ là category-picker (chip chọn nhiều, render
+   - Thể loại giờ là category-picker (chip chọn nhiều, render
      bởi window.renderCategoryPicker/getSelectedCategories từ
      js/shared-categories.js) thay vì input text gõ tay. Độ khó
      giờ là <select> (window.populateDifficultySelect) thay vì
@@ -42,7 +43,7 @@ const loadingMsg    = document.getElementById("loadingMsg");
 const errorMsg      = document.getElementById("errorMsg");
 const gameTable     = document.getElementById("gameTable");
 
-/* MỚI: refs cho category picker + difficulty select */
+/* refs cho category picker + difficulty select */
 const categoryPicker   = document.getElementById("categoryPicker");
 const difficultySelect = document.getElementById("difficultyInput");
 
@@ -225,6 +226,8 @@ function difficultyClass(value) {
 
 /* ══════════════════════════════════════════════
    RENDER TABLE
+   (ĐÃ BỎ nút "📱 QR" và link "▶ YouTube" khỏi cột Hành động —
+   chỉ còn nút Sửa/Xem + nút vào Trang chi tiết)
    ══════════════════════════════════════════════ */
 function renderGames(data) {
   if (!data.length) {
@@ -239,7 +242,6 @@ function renderGames(data) {
     const diff   = window.escHtml(game.difficulty || "Medium");
     const cats   = Array.isArray(game.categories) ? game.categories : [];
     const imgSrc = window.escHtml(game.hero_bg || "https://placehold.co/48x48");
-    const ytHref = window.escHtml(game.youtube_url || "#");
     const color  = game.color
       ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${game.color};margin-right:4px;vertical-align:middle"></span>`
       : "";
@@ -262,9 +264,6 @@ function renderGames(data) {
           <button class="btn btn-primary edit-btn" data-id="${game.id}">${actionLabel}</button>
           <button class="btn btn-secondary detail-btn" data-id="${game.id}"
             style="font-size:12px;padding:6px 10px;" title="Trang chi tiết">📄 Chi tiết</button>
-          <button class="btn btn-secondary qr-btn" data-id="${game.id}"
-            style="font-size:12px;padding:6px 10px;" title="Mã QR luật chơi">📱 QR</button>
-          <a class="youtube-link" href="${ytHref}" target="_blank" title="YouTube">▶</a>
         </div>
       </td>
     </tr>`;
@@ -397,7 +396,6 @@ function clearForm() {
   document.getElementById("colorInput") && (document.getElementById("colorInput").value  = "#6c5ce7");
   document.getElementById("colorPicker") && (document.getElementById("colorPicker").value = "#6c5ce7");
 
-  /* MỚI: reset category picker (bỏ chọn hết) + difficulty select */
   window.renderCategoryPicker(categoryPicker, [], isGamesReadOnly);
   window.populateDifficultySelect(difficultySelect, "");
 
@@ -433,7 +431,6 @@ document.addEventListener("click", e => {
     if (el) el.value = val || "";
   });
 
-  /* MỚI: điền difficulty select + category picker thay vì input text */
   window.populateDifficultySelect(difficultySelect, game.difficulty || "");
 
   const cats = Array.isArray(game.categories) ? game.categories : [];
@@ -461,17 +458,13 @@ document.addEventListener("click", e => {
 });
 
 /* ══════════════════════════════════════════════
-   DETAIL PAGE + QR — event delegation
+   TRANG CHI TIẾT — event delegation
+   (đã bỏ nhánh QR vì nút "📱 QR" trong bảng không còn nữa)
    ══════════════════════════════════════════════ */
 document.addEventListener("click", e => {
   const detailBtn = e.target.closest(".detail-btn");
   if (detailBtn && typeof window.openGameDetail === "function") {
     window.openGameDetail(Number(detailBtn.dataset.id));
-    return;
-  }
-  const qrBtn = e.target.closest(".qr-btn");
-  if (qrBtn && typeof window.openGameQR === "function") {
-    window.openGameQR(Number(qrBtn.dataset.id));
   }
 });
 
