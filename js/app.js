@@ -59,6 +59,7 @@ async function loadPage(pageName){
     window.scrollTo(0, 0);
     if(pageName === 'boardgame') initBoardgame();
     if(pageName === 'settings')  initSettings();
+    if(pageName === 'membership') initMembership();
     if(pageName === 'news')      renderDailyPick();
   } catch(e){
     app.innerHTML = '<div style="padding:60px 24px;text-align:center">'
@@ -97,6 +98,11 @@ function goSettings(){
   closeMenu();
   if(location.hash === '#settings'){ routeFromHash(); return; }
   location.hash = 'settings';
+}
+function goMembership(){
+  closeMenu();
+  if(location.hash === '#membership'){ routeFromHash(); return; }
+  location.hash = 'membership';
 }
 
 /* ═══ BOARDGAME — List & Detail ═══ */
@@ -304,6 +310,55 @@ function initSettings(){
   if(input) input.value = localStorage.getItem('tcq_username') || '';
 }
 
+/* ═══ MEMBERSHIP LOOKUP ═══ */
+function initMembership(){
+  document.getElementById('member-lookup-btn')?.addEventListener('click', lookupMembership);
+  document.getElementById('member-phone-input')?.addEventListener('keydown', e=>{
+    if(e.key === 'Enter') lookupMembership();
+  });
+}
+
+async function lookupMembership(){
+  const input  = document.getElementById('member-phone-input');
+  const result = document.getElementById('member-result');
+  const phone  = input.value.trim();
+  if(!phone){ input.focus(); return; }
+
+  result.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px;">⏳ Đang tra cứu...</p>';
+
+  try{
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+    const supabase = createClient(window.APP_CONFIG.supabaseUrl, window.APP_CONFIG.supabaseKey);
+    const { data, error } = await supabase.rpc('get_membership_by_phone', { p_phone: phone });
+
+    if(error) throw error;
+    const m = data && data[0];
+    if(!m){ result.innerHTML = '<div class="member-not-found">🔍 Không tìm thấy khách hàng với số điện thoại này.<br>Vui lòng liên hệ quầy để đăng ký thẻ thành viên.</div>'; return; }
+
+    const pct = m.xp_required_next
+      ? Math.min(100, Math.round((m.xp - m.xp_required_current) / (m.xp_required_next - m.xp_required_current) * 100))
+      : 100;
+
+    const perks = [
+      m.discount_pct > 0 ? `<span class="member-perk-chip">💸 Giảm ${m.discount_pct}%</span>` : '',
+      m.free_item        ? `<span class="member-perk-chip">🎁 ${esc(m.free_item)}</span>` : '',
+      m.priority_booking  ? `<span class="member-perk-chip">⭐ Ưu tiên đặt bàn/slot game</span>` : '',
+    ].filter(Boolean).join('') || '<span style="color:var(--muted);font-size:.85rem;">Chưa có ưu đãi ở cấp này</span>';
+
+    result.innerHTML = `
+      <div class="member-card">
+        <div class="member-rank">${m.rank_icon} ${esc(m.name)} — ${esc(m.rank_name)}</div>
+        <div class="member-xp-bar-outer"><div class="member-xp-bar-fill" style="width:${pct}%"></div></div>
+        <div class="member-xp-label">${m.xp} XP ${m.xp_required_next ? `· cần ${m.xp_required_next} XP để lên cấp tiếp theo` : '· Cấp cao nhất 🎉'}</div>
+        <div class="member-perks">${perks}</div>
+        <div style="margin-top:16px;font-size:.82rem;color:var(--muted);">🔥 Streak: ${m.streak_days || 0} ngày · Check-in gần nhất: ${m.last_checkin || '—'}</div>
+      </div>`;
+  }catch(err){
+    console.error(err);
+    result.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px;">⚠️ Có lỗi khi tra cứu, thử lại sau.</p>';
+  }
+}
+
 function saveUsernameSettings(){
   const input = document.getElementById('settings-username');
   if(!input) return;
@@ -363,6 +418,8 @@ function routeFromHash(){
     });
   } else if(hash === 'contact'){
     loadPage('contact'); updateHeader('contact'); setActive('goContact');
+  } else if(hash === 'membership'){
+  loadPage('membership'); updateHeader('membership'); setActive('goMembership');
   } else if(hash === 'settings'){
     loadPage('settings'); updateHeader('settings'); setActive('goSettings');
   } else {
