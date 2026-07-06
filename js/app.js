@@ -310,20 +310,66 @@ function initSettings(){
   if(input) input.value = localStorage.getItem('tcq_username') || '';
 }
 
-/* ═══ MEMBERSHIP LOOKUP ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   MEMBERSHIP LOOKUP
+   ─────────────────────────────────────────────────────────────
+   ⚠️ SỬA (audit membership):
+   - Thêm normalizePhoneVN(): chuẩn hoá SĐT (bỏ khoảng trắng/dấu
+     gạch, chuyển +84/84xxx → 0xxx) trước khi gửi lên Supabase —
+     tránh tình trạng "không tìm thấy" chỉ vì gõ khác định dạng so
+     với lúc đăng ký ở quầy.
+   - Validate định dạng SĐT tại client trước khi gọi network, đỡ
+     tốn 1 round-trip vô ích khi người dùng gõ sai/thiếu số.
+   - Khoá nút "Tra cứu" + đổi text khi đang xử lý, tránh bấm liên
+     tục gây gọi API nhiều lần chồng nhau.
+   - Sửa lỗi chia cho 0 / % âm khi tính thanh XP (pct) — trước đây
+     nếu 2 cấp độ liên tiếp có xp_required bằng nhau (lỗi cấu hình)
+     sẽ ra NaN%, hoặc nếu dữ liệu khách lệch cấp có thể ra % âm.
+   - escape thêm m.last_checkin cho an toàn (dù là ngày tháng).
+   ═══════════════════════════════════════════════════════════════ */
 function initMembership(){
+  const input = document.getElementById('member-phone-input');
   document.getElementById('member-lookup-btn')?.addEventListener('click', lookupMembership);
-  document.getElementById('member-phone-input')?.addEventListener('keydown', e=>{
+  input?.addEventListener('keydown', e=>{
     if(e.key === 'Enter') lookupMembership();
   });
+  /* Xoá thông báo lỗi cũ ngay khi người dùng gõ lại */
+  input?.addEventListener('input', ()=>{
+    const result = document.getElementById('member-result');
+    if(result && result.querySelector('.member-not-found')) result.innerHTML = '';
+  });
+}
+
+/* Chuẩn hoá số điện thoại VN: "+84 912 345 678" / "84912345678" / "0912-345-678"
+   → "0912345678". Không cố "sửa đúng" số sai be bét, chỉ xử lý các
+   biến thể phổ biến nhất khi người dùng gõ tay. */
+function normalizePhoneVN(raw){
+  let p = (raw || '').trim().replace(/[\s.\-()]/g, '');
+  if(p.startsWith('+84')) p = '0' + p.slice(3);
+  else if(p.startsWith('84') && p.length > 9) p = '0' + p.slice(2);
+  return p;
 }
 
 async function lookupMembership(){
   const input  = document.getElementById('member-phone-input');
+  const btn    = document.getElementById('member-lookup-btn');
   const result = document.getElementById('member-result');
-  const phone  = input.value.trim();
+  const phone  = normalizePhoneVN(input.value);
+
   if(!phone){ input.focus(); return; }
 
+  /* Validate định dạng cơ bản trước khi gọi network */
+  if(!/^0\d{9,10}$/.test(phone)){
+    result.innerHTML = '<div class="member-not-found">⚠️ Số điện thoại chưa đúng định dạng.<br>Vui lòng nhập dạng: 0912345678</div>';
+    input.focus();
+    return;
+  }
+
+  if(btn){
+    btn.disabled = true;
+    btn.dataset.origText = btn.dataset.origText || btn.textContent;
+    btn.textContent = '⏳ Đang tra...';
+  }
   result.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px;">⏳ Đang tra cứu...</p>';
 
   try{
@@ -333,10 +379,15 @@ async function lookupMembership(){
 
     if(error) throw error;
     const m = data && data[0];
-    if(!m){ result.innerHTML = '<div class="member-not-found">🔍 Không tìm thấy khách hàng với số điện thoại này.<br>Vui lòng liên hệ quầy để đăng ký thẻ thành viên.</div>'; return; }
+    if(!m){
+      result.innerHTML = '<div class="member-not-found">🔍 Không tìm thấy khách hàng với số điện thoại này.<br>Vui lòng liên hệ quầy để đăng ký thẻ thành viên.</div>';
+      return;
+    }
 
-    const pct = m.xp_required_next
-      ? Math.min(100, Math.round((m.xp - m.xp_required_current) / (m.xp_required_next - m.xp_required_current) * 100))
+    /* BUG FIX: guard chia cho 0 + clamp 0-100% */
+    const hasNext = m.xp_required_next != null && m.xp_required_next > m.xp_required_current;
+    const pct = hasNext
+      ? Math.max(0, Math.min(100, Math.round((m.xp - m.xp_required_current) / (m.xp_required_next - m.xp_required_current) * 100)))
       : 100;
 
     const perks = [
@@ -347,15 +398,17 @@ async function lookupMembership(){
 
     result.innerHTML = `
       <div class="member-card">
-        <div class="member-rank">${m.rank_icon} ${esc(m.name)} — ${esc(m.rank_name)}</div>
+        <div class="member-rank">${esc(m.rank_icon)} ${esc(m.name)} — ${esc(m.rank_name)}</div>
         <div class="member-xp-bar-outer"><div class="member-xp-bar-fill" style="width:${pct}%"></div></div>
-        <div class="member-xp-label">${m.xp} XP ${m.xp_required_next ? `· cần ${m.xp_required_next} XP để lên cấp tiếp theo` : '· Cấp cao nhất 🎉'}</div>
+        <div class="member-xp-label">${m.xp} XP ${hasNext ? `· cần ${m.xp_required_next} XP để lên cấp tiếp theo` : '· Cấp cao nhất 🎉'}</div>
         <div class="member-perks">${perks}</div>
-        <div style="margin-top:16px;font-size:.82rem;color:var(--muted);">🔥 Streak: ${m.streak_days || 0} ngày · Check-in gần nhất: ${m.last_checkin || '—'}</div>
+        <div style="margin-top:16px;font-size:.82rem;color:var(--muted);">🔥 Streak: ${m.streak_days || 0} ngày · Check-in gần nhất: ${esc(m.last_checkin) || '—'}</div>
       </div>`;
   }catch(err){
     console.error(err);
     result.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px;">⚠️ Có lỗi khi tra cứu, thử lại sau.</p>';
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = btn.dataset.origText || '🔍 Tra cứu'; }
   }
 }
 
