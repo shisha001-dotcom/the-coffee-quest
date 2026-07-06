@@ -4,15 +4,13 @@
    Hệ thống "Coffee Quest": quản lý khách hàng như nhân vật game —
    check-in, XP, cấp độ (rank), nhiệm vụ, lịch sử thanh toán.
 
-   ⚠️ NGOẠI LỆ PHÂN QUYỀN có chủ đích (khác AdminPermissions.isReadOnly
-   toàn cục — vốn chặn Bar Staff ghi dữ liệu ở MỌI trang khác):
-     - MỌI role đã đăng nhập (kể cả Bar Staff) được: tạo khách mới,
-       check-in, ghi nhận giao dịch, đánh dấu tiến độ nhiệm vụ —
-       vì đây là thao tác vận hành hàng ngày ở quầy.
-     - CHỈ Super Admin & Editor được: xoá khách hàng, cấu hình lại
-       Cấp độ (membership_levels) và Nhiệm vụ (quests).
-   Nếu muốn đổi lại theo đúng rule Bar Staff = chỉ xem như các trang
-   khác, đổi biến `canOperate` bên dưới thành `canManageQuestSystem`.
+   ⚠️ PHÂN QUYỀN (cập nhật mới nhất):
+   - CHỈ Super Admin được thấy và thao tác trang này. Editor và
+     Bar Staff KHÔNG thấy mục "Khách hàng" trong sidebar và không
+     gọi được bất kỳ hàm nào ở đây (chặn cả ở guard đăng ký trang
+     lẫn ở tầng từng hàm, phòng trường hợp gọi trực tiếp qua console).
+   - Áp dụng đúng pattern như admin/modules/dashboard-accounts.js
+     (guard: () => isSuperAdmin).
 
    ══════════════════════════════════════════════
    ⚠️ SỬA (audit membership — 2026):
@@ -27,16 +25,14 @@
    3) Thanh tiến độ XP (pct) trong openCustomerDetail() có thể ra
       NaN% (chia cho 0 khi 2 cấp có xp_required bằng nhau) hoặc %
       âm nếu dữ liệu khách lệch cấp. Đã guard + clamp 0-100.
-   4) Toàn bộ alert()/confirm()/prompt() native (chặn UI thread,
-      không đồng bộ style với showToast()/showConfirm() đã dùng ở
-      mọi module khác) → thay bằng showToast/showConfirm + lỗi báo
-      ngay tại field. addQuestRow() dùng 4 prompt() liên tiếp →
-      thay bằng modal "Nhiệm vụ" dùng chung cho thêm/sửa.
+   4) Toàn bộ alert()/confirm()/prompt() native → thay bằng
+      showToast/showConfirm + lỗi báo ngay tại field. addQuestRow()
+      dùng 4 prompt() liên tiếp → thay bằng modal "Nhiệm vụ" dùng
+      chung cho thêm/sửa.
    5) addCustomerModal/customerDetailModal/questModal: bổ sung đóng
-      bằng Escape + click nền (trước đây chỉ đóng được bằng nút ✕).
-   6) Thêm debounce cho ô tìm kiếm khách hàng (200ms, đồng bộ với
-      các module khác).
-   7) loadCustomers/loadLevels/loadQuests: thêm hiển thị lỗi rõ ràng
+      bằng Escape + click nền.
+   6) Thêm debounce cho ô tìm kiếm khách hàng (200ms).
+   7) loadCustomers/loadLevels/loadQuests: hiển thị lỗi rõ ràng
       thay vì chỉ console.error() im lặng.
    8) Chuẩn hoá số điện thoại (bỏ khoảng trắng/dấu gạch, +84 → 0)
       trước khi tạo khách / kiểm tra trùng SĐT.
@@ -44,15 +40,19 @@
       vụ, tạo khách) để tránh double-click cộng XP/tiền 2 lần.
    10) saveLevels(): thêm validate (XP không âm, % giảm giá 0-100,
        XP phải tăng dần theo cấp) trước khi lưu.
+   11) [MỚI] Giới hạn toàn bộ trang chỉ Super Admin được truy cập
+       và thao tác (trước đây mọi role đăng nhập đều vận hành được).
 
    Cần: client, currentSession, window.AdminPermissions,
    window.escHtml, window.showToast, window.showConfirm (đã load từ trước).
    ══════════════════════════════════════════════ */
 
-const canManageQuestSystem =
-  window.AdminPermissions.isSuperAdmin(currentSession.role) ||
-  currentSession.role === "editor";
-const canOperate = true; /* mọi role đăng nhập đều thao tác vận hành được — xem ghi chú trên */
+const isSuperAdminCust = window.AdminPermissions.isSuperAdmin(currentSession.role);
+
+/* Giữ tên biến cũ để không phải sửa các nơi gọi bên dưới —
+   giờ cả 2 đều chỉ true khi là Super Admin. */
+const canOperate            = isSuperAdminCust;
+const canManageQuestSystem  = isSuperAdminCust;
 
 let allCustomers = [];
 let allLevels    = [];
@@ -74,17 +74,20 @@ function normalizeCustPhone(raw) {
 }
 
 /* ══════════════════════════════════════════════
-   ĐĂNG KÝ MENU + PAGE
+   ĐĂNG KÝ MENU + PAGE — CHỈ SUPER ADMIN
    ══════════════════════════════════════════════ */
 window.AdminDashboard.registerPage({
   pageId: "customersPage",
   menuId: "customersMenuItem",
   icon: "🎮",
   label: "Khách hàng",
+  guard: () => isSuperAdminCust,
   onShow: () => { loadLevels(); loadQuests(); loadCustomers(); },
 });
 
 (function injectCustomersPage() {
+  if (!isSuperAdminCust) return; /* Editor/Bar Staff: không chèn HTML vào DOM luôn */
+
   const main = document.querySelector(".main-content");
   if (!main) return;
 
@@ -204,7 +207,7 @@ window.AdminDashboard.registerPage({
 })();
 
 /* ══════════════════════════════════════════════
-   ĐÓNG MODAL BẰNG ESCAPE / CLICK NỀN — MỚI
+   ĐÓNG MODAL BẰNG ESCAPE / CLICK NỀN
    ══════════════════════════════════════════════ */
 function bindCustomerModalEvents() {
   ["addCustomerModal", "customerDetailModal", "questModal"].forEach(id => {
@@ -245,6 +248,7 @@ function showCustFieldError(id, msg) {
    TABS
    ══════════════════════════════════════════════ */
 function switchCustTab(tab) {
+  if (!isSuperAdminCust) return;
   custActiveTab = tab;
   document.querySelectorAll(".cust-tab-btn").forEach(b => {
     const active = b.dataset.tab === tab;
@@ -294,9 +298,10 @@ function periodKeyFor(type) {
 
 /* ══════════════════════════════════════════════
    LOAD DATA
-   ⚠️ SỬA: hiển thị lỗi rõ ràng cho admin thay vì chỉ console.error im lặng
    ══════════════════════════════════════════════ */
 async function loadCustomers() {
+  if (!isSuperAdminCust) return;
+
   const tbody    = document.getElementById("custTableBody");
   const errorEl  = document.getElementById("custErrorMsg");
   errorEl?.classList.add("hidden");
@@ -312,11 +317,13 @@ async function loadCustomers() {
   renderCustomerTable();
 }
 async function loadLevels() {
+  if (!isSuperAdminCust) return;
   const { data, error } = await client.from("membership_levels").select("*").order("level", { ascending: true });
   if (error) { console.error(error); window.showToast("❌ Lỗi tải cấu hình cấp độ: " + error.message, "#e17055"); return; }
   allLevels = data || [];
 }
 async function loadQuests() {
+  if (!isSuperAdminCust) return;
   const { data, error } = await client.from("quests").select("*").order("id", { ascending: true });
   if (error) { console.error(error); window.showToast("❌ Lỗi tải danh sách nhiệm vụ: " + error.message, "#e17055"); return; }
   allQuests = data || [];
@@ -325,7 +332,6 @@ window.loadCustomers = loadCustomers;
 
 /* ══════════════════════════════════════════════
    RENDER: BẢNG KHÁCH HÀNG
-   ⚠️ SỬA: guard c.name/c.phone null tránh crash toàn bảng
    ══════════════════════════════════════════════ */
 function renderCustomerTable() {
   const tbody = document.getElementById("custTableBody");
@@ -363,6 +369,7 @@ function renderCustomerTable() {
    THÊM KHÁCH HÀNG MỚI
    ══════════════════════════════════════════════ */
 function openAddCustomer() {
+  if (!isSuperAdminCust) return;
   ["newCustName", "newCustPhone", "newCustAge"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("newCustGender").value = "";
   clearCustFieldError("newCustName");
@@ -373,7 +380,7 @@ function openAddCustomer() {
 window.openAddCustomer = openAddCustomer;
 
 async function saveNewCustomer() {
-  if (_custActionBusy) return;
+  if (!isSuperAdminCust || _custActionBusy) return;
 
   const nameInput  = document.getElementById("newCustName");
   const phoneInput = document.getElementById("newCustPhone");
@@ -420,9 +427,10 @@ window.saveNewCustomer = saveNewCustomer;
 
 /* ══════════════════════════════════════════════
    CHI TIẾT KHÁCH HÀNG (modal)
-   ⚠️ SỬA: guard chia cho 0 / clamp % thanh XP
    ══════════════════════════════════════════════ */
 async function openCustomerDetail(id) {
+  if (!isSuperAdminCust) return;
+
   openDetailId = id;
   const cust = allCustomers.find(c => c.id === id);
   if (!cust) return;
@@ -433,7 +441,6 @@ async function openCustomerDetail(id) {
   const info      = getLevelInfo(cust.level);
   const nextInfo  = getNextLevelInfo(cust.level);
 
-  /* BUG FIX: guard chia cho 0 khi 2 cấp có xp_required bằng nhau + clamp 0-100 */
   let pct = 100;
   if (nextInfo && nextInfo.xp_required > info.xp_required) {
     pct = Math.max(0, Math.min(100, Math.round((cust.xp - info.xp_required) / (nextInfo.xp_required - info.xp_required) * 100)));
@@ -459,7 +466,7 @@ async function openCustomerDetail(id) {
           <div style="font-weight:700;font-size:13px;">${done ? "✅" : "▫️"} ${window.escHtml(q.title)}</div>
           <div style="font-size:11px;color:var(--text-muted);">${q.type === 'daily' ? 'Hàng ngày' : q.type === 'weekly' ? 'Hàng tuần' : 'Một lần'} · +${q.xp_reward} XP · ${progress}/${q.target_count}</div>
         </div>
-        ${canOperate ? `<button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" ${done ? 'disabled' : ''} onclick="markQuestProgress(${id},${q.id})">${done ? 'Đã xong' : '+1 tiến độ'}</button>` : ''}
+        <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" ${done ? 'disabled' : ''} onclick="markQuestProgress(${id},${q.id})">${done ? 'Đã xong' : '+1 tiến độ'}</button>
       </div>`;
   }).join("");
 
@@ -487,18 +494,17 @@ async function openCustomerDetail(id) {
     </div>
 
     <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
-      <button class="btn ${checkedInToday ? 'btn-secondary' : 'btn-primary'}" ${checkedInToday || !canOperate ? 'disabled' : ''} onclick="checkinCustomer(${id})">
+      <button class="btn ${checkedInToday ? 'btn-secondary' : 'btn-primary'}" ${checkedInToday ? 'disabled' : ''} onclick="checkinCustomer(${id})">
         ${checkedInToday ? '✅ Đã check-in hôm nay' : '✅ Check-in hôm nay'}
       </button>
       <div style="font-size:12px;color:var(--text-muted);align-self:center;">🔥 Streak: ${cust.streak_days || 0} ngày · Tổng chi tiêu: <b>${formatVND(cust.total_spent)}</b></div>
     </div>
 
-    ${canOperate ? `
     <div style="display:flex;gap:8px;margin-bottom:20px;">
       <input type="number" id="txAmountInput" placeholder="Số tiền (đ)" min="0" style="flex:1;height:40px;border:1px solid var(--border);border-radius:8px;padding:0 12px;">
       <input type="text" id="txNoteInput" placeholder="Ghi chú (vd: 2 cà phê sữa)" style="flex:2;height:40px;border:1px solid var(--border);border-radius:8px;padding:0 12px;">
       <button class="btn btn-primary" onclick="addTransaction(${id})">💰 Ghi nhận</button>
-    </div>` : ''}
+    </div>
 
     <div style="font-size:13px;font-weight:700;margin-bottom:8px;">🗺️ Nhiệm vụ đang diễn ra</div>
     ${activeQuests || '<div style="color:var(--text-muted);font-size:13px;">Chưa có nhiệm vụ nào đang mở.</div>'}
@@ -506,10 +512,9 @@ async function openCustomerDetail(id) {
     <div style="font-size:13px;font-weight:700;margin:18px 0 8px;">💰 Giao dịch gần nhất</div>
     <table class="game-table"><thead><tr><th>Ngày</th><th>Số tiền</th><th>Ghi chú</th></tr></thead><tbody>${txRows}</tbody></table>
 
-    ${canManageQuestSystem ? `
     <div class="modal-actions">
       <button class="btn btn-danger" onclick="deleteCustomer(${id})">🗑️ Xoá khách hàng</button>
-    </div>` : ''}
+    </div>
   `;
 
   document.getElementById("customerDetailModal").classList.remove("hidden");
@@ -518,13 +523,9 @@ window.openCustomerDetail = openCustomerDetail;
 
 /* ══════════════════════════════════════════════
    CHECK-IN
-   ⚠️ SỬA BUG NGHIÊM TRỌNG: trước đây KHÔNG kiểm tra lỗi khi insert
-   vào customer_checkins — nếu ghi log check-in thất bại, code vẫn
-   cộng XP/streak cho khách như thành công. Đã bắt lỗi + throw.
-   Thêm khoá _custActionBusy tránh double-click cộng XP 2 lần.
    ══════════════════════════════════════════════ */
 async function checkinCustomer(id) {
-  if (!canOperate || _custActionBusy) return;
+  if (!isSuperAdminCust || _custActionBusy) return;
   const cust = allCustomers.find(c => c.id === id);
   if (!cust) return;
 
@@ -544,7 +545,7 @@ async function checkinCustomer(id) {
   _custActionBusy = true;
   try {
     const { error: ckErr } = await client.from("customer_checkins").insert({ customer_id: id, xp_earned: xpEarned });
-    if (ckErr) throw ckErr; /* ⚠️ SỬA: trước đây bỏ qua lỗi này */
+    if (ckErr) throw ckErr;
 
     const { error } = await client.from("customers")
       .update({ xp: newXp, level: newLevel, streak_days: newStreak, last_checkin: today })
@@ -563,13 +564,10 @@ async function checkinCustomer(id) {
 window.checkinCustomer = checkinCustomer;
 
 /* ══════════════════════════════════════════════
-   GHI NHẬN GIAO DỊCH (không tự sinh XP)
-   ⚠️ SỬA BUG NGHIÊM TRỌNG: trước đây KHÔNG kiểm tra lỗi khi insert
-   vào customer_transactions — nếu ghi giao dịch thất bại, total_spent
-   vẫn bị cộng dồn, gây lệch số liệu. Đã bắt lỗi + throw.
+   GHI NHẬN GIAO DỊCH
    ══════════════════════════════════════════════ */
 async function addTransaction(id) {
-  if (!canOperate || _custActionBusy) return;
+  if (!isSuperAdminCust || _custActionBusy) return;
   const amountInput = document.getElementById("txAmountInput");
   const noteInput    = document.getElementById("txNoteInput");
   const amount = Number(amountInput.value);
@@ -588,7 +586,7 @@ async function addTransaction(id) {
       customer_id: id, amount, note,
       staff_name: currentSession.displayName || currentSession.username,
     });
-    if (txErr) throw txErr; /* ⚠️ SỬA: trước đây bỏ qua lỗi này */
+    if (txErr) throw txErr;
 
     const { error } = await client.from("customers")
       .update({ total_spent: (cust.total_spent || 0) + amount }).eq("id", id);
@@ -607,12 +605,9 @@ window.addTransaction = addTransaction;
 
 /* ══════════════════════════════════════════════
    NHIỆM VỤ — CẬP NHẬT TIẾN ĐỘ
-   ⚠️ SỬA BUG NGHIÊM TRỌNG: trước đây KHÔNG kiểm tra lỗi khi update/
-   insert vào customer_quests — nếu lưu tiến độ thất bại, code vẫn
-   cộng XP hoàn thành nhiệm vụ cho khách. Đã bắt lỗi + throw.
    ══════════════════════════════════════════════ */
 async function markQuestProgress(customerId, questId) {
-  if (!canOperate || _custActionBusy) return;
+  if (!isSuperAdminCust || _custActionBusy) return;
   const quest = allQuests.find(q => q.id === questId);
   const cust  = allCustomers.find(c => c.id === customerId);
   if (!quest || !cust) return;
@@ -633,13 +628,13 @@ async function markQuestProgress(customerId, questId) {
       const { error: upErr } = await client.from("customer_quests").update({
         progress: newProgress, completed: isDone, completed_at: isDone ? new Date().toISOString() : null,
       }).eq("id", existing.id);
-      if (upErr) throw upErr; /* ⚠️ SỬA: trước đây bỏ qua lỗi này */
+      if (upErr) throw upErr;
     } else {
       const { error: insErr } = await client.from("customer_quests").insert({
         customer_id: customerId, quest_id: questId, period_key: pk,
         progress: newProgress, completed: isDone, completed_at: isDone ? new Date().toISOString() : null,
       });
-      if (insErr) throw insErr; /* ⚠️ SỬA: trước đây bỏ qua lỗi này */
+      if (insErr) throw insErr;
     }
 
     if (isDone) {
@@ -663,11 +658,10 @@ async function markQuestProgress(customerId, questId) {
 window.markQuestProgress = markQuestProgress;
 
 /* ══════════════════════════════════════════════
-   XOÁ KHÁCH HÀNG (chỉ Editor/Super Admin)
-   ⚠️ SỬA: confirm() → showConfirm(); alert() → showToast()
+   XOÁ KHÁCH HÀNG
    ══════════════════════════════════════════════ */
 async function deleteCustomer(id) {
-  if (!canManageQuestSystem) return;
+  if (!isSuperAdminCust) return;
   const cust = allCustomers.find(c => c.id === id);
 
   const ok = await window.showConfirm({
@@ -693,8 +687,6 @@ window.deleteCustomer = deleteCustomer;
 
 /* ══════════════════════════════════════════════
    TAB: CẤU HÌNH NHIỆM VỤ
-   ⚠️ SỬA: nút "+ Thêm nhiệm vụ" (prompt) → mở modal chuẩn;
-   thêm nút "✏️ Sửa" cho từng nhiệm vụ (trước đây chỉ Bật/Tắt/Xoá).
    ══════════════════════════════════════════════ */
 function renderQuestsTab() {
   const wrap = document.getElementById("custTabQuests");
@@ -704,10 +696,10 @@ function renderQuestsTab() {
     <div class="table-card" style="padding:20px 24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div style="font-size:14px;font-weight:700;">Danh sách nhiệm vụ</div>
-        ${canManageQuestSystem ? `<button class="btn btn-primary" onclick="openQuestModal(null)">+ Thêm nhiệm vụ</button>` : ""}
+        <button class="btn btn-primary" onclick="openQuestModal(null)">+ Thêm nhiệm vụ</button>
       </div>
       <table class="game-table">
-        <thead><tr><th>Tên</th><th>Loại</th><th>XP</th><th>Mục tiêu</th><th>Trạng thái</th>${canManageQuestSystem ? "<th>Hành động</th>" : ""}</tr></thead>
+        <thead><tr><th>Tên</th><th>Loại</th><th>XP</th><th>Mục tiêu</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
         <tbody>
           ${allQuests.length ? allQuests.map(q => `
             <tr>
@@ -716,13 +708,13 @@ function renderQuestsTab() {
               <td>${q.xp_reward} XP</td>
               <td>${q.target_count}</td>
               <td>${q.active ? '<span class="badge">Đang mở</span>' : '<span class="badge" style="background:#f1f5f9;color:#888;">Tắt</span>'}</td>
-              ${canManageQuestSystem ? `<td style="display:flex;gap:6px;flex-wrap:wrap;">
+              <td style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button class="btn btn-secondary" style="font-size:12px;padding:6px 10px;" onclick="editQuestRow(${q.id})">✏️ Sửa</button>
                 <button class="btn btn-secondary" style="font-size:12px;padding:6px 10px;" onclick="toggleQuestActive(${q.id})">${q.active ? "Tắt" : "Bật"}</button>
                 <button class="btn btn-danger" style="font-size:12px;padding:6px 10px;" onclick="deleteQuest(${q.id})">🗑️</button>
-              </td>` : ""}
+              </td>
             </tr>
-          `).join("") : `<tr><td colspan="${canManageQuestSystem ? 6 : 5}" style="text-align:center;padding:30px;color:var(--text-muted);">Chưa có nhiệm vụ nào.</td></tr>`}
+          `).join("") : `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted);">Chưa có nhiệm vụ nào.</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -730,7 +722,7 @@ function renderQuestsTab() {
 }
 
 async function toggleQuestActive(id) {
-  if (!canManageQuestSystem) return;
+  if (!isSuperAdminCust) return;
   const q = allQuests.find(x => x.id === id);
   if (!q) return;
   try {
@@ -745,7 +737,7 @@ async function toggleQuestActive(id) {
 window.toggleQuestActive = toggleQuestActive;
 
 async function deleteQuest(id) {
-  if (!canManageQuestSystem) return;
+  if (!isSuperAdminCust) return;
   const ok = await window.showConfirm({
     title: "Xoá nhiệm vụ này?",
     message: "Tiến độ khách hàng liên quan đến nhiệm vụ này cũng sẽ bị xoá. Hành động không thể hoàn tác.",
@@ -767,10 +759,10 @@ async function deleteQuest(id) {
 window.deleteQuest = deleteQuest;
 
 /* ══════════════════════════════════════════════
-   MODAL NHIỆM VỤ — thay thế addQuestRow() dùng prompt() cũ
+   MODAL NHIỆM VỤ
    ══════════════════════════════════════════════ */
 function openQuestModal(id) {
-  if (!canManageQuestSystem) return;
+  if (!isSuperAdminCust) return;
   const q = id ? allQuests.find(x => x.id === id) : null;
 
   document.getElementById("questId").value    = q ? q.id : "";
@@ -789,7 +781,7 @@ function closeQuestModal() {
   document.getElementById("questModal").classList.add("hidden");
 }
 async function saveQuest() {
-  if (!canManageQuestSystem) return;
+  if (!isSuperAdminCust) return;
 
   const rawId = document.getElementById("questId").value;
   const id    = rawId ? Number(rawId) : null;
@@ -826,22 +818,19 @@ window.openQuestModal = openQuestModal;
 window.closeQuestModal = closeQuestModal;
 window.saveQuest = saveQuest;
 window.editQuestRow = id => openQuestModal(id);
-window.addQuestRow  = () => openQuestModal(null); /* giữ tên cũ để tương thích ngược nếu nơi khác còn gọi */
+window.addQuestRow  = () => openQuestModal(null);
 
 /* ══════════════════════════════════════════════
    TAB: CẤU HÌNH CẤP ĐỘ
-   ⚠️ SỬA: saveLevels() thêm validate (XP không âm, % giảm giá
-   0-100, XP phải tăng dần theo cấp) trước khi lưu.
    ══════════════════════════════════════════════ */
 function renderLevelsTab() {
   const wrap = document.getElementById("custTabLevels");
-  const editable = canManageQuestSystem;
 
   wrap.innerHTML = `
     <div class="table-card" style="padding:20px 24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div style="font-size:14px;font-weight:700;">Cấu hình cấp độ &amp; ưu đãi</div>
-        ${editable ? `<button class="btn btn-primary" onclick="saveLevels()">💾 Lưu tất cả</button>` : ""}
+        <button class="btn btn-primary" onclick="saveLevels()">💾 Lưu tất cả</button>
       </div>
       <table class="game-table">
         <thead><tr><th>Cấp</th><th>XP tối thiểu</th><th>Tên rank</th><th>Icon</th><th>Giảm giá %</th><th>Quà tặng</th><th>Ưu tiên đặt bàn</th></tr></thead>
@@ -849,23 +838,23 @@ function renderLevelsTab() {
           ${allLevels.map(l => `
             <tr data-level="${l.level}">
               <td><b>${l.level}</b></td>
-              <td><input type="number" class="lv-xp" value="${l.xp_required}" min="0" ${editable ? "" : "disabled"} style="width:90px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
-              <td><input type="text" class="lv-name" value="${window.escHtml(l.rank_name)}" ${editable ? "" : "disabled"} style="width:120px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
-              <td><input type="text" class="lv-icon" value="${l.rank_icon || ''}" ${editable ? "" : "disabled"} style="width:50px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;text-align:center;"></td>
-              <td><input type="number" class="lv-discount" value="${l.discount_pct}" min="0" max="100" ${editable ? "" : "disabled"} style="width:70px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
-              <td><input type="text" class="lv-freeitem" value="${window.escHtml(l.free_item || '')}" ${editable ? "" : "disabled"} style="width:160px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
-              <td style="text-align:center;"><input type="checkbox" class="lv-priority" ${l.priority_booking ? "checked" : ""} ${editable ? "" : "disabled"} style="width:18px;height:18px;"></td>
+              <td><input type="number" class="lv-xp" value="${l.xp_required}" min="0" style="width:90px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
+              <td><input type="text" class="lv-name" value="${window.escHtml(l.rank_name)}" style="width:120px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
+              <td><input type="text" class="lv-icon" value="${l.rank_icon || ''}" style="width:50px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;text-align:center;"></td>
+              <td><input type="number" class="lv-discount" value="${l.discount_pct}" min="0" max="100" style="width:70px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
+              <td><input type="text" class="lv-freeitem" value="${window.escHtml(l.free_item || '')}" style="width:160px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
+              <td style="text-align:center;"><input type="checkbox" class="lv-priority" ${l.priority_booking ? "checked" : ""} style="width:18px;height:18px;"></td>
             </tr>
           `).join("")}
         </tbody>
       </table>
-      ${editable ? `<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">Sửa giá trị trong bảng rồi bấm "💾 Lưu tất cả" ở trên để áp dụng.</div>` : ""}
+      <div style="font-size:12px;color:var(--text-muted);margin-top:10px;">Sửa giá trị trong bảng rồi bấm "💾 Lưu tất cả" ở trên để áp dụng.</div>
     </div>
   `;
 }
 
 async function saveLevels() {
-  if (!canManageQuestSystem) return;
+  if (!isSuperAdminCust) return;
   const rows = [...document.querySelectorAll("#custTabLevels tbody tr")].map(tr => ({
     level: Number(tr.dataset.level),
     xp_required: Number(tr.querySelector(".lv-xp").value) || 0,
@@ -876,7 +865,6 @@ async function saveLevels() {
     priority_booking: tr.querySelector(".lv-priority").checked,
   }));
 
-  /* ⚠️ MỚI: validate trước khi lưu — tránh cấu hình vô lý */
   for (const r of rows) {
     if (!r.rank_name) { window.showToast(`⚠️ Cấp ${r.level}: vui lòng nhập tên rank.`, "#e17055"); return; }
     if (r.xp_required < 0) { window.showToast(`⚠️ Cấp ${r.level}: XP tối thiểu không được âm.`, "#e17055"); return; }
