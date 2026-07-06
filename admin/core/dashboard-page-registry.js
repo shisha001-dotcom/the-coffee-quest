@@ -4,19 +4,7 @@
    Nơi DUY NHẤT quản lý việc: hiện/ẩn page trong .main-content
    + tạo menu item tương ứng trong sidebar.
 
-   TRƯỚC ĐÂY: mỗi module (chat, analytics, banners, media,
-   accounts) tự viết một IIFE riêng để:
-     - poll bằng setTimeout(tryInject, 100) chờ .menu-group
-       xuất hiện trong DOM
-     - tự tìm menu item có text "Settings" để chèn trước nó
-     - tự định nghĩa lại logic ẩn/hiện page (window.__showPage)
-
-   → 5 bản gần giống hệt nhau, rất dễ lệch nhau khi sửa 1 chỗ
-     quên sửa chỗ khác, và cơ chế polling che giấu lỗi thật
-     (nếu .menu-group đổi cấu trúc, module âm thầm không hoạt
-     động thay vì báo lỗi rõ ràng).
-
-   BÂY GIỜ: các module gọi AdminDashboard.registerPage({...})
+   Các module gọi AdminDashboard.registerPage({...})
    một lần duy nhất. File này đảm bảo DOM đã sẵn sàng (không cần
    polling vì script đặt cuối <body>, DOM sidebar đã tồn tại).
 
