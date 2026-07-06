@@ -12,6 +12,11 @@
      Vẫn giữ đúng hành vi cũ: nâng cấp #chatMenuItemPlaceholder có
      sẵn trong HTML (đứng cố định trước "Settings" trong group
      "Quản trị"), không tạo phần tử mới.
+
+   ⚠️ SỬA (UI/UX audit — ưu tiên cao):
+   - Nút "🗑️ Xóa chat hôm nay": window.confirm() → window.showConfirm()
+     (modal tùy chỉnh, không chặn UI thread) + lỗi báo qua
+     window.showToast() thay vì alert().
    ══════════════════════════════════════════════ */
 
 import { initializeApp, getApps } from
@@ -97,7 +102,7 @@ window.AdminDashboard.registerPage({
   page.style.display = "none";
   page.innerHTML = `
     <div class="chat-page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:10px;">
-      <button id="chatBackBtn" class="chat-back-btn" title="Quay lại Dashboard">←</button>
+      <button id="chatBackBtn" class="chat-back-btn" title="Quay lại Dashboard" aria-label="Quay lại Dashboard">←</button>
       <div class="chat-page-title" style="min-width:0;flex:1;">
         <h1 style="font-size:26px;font-weight:700;color:var(--text)">💬 Cộng đồng</h1>
         <p class="chat-page-subtitle" style="font-size:14px;color:var(--text-muted);margin-top:4px">
@@ -109,7 +114,7 @@ window.AdminDashboard.registerPage({
         <div class="chat-online-pill" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 16px;font-size:13px;color:var(--text-muted);">
           👥 Online: <b id="adminOnlineCount" style="color:var(--primary)">0</b>
         </div>
-        <button id="chatSidebarToggle" class="btn btn-secondary" title="Tag quán & Trả lời nhanh">
+        <button id="chatSidebarToggle" class="btn btn-secondary" title="Tag quán & Trả lời nhanh" aria-label="Mở bảng tag quán và trả lời nhanh">
           ⚡<span id="chatToggleBadge" class="chat-toggle-badge" style="display:none"></span>
         </button>
         <button id="adminClearChatBtn" class="btn btn-secondary" style="font-size:13px;">
@@ -126,12 +131,13 @@ window.AdminDashboard.registerPage({
           <span id="adminMsgCount" style="font-size:12px;color:var(--text-muted);">0 tin nhắn</span>
         </div>
 
-        <div id="adminChatMessages" class="chat-messages-area" style="flex:1;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-top:none;border-bottom:none;padding:16px 20px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;">
+        <div id="adminChatMessages" class="chat-messages-area" role="log" aria-live="polite" aria-label="Lịch sử chat" style="flex:1;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-top:none;border-bottom:none;padding:16px 20px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;">
           <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:40px 0;">⏳ Đang tải...</div>
         </div>
 
         <div class="chat-input-bar" style="background:var(--card);border:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);padding:14px 16px;display:flex;gap:10px;align-items:flex-end;">
           <div style="flex:1;position:relative;">
+            <label for="adminChatInput" class="visually-hidden">Nhập tin nhắn</label>
             <textarea id="adminChatInput"
               placeholder="Nhập tin nhắn... (Enter gửi, Shift+Enter xuống dòng)"
               style="width:100%;min-height:44px;max-height:120px;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;color:var(--text);outline:none;resize:none;line-height:1.5;transition:border-color .2s;"
@@ -150,7 +156,7 @@ window.AdminDashboard.registerPage({
       <div class="chat-sidebar" style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;">
         <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
           <div style="background:#fff8f3;border-bottom:1px solid #fde8d8;padding:12px 16px;display:flex;align-items:center;gap:8px;">
-            <span style="font-size:16px;">🔔</span>
+            <span style="font-size:16px;" aria-hidden="true">🔔</span>
             <span style="font-size:13px;font-weight:700;color:#c05621;">Tag quán</span>
             <span id="tagBadge" style="display:none;background:#e17055;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;margin-left:auto;"></span>
           </div>
@@ -391,13 +397,21 @@ function initChatLogic() {
     toggleChatSidebar(false);
   });
 
+  /* ⚠️ SỬA (UI/UX audit — ưu tiên cao): window.confirm() → window.showConfirm() */
   document.getElementById("adminClearChatBtn")?.addEventListener("click", async () => {
-    if (!confirm("Xóa toàn bộ lịch sử chat hôm nay?\n\nHành động này không thể hoàn tác!")) return;
+    const ok = await window.showConfirm({
+      title: "Xóa toàn bộ lịch sử chat hôm nay?",
+      message: "Hành động này không thể hoàn tác!",
+      confirmText: "🗑️ Xóa",
+      cancelText: "Hủy",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await remove(msgRef);
       window.showToast("🗑️ Đã xóa toàn bộ chat", "#e17055");
     } catch(err) {
-      alert("Lỗi: " + err.message);
+      window.showToast("❌ Lỗi: " + err.message, "#e17055");
     }
   });
 
