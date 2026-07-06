@@ -14,8 +14,39 @@
    Nếu muốn đổi lại theo đúng rule Bar Staff = chỉ xem như các trang
    khác, đổi biến `canOperate` bên dưới thành `canManageQuestSystem`.
 
+   ══════════════════════════════════════════════
+   ⚠️ SỬA (audit membership — 2026):
+   1) BUG NGHIÊM TRỌNG (data integrity): checkinCustomer(),
+      addTransaction(), markQuestProgress() trước đây KHÔNG kiểm
+      tra lỗi của lệnh insert/update đầu tiên (customer_checkins /
+      customer_transactions / customer_quests) — nếu ghi thất bại,
+      code vẫn cộng XP / tiền / hoàn thành nhiệm vụ như thành công,
+      gây lệch dữ liệu giữa các bảng. Đã bắt lỗi + throw đúng chỗ.
+   2) renderCustomerTable(): filter theo tên/SĐT có thể throw nếu
+      c.name/c.phone null → vỡ cả bảng khách hàng. Đã thêm guard.
+   3) Thanh tiến độ XP (pct) trong openCustomerDetail() có thể ra
+      NaN% (chia cho 0 khi 2 cấp có xp_required bằng nhau) hoặc %
+      âm nếu dữ liệu khách lệch cấp. Đã guard + clamp 0-100.
+   4) Toàn bộ alert()/confirm()/prompt() native (chặn UI thread,
+      không đồng bộ style với showToast()/showConfirm() đã dùng ở
+      mọi module khác) → thay bằng showToast/showConfirm + lỗi báo
+      ngay tại field. addQuestRow() dùng 4 prompt() liên tiếp →
+      thay bằng modal "Nhiệm vụ" dùng chung cho thêm/sửa.
+   5) addCustomerModal/customerDetailModal/questModal: bổ sung đóng
+      bằng Escape + click nền (trước đây chỉ đóng được bằng nút ✕).
+   6) Thêm debounce cho ô tìm kiếm khách hàng (200ms, đồng bộ với
+      các module khác).
+   7) loadCustomers/loadLevels/loadQuests: thêm hiển thị lỗi rõ ràng
+      thay vì chỉ console.error() im lặng.
+   8) Chuẩn hoá số điện thoại (bỏ khoảng trắng/dấu gạch, +84 → 0)
+      trước khi tạo khách / kiểm tra trùng SĐT.
+   9) Khoá nút khi đang xử lý (check-in, giao dịch, tiến độ nhiệm
+      vụ, tạo khách) để tránh double-click cộng XP/tiền 2 lần.
+   10) saveLevels(): thêm validate (XP không âm, % giảm giá 0-100,
+       XP phải tăng dần theo cấp) trước khi lưu.
+
    Cần: client, currentSession, window.AdminPermissions,
-   window.escHtml, window.showToast (đã load từ trước).
+   window.escHtml, window.showToast, window.showConfirm (đã load từ trước).
    ══════════════════════════════════════════════ */
 
 const canManageQuestSystem =
@@ -29,6 +60,18 @@ let allQuests    = [];
 let custActiveTab = "list";
 let custSearchQ    = "";
 let openDetailId   = null;
+
+/* Khoá thao tác nhanh (check-in / giao dịch / tiến độ nhiệm vụ / tạo khách)
+   để tránh double-click gây cộng XP/tiền 2 lần. */
+let _custActionBusy = false;
+
+/* Chuẩn hoá số điện thoại VN: "+84 912 345 678" / "0912-345-678" → "0912345678" */
+function normalizeCustPhone(raw) {
+  let p = (raw || "").trim().replace(/[\s.\-()]/g, "");
+  if (p.startsWith("+84")) p = "0" + p.slice(3);
+  else if (p.startsWith("84") && p.length > 9) p = "0" + p.slice(2);
+  return p;
+}
 
 /* ══════════════════════════════════════════════
    ĐĂNG KÝ MENU + PAGE
@@ -71,6 +114,7 @@ window.AdminDashboard.registerPage({
         <input type="text" id="custSearchInput" class="search-input" placeholder="🔍 Tìm theo tên hoặc số điện thoại...">
       </div>
       <div class="table-card">
+        <div id="custErrorMsg" class="error-msg hidden" role="alert"></div>
         <table class="game-table">
           <thead><tr>
             <th>Khách hàng</th><th>Cấp độ</th><th>XP</th><th>Đã chi tiêu</th><th>Check-in gần nhất</th><th>Hành động</th>
@@ -84,18 +128,18 @@ window.AdminDashboard.registerPage({
     <div id="custTabLevels" style="display:none;"></div>
 
     <!-- Modal thêm khách -->
-    <div class="modal-overlay hidden" id="addCustomerModal">
+    <div class="modal-overlay hidden" id="addCustomerModal" role="dialog" aria-modal="true" aria-labelledby="addCustomerModalTitle">
       <div class="modal-box" style="max-width:480px;">
         <div class="modal-header">
-          <h2>➕ Thêm khách hàng mới</h2>
-          <button class="close-btn" onclick="document.getElementById('addCustomerModal').classList.add('hidden')">✕</button>
+          <h2 id="addCustomerModalTitle">➕ Thêm khách hàng mới</h2>
+          <button class="close-btn" aria-label="Đóng cửa sổ" onclick="document.getElementById('addCustomerModal').classList.add('hidden')">✕</button>
         </div>
         <div class="form-grid" style="grid-template-columns:1fr;">
-          <div class="form-group"><label>Tên *</label><input type="text" id="newCustName" placeholder="Nguyễn Văn A"></div>
-          <div class="form-group"><label>Số điện thoại *</label><input type="text" id="newCustPhone" placeholder="09xxxxxxxx"></div>
-          <div class="form-group"><label>Tuổi</label><input type="number" id="newCustAge" placeholder="25"></div>
+          <div class="form-group"><label for="newCustName">Tên *</label><input type="text" id="newCustName" placeholder="Nguyễn Văn A"></div>
+          <div class="form-group"><label for="newCustPhone">Số điện thoại *</label><input type="tel" id="newCustPhone" placeholder="09xxxxxxxx" inputmode="tel"></div>
+          <div class="form-group"><label for="newCustAge">Tuổi</label><input type="number" id="newCustAge" placeholder="25" min="0"></div>
           <div class="form-group">
-            <label>Giới tính</label>
+            <label for="newCustGender">Giới tính</label>
             <select id="newCustGender" style="height:44px;border-radius:10px;border:1px solid var(--border);padding:0 14px;font-size:14px;font-family:'Inter',sans-serif;">
               <option value="">-- Không rõ --</option>
               <option value="nam">Nam</option>
@@ -111,17 +155,91 @@ window.AdminDashboard.registerPage({
     </div>
 
     <!-- Modal chi tiết khách -->
-    <div class="modal-overlay hidden" id="customerDetailModal">
+    <div class="modal-overlay hidden" id="customerDetailModal" role="dialog" aria-modal="true">
       <div class="modal-box" style="max-width:640px;" id="customerDetailBox"></div>
+    </div>
+
+    <!-- Modal thêm/sửa nhiệm vụ -->
+    <div class="modal-overlay hidden" id="questModal" role="dialog" aria-modal="true" aria-labelledby="questModalTitle">
+      <div class="modal-box" style="max-width:480px;">
+        <div class="modal-header">
+          <h2 id="questModalTitle">➕ Thêm nhiệm vụ</h2>
+          <button class="close-btn" aria-label="Đóng cửa sổ" onclick="closeQuestModal()">✕</button>
+        </div>
+        <input type="hidden" id="questId">
+        <div class="form-grid" style="grid-template-columns:1fr;">
+          <div class="form-group"><label for="questTitle">Tên nhiệm vụ *</label><input type="text" id="questTitle" placeholder="Uống 3 ly cà phê trong tuần"></div>
+          <div class="form-group"><label for="questDesc">Mô tả</label><input type="text" id="questDesc" placeholder="Mô tả ngắn (tuỳ chọn)"></div>
+          <div class="form-group">
+            <label for="questType">Loại *</label>
+            <select id="questType" style="height:44px;border-radius:10px;border:1px solid var(--border);padding:0 14px;font-size:14px;font-family:'Inter',sans-serif;">
+              <option value="daily">Hàng ngày</option>
+              <option value="weekly">Hàng tuần</option>
+              <option value="onetime">Một lần</option>
+            </select>
+          </div>
+          <div class="form-group"><label for="questXp">XP thưởng *</label><input type="number" id="questXp" min="1" value="10"></div>
+          <div class="form-group"><label for="questTarget">Số lần cần hoàn thành *</label><input type="number" id="questTarget" min="1" value="1"></div>
+        </div>
+        <div class="modal-actions" style="justify-content:flex-end;">
+          <button class="btn btn-primary" onclick="saveQuest()">💾 Lưu nhiệm vụ</button>
+        </div>
+      </div>
     </div>
   `;
   main.appendChild(page);
 
-  document.getElementById("custSearchInput").addEventListener("input", e => {
-    custSearchQ = e.target.value.toLowerCase();
-    renderCustomerTable();
+  const searchInput = document.getElementById("custSearchInput");
+  let _custSearchTimer;
+  searchInput.addEventListener("input", e => {
+    clearTimeout(_custSearchTimer);
+    const val = e.target.value;
+    _custSearchTimer = setTimeout(() => {
+      custSearchQ = val.toLowerCase();
+      renderCustomerTable();
+    }, 200);
   });
+
+  bindCustomerModalEvents();
 })();
+
+/* ══════════════════════════════════════════════
+   ĐÓNG MODAL BẰNG ESCAPE / CLICK NỀN — MỚI
+   ══════════════════════════════════════════════ */
+function bindCustomerModalEvents() {
+  ["addCustomerModal", "customerDetailModal", "questModal"].forEach(id => {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
+    modal.addEventListener("keydown", e => { if (e.key === "Escape") modal.classList.add("hidden"); });
+  });
+}
+
+/* ══════════════════════════════════════════════
+   VALIDATE FIELD ERROR (đồng bộ style với các module khác)
+   ══════════════════════════════════════════════ */
+function clearCustFieldError(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = "";
+  document.getElementById(id + "Error")?.remove();
+}
+function showCustFieldError(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = "var(--danger)";
+  el.focus();
+  let err = document.getElementById(id + "Error");
+  if (!err) {
+    err = document.createElement("div");
+    err.id = id + "Error";
+    err.setAttribute("role", "alert");
+    err.style.cssText = "color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;";
+    el.insertAdjacentElement("afterend", err);
+  }
+  err.textContent = msg;
+  el.addEventListener("input", () => clearCustFieldError(id), { once: true });
+}
 
 /* ══════════════════════════════════════════════
    TABS
@@ -152,7 +270,7 @@ function getLevelForXp(xp) {
   return lvl;
 }
 function getLevelInfo(level) {
-  return allLevels.find(l => l.level === level) || { rank_name: "—", rank_icon: "⭐" };
+  return allLevels.find(l => l.level === level) || { rank_name: "—", rank_icon: "⭐", xp_required: 0 };
 }
 function getNextLevelInfo(level) {
   return allLevels.find(l => l.level === level + 1) || null;
@@ -176,38 +294,52 @@ function periodKeyFor(type) {
 
 /* ══════════════════════════════════════════════
    LOAD DATA
+   ⚠️ SỬA: hiển thị lỗi rõ ràng cho admin thay vì chỉ console.error im lặng
    ══════════════════════════════════════════════ */
 async function loadCustomers() {
+  const tbody    = document.getElementById("custTableBody");
+  const errorEl  = document.getElementById("custErrorMsg");
+  errorEl?.classList.add("hidden");
+
   const { data, error } = await client.from("customers").select("*").order("xp", { ascending: false });
-  if (error) { console.error(error); return; }
+  if (error) {
+    console.error(error);
+    if (errorEl) { errorEl.textContent = "❌ Lỗi khi tải danh sách khách hàng: " + error.message; errorEl.classList.remove("hidden"); }
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger);">Không tải được dữ liệu.</td></tr>`;
+    return;
+  }
   allCustomers = data || [];
   renderCustomerTable();
 }
 async function loadLevels() {
   const { data, error } = await client.from("membership_levels").select("*").order("level", { ascending: true });
-  if (error) { console.error(error); return; }
+  if (error) { console.error(error); window.showToast("❌ Lỗi tải cấu hình cấp độ: " + error.message, "#e17055"); return; }
   allLevels = data || [];
 }
 async function loadQuests() {
   const { data, error } = await client.from("quests").select("*").order("id", { ascending: true });
-  if (error) { console.error(error); return; }
+  if (error) { console.error(error); window.showToast("❌ Lỗi tải danh sách nhiệm vụ: " + error.message, "#e17055"); return; }
   allQuests = data || [];
 }
 window.loadCustomers = loadCustomers;
 
 /* ══════════════════════════════════════════════
    RENDER: BẢNG KHÁCH HÀNG
+   ⚠️ SỬA: guard c.name/c.phone null tránh crash toàn bảng
    ══════════════════════════════════════════════ */
 function renderCustomerTable() {
   const tbody = document.getElementById("custTableBody");
   if (!tbody) return;
 
-  const list = allCustomers.filter(c =>
-    !custSearchQ || c.name.toLowerCase().includes(custSearchQ) || c.phone.includes(custSearchQ)
-  );
+  const list = allCustomers.filter(c => {
+    if (!custSearchQ) return true;
+    const name  = (c.name  || "").toLowerCase();
+    const phone = c.phone || "";
+    return name.includes(custSearchQ) || phone.includes(custSearchQ);
+  });
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Chưa có khách hàng nào.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">${allCustomers.length ? "Không tìm thấy khách hàng phù hợp." : "Chưa có khách hàng nào."}</td></tr>`;
     return;
   }
 
@@ -215,8 +347,8 @@ function renderCustomerTable() {
     const info = getLevelInfo(c.level);
     return `<tr>
       <td>
-        <div class="game-name">${window.escHtml(c.name)}</div>
-        <div class="game-id">📞 ${window.escHtml(c.phone)}</div>
+        <div class="game-name">${window.escHtml(c.name || "(chưa có tên)")}</div>
+        <div class="game-id">📞 ${window.escHtml(c.phone || "—")}</div>
       </td>
       <td><span class="badge">${info.rank_icon} ${window.escHtml(info.rank_name)}</span></td>
       <td style="font-weight:700;color:var(--primary);">${c.xp} XP</td>
@@ -233,22 +365,41 @@ function renderCustomerTable() {
 function openAddCustomer() {
   ["newCustName", "newCustPhone", "newCustAge"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("newCustGender").value = "";
+  clearCustFieldError("newCustName");
+  clearCustFieldError("newCustPhone");
   document.getElementById("addCustomerModal").classList.remove("hidden");
+  document.getElementById("newCustName").focus();
 }
 window.openAddCustomer = openAddCustomer;
 
 async function saveNewCustomer() {
-  const name  = document.getElementById("newCustName").value.trim();
-  const phone = document.getElementById("newCustPhone").value.trim();
+  if (_custActionBusy) return;
+
+  const nameInput  = document.getElementById("newCustName");
+  const phoneInput = document.getElementById("newCustPhone");
+  const name  = nameInput.value.trim();
+  const phone = normalizeCustPhone(phoneInput.value);
   const age   = Number(document.getElementById("newCustAge").value) || null;
   const gender = document.getElementById("newCustGender").value || null;
 
-  if (!name)  { alert("Vui lòng nhập tên."); return; }
-  if (!phone) { alert("Vui lòng nhập số điện thoại."); return; }
+  clearCustFieldError("newCustName");
+  clearCustFieldError("newCustPhone");
+
+  if (!name) { showCustFieldError("newCustName", "Vui lòng nhập tên."); return; }
+  if (!phone || !/^0\d{9,10}$/.test(phone)) {
+    showCustFieldError("newCustPhone", "Số điện thoại không hợp lệ (VD: 0912345678).");
+    return;
+  }
+
+  const btn = document.querySelector("#addCustomerModal .btn-primary");
+  _custActionBusy = true;
+  if (btn) { btn.disabled = true; btn.textContent = "Đang tạo..."; }
 
   try {
-    const { data: existing } = await client.from("customers").select("id").eq("phone", phone).maybeSingle();
-    if (existing) { alert("Số điện thoại này đã tồn tại trong hệ thống."); return; }
+    const { data: existing, error: checkErr } = await client
+      .from("customers").select("id").eq("phone", phone).maybeSingle();
+    if (checkErr) throw checkErr;
+    if (existing) { showCustFieldError("newCustPhone", "Số điện thoại này đã tồn tại trong hệ thống."); return; }
 
     const { data, error } = await client.from("customers")
       .insert({ name, phone, age, gender }).select().single();
@@ -259,13 +410,17 @@ async function saveNewCustomer() {
     await loadCustomers();
     openCustomerDetail(data.id);
   } catch (err) {
-    alert("Lỗi: " + err.message);
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
+  } finally {
+    _custActionBusy = false;
+    if (btn) { btn.disabled = false; btn.textContent = "💾 Tạo khách hàng"; }
   }
 }
 window.saveNewCustomer = saveNewCustomer;
 
 /* ══════════════════════════════════════════════
    CHI TIẾT KHÁCH HÀNG (modal)
+   ⚠️ SỬA: guard chia cho 0 / clamp % thanh XP
    ══════════════════════════════════════════════ */
 async function openCustomerDetail(id) {
   openDetailId = id;
@@ -277,7 +432,13 @@ async function openCustomerDetail(id) {
 
   const info      = getLevelInfo(cust.level);
   const nextInfo  = getNextLevelInfo(cust.level);
-  const pct       = nextInfo ? Math.min(100, Math.round((cust.xp - info.xp_required) / (nextInfo.xp_required - info.xp_required) * 100)) : 100;
+
+  /* BUG FIX: guard chia cho 0 khi 2 cấp có xp_required bằng nhau + clamp 0-100 */
+  let pct = 100;
+  if (nextInfo && nextInfo.xp_required > info.xp_required) {
+    pct = Math.max(0, Math.min(100, Math.round((cust.xp - info.xp_required) / (nextInfo.xp_required - info.xp_required) * 100)));
+  }
+
   const today     = new Date().toISOString().slice(0, 10);
   const checkedInToday = cust.last_checkin === today;
 
@@ -309,7 +470,7 @@ async function openCustomerDetail(id) {
   document.getElementById("customerDetailBox").innerHTML = `
     <div class="modal-header">
       <h2>${info.rank_icon} ${window.escHtml(cust.name)}</h2>
-      <button class="close-btn" onclick="document.getElementById('customerDetailModal').classList.add('hidden')">✕</button>
+      <button class="close-btn" aria-label="Đóng cửa sổ" onclick="document.getElementById('customerDetailModal').classList.add('hidden')">✕</button>
     </div>
 
     <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">📞 ${window.escHtml(cust.phone)} ${cust.age ? '· ' + cust.age + ' tuổi' : ''} ${cust.gender ? '· ' + window.escHtml(cust.gender) : ''}</div>
@@ -334,7 +495,7 @@ async function openCustomerDetail(id) {
 
     ${canOperate ? `
     <div style="display:flex;gap:8px;margin-bottom:20px;">
-      <input type="number" id="txAmountInput" placeholder="Số tiền (đ)" style="flex:1;height:40px;border:1px solid var(--border);border-radius:8px;padding:0 12px;">
+      <input type="number" id="txAmountInput" placeholder="Số tiền (đ)" min="0" style="flex:1;height:40px;border:1px solid var(--border);border-radius:8px;padding:0 12px;">
       <input type="text" id="txNoteInput" placeholder="Ghi chú (vd: 2 cà phê sữa)" style="flex:2;height:40px;border:1px solid var(--border);border-radius:8px;padding:0 12px;">
       <button class="btn btn-primary" onclick="addTransaction(${id})">💰 Ghi nhận</button>
     </div>` : ''}
@@ -357,9 +518,13 @@ window.openCustomerDetail = openCustomerDetail;
 
 /* ══════════════════════════════════════════════
    CHECK-IN
+   ⚠️ SỬA BUG NGHIÊM TRỌNG: trước đây KHÔNG kiểm tra lỗi khi insert
+   vào customer_checkins — nếu ghi log check-in thất bại, code vẫn
+   cộng XP/streak cho khách như thành công. Đã bắt lỗi + throw.
+   Thêm khoá _custActionBusy tránh double-click cộng XP 2 lần.
    ══════════════════════════════════════════════ */
 async function checkinCustomer(id) {
-  if (!canOperate) return;
+  if (!canOperate || _custActionBusy) return;
   const cust = allCustomers.find(c => c.id === id);
   if (!cust) return;
 
@@ -376,8 +541,11 @@ async function checkinCustomer(id) {
   const newXp     = cust.xp + xpEarned;
   const newLevel  = getLevelForXp(newXp);
 
+  _custActionBusy = true;
   try {
-    await client.from("customer_checkins").insert({ customer_id: id, xp_earned: xpEarned });
+    const { error: ckErr } = await client.from("customer_checkins").insert({ customer_id: id, xp_earned: xpEarned });
+    if (ckErr) throw ckErr; /* ⚠️ SỬA: trước đây bỏ qua lỗi này */
+
     const { error } = await client.from("customers")
       .update({ xp: newXp, level: newLevel, streak_days: newStreak, last_checkin: today })
       .eq("id", id);
@@ -387,28 +555,41 @@ async function checkinCustomer(id) {
     await loadCustomers();
     openCustomerDetail(id);
   } catch (err) {
-    alert("Lỗi: " + err.message);
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
+  } finally {
+    _custActionBusy = false;
   }
 }
 window.checkinCustomer = checkinCustomer;
 
 /* ══════════════════════════════════════════════
    GHI NHẬN GIAO DỊCH (không tự sinh XP)
+   ⚠️ SỬA BUG NGHIÊM TRỌNG: trước đây KHÔNG kiểm tra lỗi khi insert
+   vào customer_transactions — nếu ghi giao dịch thất bại, total_spent
+   vẫn bị cộng dồn, gây lệch số liệu. Đã bắt lỗi + throw.
    ══════════════════════════════════════════════ */
 async function addTransaction(id) {
-  if (!canOperate) return;
+  if (!canOperate || _custActionBusy) return;
   const amountInput = document.getElementById("txAmountInput");
   const noteInput    = document.getElementById("txNoteInput");
   const amount = Number(amountInput.value);
-  if (!amount || amount <= 0) { alert("Nhập số tiền hợp lệ."); return; }
+  if (!amount || amount <= 0 || !Number.isFinite(amount)) {
+    window.showToast("⚠️ Vui lòng nhập số tiền hợp lệ.", "#e17055");
+    amountInput.focus();
+    return;
+  }
   const note = noteInput.value.trim();
 
+  _custActionBusy = true;
   try {
     const cust = allCustomers.find(c => c.id === id);
-    await client.from("customer_transactions").insert({
+
+    const { error: txErr } = await client.from("customer_transactions").insert({
       customer_id: id, amount, note,
       staff_name: currentSession.displayName || currentSession.username,
     });
+    if (txErr) throw txErr; /* ⚠️ SỬA: trước đây bỏ qua lỗi này */
+
     const { error } = await client.from("customers")
       .update({ total_spent: (cust.total_spent || 0) + amount }).eq("id", id);
     if (error) throw error;
@@ -417,21 +598,27 @@ async function addTransaction(id) {
     await loadCustomers();
     openCustomerDetail(id);
   } catch (err) {
-    alert("Lỗi: " + err.message);
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
+  } finally {
+    _custActionBusy = false;
   }
 }
 window.addTransaction = addTransaction;
 
 /* ══════════════════════════════════════════════
    NHIỆM VỤ — CẬP NHẬT TIẾN ĐỘ
+   ⚠️ SỬA BUG NGHIÊM TRỌNG: trước đây KHÔNG kiểm tra lỗi khi update/
+   insert vào customer_quests — nếu lưu tiến độ thất bại, code vẫn
+   cộng XP hoàn thành nhiệm vụ cho khách. Đã bắt lỗi + throw.
    ══════════════════════════════════════════════ */
 async function markQuestProgress(customerId, questId) {
-  if (!canOperate) return;
+  if (!canOperate || _custActionBusy) return;
   const quest = allQuests.find(q => q.id === questId);
   const cust  = allCustomers.find(c => c.id === customerId);
   if (!quest || !cust) return;
 
   const pk = periodKeyFor(quest.type);
+  _custActionBusy = true;
 
   try {
     const { data: existing } = await client.from("customer_quests")
@@ -443,20 +630,23 @@ async function markQuestProgress(customerId, questId) {
     const isDone = newProgress >= quest.target_count;
 
     if (existing) {
-      await client.from("customer_quests").update({
+      const { error: upErr } = await client.from("customer_quests").update({
         progress: newProgress, completed: isDone, completed_at: isDone ? new Date().toISOString() : null,
       }).eq("id", existing.id);
+      if (upErr) throw upErr; /* ⚠️ SỬA: trước đây bỏ qua lỗi này */
     } else {
-      await client.from("customer_quests").insert({
+      const { error: insErr } = await client.from("customer_quests").insert({
         customer_id: customerId, quest_id: questId, period_key: pk,
         progress: newProgress, completed: isDone, completed_at: isDone ? new Date().toISOString() : null,
       });
+      if (insErr) throw insErr; /* ⚠️ SỬA: trước đây bỏ qua lỗi này */
     }
 
     if (isDone) {
       const newXp    = cust.xp + quest.xp_reward;
       const newLevel = getLevelForXp(newXp);
-      await client.from("customers").update({ xp: newXp, level: newLevel }).eq("id", customerId);
+      const { error: xpErr } = await client.from("customers").update({ xp: newXp, level: newLevel }).eq("id", customerId);
+      if (xpErr) throw xpErr;
       window.showToast(`🎉 Hoàn thành "${quest.title}"! +${quest.xp_reward} XP`);
     } else {
       window.showToast(`Tiến độ: ${newProgress}/${quest.target_count}`);
@@ -465,18 +655,29 @@ async function markQuestProgress(customerId, questId) {
     await loadCustomers();
     openCustomerDetail(customerId);
   } catch (err) {
-    alert("Lỗi: " + err.message);
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
+  } finally {
+    _custActionBusy = false;
   }
 }
 window.markQuestProgress = markQuestProgress;
 
 /* ══════════════════════════════════════════════
    XOÁ KHÁCH HÀNG (chỉ Editor/Super Admin)
+   ⚠️ SỬA: confirm() → showConfirm(); alert() → showToast()
    ══════════════════════════════════════════════ */
 async function deleteCustomer(id) {
   if (!canManageQuestSystem) return;
   const cust = allCustomers.find(c => c.id === id);
-  if (!confirm(`Xoá khách hàng "${cust?.name}"?\n\nHành động này không thể hoàn tác!`)) return;
+
+  const ok = await window.showConfirm({
+    title: `Xoá khách hàng "${cust?.name || ''}"?`,
+    message: "Toàn bộ lịch sử check-in, giao dịch và tiến độ nhiệm vụ liên quan cũng sẽ bị xoá. Hành động này không thể hoàn tác.",
+    confirmText: "🗑️ Xoá",
+    cancelText: "Huỷ",
+    danger: true,
+  });
+  if (!ok) return;
 
   try {
     const { error } = await client.from("customers").delete().eq("id", id);
@@ -485,13 +686,15 @@ async function deleteCustomer(id) {
     window.showToast("🗑️ Đã xoá khách hàng", "#e17055");
     await loadCustomers();
   } catch (err) {
-    alert("Lỗi: " + err.message);
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
   }
 }
 window.deleteCustomer = deleteCustomer;
 
 /* ══════════════════════════════════════════════
    TAB: CẤU HÌNH NHIỆM VỤ
+   ⚠️ SỬA: nút "+ Thêm nhiệm vụ" (prompt) → mở modal chuẩn;
+   thêm nút "✏️ Sửa" cho từng nhiệm vụ (trước đây chỉ Bật/Tắt/Xoá).
    ══════════════════════════════════════════════ */
 function renderQuestsTab() {
   const wrap = document.getElementById("custTabQuests");
@@ -501,24 +704,25 @@ function renderQuestsTab() {
     <div class="table-card" style="padding:20px 24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div style="font-size:14px;font-weight:700;">Danh sách nhiệm vụ</div>
-        ${canManageQuestSystem ? `<button class="btn btn-primary" onclick="addQuestRow()">+ Thêm nhiệm vụ</button>` : ""}
+        ${canManageQuestSystem ? `<button class="btn btn-primary" onclick="openQuestModal(null)">+ Thêm nhiệm vụ</button>` : ""}
       </div>
       <table class="game-table">
         <thead><tr><th>Tên</th><th>Loại</th><th>XP</th><th>Mục tiêu</th><th>Trạng thái</th>${canManageQuestSystem ? "<th>Hành động</th>" : ""}</tr></thead>
         <tbody>
-          ${allQuests.map(q => `
+          ${allQuests.length ? allQuests.map(q => `
             <tr>
               <td><b>${window.escHtml(q.title)}</b><div style="font-size:11px;color:var(--text-muted);">${window.escHtml(q.description || "")}</div></td>
               <td>${typeLabel(q.type)}</td>
               <td>${q.xp_reward} XP</td>
               <td>${q.target_count}</td>
               <td>${q.active ? '<span class="badge">Đang mở</span>' : '<span class="badge" style="background:#f1f5f9;color:#888;">Tắt</span>'}</td>
-              ${canManageQuestSystem ? `<td>
+              ${canManageQuestSystem ? `<td style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-secondary" style="font-size:12px;padding:6px 10px;" onclick="editQuestRow(${q.id})">✏️ Sửa</button>
                 <button class="btn btn-secondary" style="font-size:12px;padding:6px 10px;" onclick="toggleQuestActive(${q.id})">${q.active ? "Tắt" : "Bật"}</button>
                 <button class="btn btn-danger" style="font-size:12px;padding:6px 10px;" onclick="deleteQuest(${q.id})">🗑️</button>
               </td>` : ""}
             </tr>
-          `).join("")}
+          `).join("") : `<tr><td colspan="${canManageQuestSystem ? 6 : 5}" style="text-align:center;padding:30px;color:var(--text-muted);">Chưa có nhiệm vụ nào.</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -528,40 +732,106 @@ function renderQuestsTab() {
 async function toggleQuestActive(id) {
   if (!canManageQuestSystem) return;
   const q = allQuests.find(x => x.id === id);
-  await client.from("quests").update({ active: !q.active }).eq("id", id);
-  await loadQuests();
-  renderQuestsTab();
+  if (!q) return;
+  try {
+    const { error } = await client.from("quests").update({ active: !q.active }).eq("id", id);
+    if (error) throw error;
+    await loadQuests();
+    renderQuestsTab();
+  } catch (err) {
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
+  }
 }
 window.toggleQuestActive = toggleQuestActive;
 
 async function deleteQuest(id) {
   if (!canManageQuestSystem) return;
-  if (!confirm("Xoá nhiệm vụ này? Tiến độ khách hàng liên quan cũng sẽ bị xoá.")) return;
-  await client.from("quests").delete().eq("id", id);
-  await loadQuests();
-  renderQuestsTab();
+  const ok = await window.showConfirm({
+    title: "Xoá nhiệm vụ này?",
+    message: "Tiến độ khách hàng liên quan đến nhiệm vụ này cũng sẽ bị xoá. Hành động không thể hoàn tác.",
+    confirmText: "🗑️ Xoá",
+    cancelText: "Huỷ",
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    const { error } = await client.from("quests").delete().eq("id", id);
+    if (error) throw error;
+    window.showToast("🗑️ Đã xoá nhiệm vụ", "#e17055");
+    await loadQuests();
+    renderQuestsTab();
+  } catch (err) {
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
+  }
 }
 window.deleteQuest = deleteQuest;
 
-function addQuestRow() {
+/* ══════════════════════════════════════════════
+   MODAL NHIỆM VỤ — thay thế addQuestRow() dùng prompt() cũ
+   ══════════════════════════════════════════════ */
+function openQuestModal(id) {
   if (!canManageQuestSystem) return;
-  const title = prompt("Tên nhiệm vụ:");
-  if (!title) return;
-  const type = prompt("Loại (daily / weekly / onetime):", "daily");
-  if (!["daily", "weekly", "onetime"].includes(type)) { alert("Loại không hợp lệ."); return; }
-  const xp = Number(prompt("XP thưởng:", "10")) || 10;
-  const target = Number(prompt("Số lần cần hoàn thành:", "1")) || 1;
+  const q = id ? allQuests.find(x => x.id === id) : null;
 
-  client.from("quests").insert({ title, type, xp_reward: xp, target_count: target })
-    .then(({ error }) => {
-      if (error) { alert("Lỗi: " + error.message); return; }
-      loadQuests().then(renderQuestsTab);
-    });
+  document.getElementById("questId").value    = q ? q.id : "";
+  document.getElementById("questTitle").value = q?.title || "";
+  document.getElementById("questDesc").value  = q?.description || "";
+  document.getElementById("questType").value  = q?.type || "daily";
+  document.getElementById("questXp").value    = q?.xp_reward ?? 10;
+  document.getElementById("questTarget").value = q?.target_count ?? 1;
+  document.getElementById("questModalTitle").textContent = q ? "✏️ Sửa nhiệm vụ" : "➕ Thêm nhiệm vụ";
+  clearCustFieldError("questTitle");
+
+  document.getElementById("questModal").classList.remove("hidden");
+  document.getElementById("questTitle").focus();
 }
-window.addQuestRow = addQuestRow;
+function closeQuestModal() {
+  document.getElementById("questModal").classList.add("hidden");
+}
+async function saveQuest() {
+  if (!canManageQuestSystem) return;
+
+  const rawId = document.getElementById("questId").value;
+  const id    = rawId ? Number(rawId) : null;
+  const title = document.getElementById("questTitle").value.trim();
+  const description = document.getElementById("questDesc").value.trim();
+  const type  = document.getElementById("questType").value;
+  const xp_reward     = Number(document.getElementById("questXp").value);
+  const target_count  = Number(document.getElementById("questTarget").value);
+
+  clearCustFieldError("questTitle");
+  if (!title) { showCustFieldError("questTitle", "Vui lòng nhập tên nhiệm vụ."); return; }
+  if (!xp_reward || xp_reward <= 0)       { window.showToast("⚠️ XP thưởng phải lớn hơn 0.", "#e17055"); return; }
+  if (!target_count || target_count <= 0) { window.showToast("⚠️ Số lần hoàn thành phải lớn hơn 0.", "#e17055"); return; }
+
+  const payload = { title, description: description || null, type, xp_reward, target_count };
+
+  try {
+    if (id) {
+      const { error } = await client.from("quests").update(payload).eq("id", id);
+      if (error) throw error;
+    } else {
+      const { error } = await client.from("quests").insert({ ...payload, active: true });
+      if (error) throw error;
+    }
+    closeQuestModal();
+    window.showToast("✅ Đã lưu nhiệm vụ!");
+    await loadQuests();
+    renderQuestsTab();
+  } catch (err) {
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
+  }
+}
+window.openQuestModal = openQuestModal;
+window.closeQuestModal = closeQuestModal;
+window.saveQuest = saveQuest;
+window.editQuestRow = id => openQuestModal(id);
+window.addQuestRow  = () => openQuestModal(null); /* giữ tên cũ để tương thích ngược nếu nơi khác còn gọi */
 
 /* ══════════════════════════════════════════════
    TAB: CẤU HÌNH CẤP ĐỘ
+   ⚠️ SỬA: saveLevels() thêm validate (XP không âm, % giảm giá
+   0-100, XP phải tăng dần theo cấp) trước khi lưu.
    ══════════════════════════════════════════════ */
 function renderLevelsTab() {
   const wrap = document.getElementById("custTabLevels");
@@ -579,10 +849,10 @@ function renderLevelsTab() {
           ${allLevels.map(l => `
             <tr data-level="${l.level}">
               <td><b>${l.level}</b></td>
-              <td><input type="number" class="lv-xp" value="${l.xp_required}" ${editable ? "" : "disabled"} style="width:90px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
+              <td><input type="number" class="lv-xp" value="${l.xp_required}" min="0" ${editable ? "" : "disabled"} style="width:90px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
               <td><input type="text" class="lv-name" value="${window.escHtml(l.rank_name)}" ${editable ? "" : "disabled"} style="width:120px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
               <td><input type="text" class="lv-icon" value="${l.rank_icon || ''}" ${editable ? "" : "disabled"} style="width:50px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;text-align:center;"></td>
-              <td><input type="number" class="lv-discount" value="${l.discount_pct}" ${editable ? "" : "disabled"} style="width:70px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
+              <td><input type="number" class="lv-discount" value="${l.discount_pct}" min="0" max="100" ${editable ? "" : "disabled"} style="width:70px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
               <td><input type="text" class="lv-freeitem" value="${window.escHtml(l.free_item || '')}" ${editable ? "" : "disabled"} style="width:160px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;"></td>
               <td style="text-align:center;"><input type="checkbox" class="lv-priority" ${l.priority_booking ? "checked" : ""} ${editable ? "" : "disabled"} style="width:18px;height:18px;"></td>
             </tr>
@@ -606,6 +876,20 @@ async function saveLevels() {
     priority_booking: tr.querySelector(".lv-priority").checked,
   }));
 
+  /* ⚠️ MỚI: validate trước khi lưu — tránh cấu hình vô lý */
+  for (const r of rows) {
+    if (!r.rank_name) { window.showToast(`⚠️ Cấp ${r.level}: vui lòng nhập tên rank.`, "#e17055"); return; }
+    if (r.xp_required < 0) { window.showToast(`⚠️ Cấp ${r.level}: XP tối thiểu không được âm.`, "#e17055"); return; }
+    if (r.discount_pct < 0 || r.discount_pct > 100) { window.showToast(`⚠️ Cấp ${r.level}: % giảm giá phải từ 0 đến 100.`, "#e17055"); return; }
+  }
+  const sortedByLevel = [...rows].sort((a, b) => a.level - b.level);
+  for (let i = 1; i < sortedByLevel.length; i++) {
+    if (sortedByLevel[i].xp_required <= sortedByLevel[i - 1].xp_required) {
+      window.showToast(`⚠️ XP tối thiểu phải tăng dần theo cấp (lỗi tại cấp ${sortedByLevel[i].level}).`, "#e17055");
+      return;
+    }
+  }
+
   try {
     const { error } = await client.from("membership_levels").upsert(rows, { onConflict: "level" });
     if (error) throw error;
@@ -613,7 +897,7 @@ async function saveLevels() {
     await loadLevels();
     await loadCustomers();
   } catch (err) {
-    alert("Lỗi: " + err.message);
+    window.showToast("❌ Lỗi: " + err.message, "#e17055");
   }
 }
 window.saveLevels = saveLevels;
