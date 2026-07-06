@@ -6,8 +6,16 @@
     <p class="membership-sub">Nhập số điện thoại đã đăng ký tại quầy để xem cấp độ, XP và ưu đãi hiện tại</p>
 
     <div class="membership-lookup">
-      <input type="text" id="member-phone-input" placeholder="Nhập số điện thoại...">
-      <button id="member-lookup-btn">🔍 Tra cứu</button>
+      <label for="member-phone-input" class="sr-only">Số điện thoại</label>
+      <input
+        type="tel"
+        id="member-phone-input"
+        placeholder="Nhập số điện thoại... (VD: 0912345678)"
+        inputmode="tel"
+        autocomplete="tel"
+        maxlength="14"
+      >
+      <button id="member-lookup-btn" type="button">🔍 Tra cứu</button>
     </div>
 
     <div id="member-result"></div>
