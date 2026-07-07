@@ -1,22 +1,25 @@
-# ☕ The Coffee Quest — Tài liệu dự án
+# ☕ The Coffee Quest — Tài liệu dự án (v2 — sau tái cấu trúc)
 
-> **Mục đích file này:** Hướng dẫn sử dụng hệ thống, sơ đồ kiến trúc code, và chú thích từng file để bảo trì dễ dàng — kể cả khi nhờ AI (Claude) hỗ trợ sửa code.
+> **Mục đích file này:** Hướng dẫn sử dụng hệ thống, sơ đồ kiến trúc code, và chú thích từng file — phản ánh đúng cấu trúc **sau khi tái cấu trúc** (xem `MIGRATION_NOTES.md` để biết lịch sử thay đổi so với bản trước).
 
 ---
 
 ## Mục lục
 
 1. [Tổng quan hệ thống](#1-tổng-quan-hệ-thống)
-2. [Sơ đồ kiến trúc](#2-sơ-đồ-kiến-trúc)
-3. [Cấu trúc thư mục](#3-cấu-trúc-thư-mục)
-4. [Luồng dữ liệu](#4-luồng-dữ-liệu)
-5. [Hướng dẫn sử dụng — Frontend (khách)](#5-hướng-dẫn-sử-dụng--frontend-khách)
-6. [Hướng dẫn sử dụng — Admin Dashboard](#6-hướng-dẫn-sử-dụng--admin-dashboard)
-7. [Chú thích từng file](#7-chú-thích-từng-file)
-8. [Database Schema](#8-database-schema)
-9. [Biến môi trường & cấu hình](#9-biến-môi-trường--cấu-hình)
-10. [Quy trình bảo trì thường gặp](#10-quy-trình-bảo-trì-thường-gặp)
+2. [Nguyên tắc kiến trúc](#2-nguyên-tắc-kiến-trúc)
+3. [Sơ đồ kiến trúc](#3-sơ-đồ-kiến-trúc)
+4. [Cấu trúc thư mục](#4-cấu-trúc-thư-mục)
+5. [Luồng dữ liệu](#5-luồng-dữ-liệu)
+6. [Hướng dẫn sử dụng — Frontend](#6-hướng-dẫn-sử-dụng--frontend)
+7. [Hướng dẫn sử dụng — Admin Dashboard](#7-hướng-dẫn-sử-dụng--admin-dashboard)
+8. [Chú thích từng file](#8-chú-thích-từng-file)
+9. [Database Schema](#9-database-schema)
+10. [Biến môi trường & cấu hình](#10-biến-môi-trường--cấu-hình)
 11. [Hệ thống Page Registry (Admin)](#11-hệ-thống-page-registry-admin)
+12. [Domain Membership — kiến trúc chi tiết](#12-domain-membership--kiến-trúc-chi-tiết)
+13. [Checklist: thêm 1 module admin mới](#13-checklist-thêm-1-module-admin-mới)
+14. [Quy trình bảo trì thường gặp](#14-quy-trình-bảo-trì-thường-gặp)
 
 ---
 
@@ -24,17 +27,29 @@
 
 | Thành phần | Công nghệ | Vai trò |
 |---|---|---|
-| **Frontend** | HTML + CSS + Vanilla JS | Trang khách truy cập — xem game, chat |
-| **Admin** | HTML + CSS + Vanilla JS (module hóa) | Dashboard quản trị nội bộ |
-| **Database** | Supabase (PostgreSQL) | Lưu boardgames, drinks, admin_users, media_library, site_settings |
+| **Frontend** | HTML + CSS + Vanilla JS | Trang khách — xem game, chat, tra cứu thẻ thành viên |
+| **Admin** | HTML + CSS + Vanilla JS (module hóa theo domain) | Dashboard quản trị nội bộ |
+| **Database** | Supabase (PostgreSQL) | games, drinks, admin_users, media_library, site_settings, customers, quests, membership_levels... |
 | **Realtime Chat** | Firebase Realtime Database | Chat cộng đồng + đếm online + analytics |
-| **Font/Style** | Google Fonts (Bebas Neue, Nunito, Inter) | Typography |
 
-Không có backend server riêng — toàn bộ là **static files** gọi thẳng tới Supabase và Firebase từ trình duyệt.
+Không có backend server riêng — toàn bộ là static files gọi thẳng Supabase/Firebase từ trình duyệt. Không dùng bundler — thứ tự nạp `<script>` là thủ công và **bắt buộc chính xác** (xem mục 4 và 13).
 
 ---
 
-## 2. Sơ đồ kiến trúc
+## 2. Nguyên tắc kiến trúc
+
+Toàn bộ `admin/` tuân thủ 4 nguyên tắc sau — **mọi module mới đều phải tuân theo**, không có ngoại lệ:
+
+1. **1 domain = 1 thư mục.** `admin/modules/{domain}/` chứa mọi file JS của domain đó (games, drinks, membership, chat, analytics, banners, media, accounts). Domain nhiều hơn 1 tính năng con (như Membership) thì tách nhiều file trong cùng thư mục, không gộp chung 1 file khổng lồ.
+2. **HTML/modal luôn JS-inject, không bao giờ tĩnh trong `dashboard.html`.** Mỗi module tự `document.body.appendChild(...)` hoặc `.main-content.appendChild(...)` HTML của mình trong 1 IIFE chạy lúc file load. `dashboard.html` chỉ là **shell**: sidebar + 3 page tĩnh (Dashboard/Boardgames/Drinks) + danh sách `<script>`.
+3. **CSS dùng chung nằm trong file `.css`, không nằm trong `<style>` inline của HTML.** CSS riêng của 1 module (nếu cần) cũng tự inject bằng `injectXStyles()` giống `dashboard-media.js`.
+4. **Không dùng `onclick=""`/`oninput=""` inline khi có thể dùng `addEventListener`.** Ngoại lệ duy nhất được chấp nhận: các nút điều hướng cấp cao gọi thẳng hàm toàn cục ổn định từ `core/dashboard-nav.js` (`showDashboard()`, `showBoardgames()`, `showDrinks()`, `filterDrinks()`) — vì các hàm này không đổi tên/tham số thường xuyên và việc giữ `onclick=""` ở đây giúp `dashboard.html` dễ đọc luồng điều hướng ngay trong markup.
+
+---
+
+## 3. Sơ đồ kiến trúc
+
+```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        TRÌNH DUYỆT                              │
 │                                                                 │
@@ -44,803 +59,464 @@ Không có backend server riêng — toàn bộ là **static files** gọi thẳ
 │  │  index.html              │   │  login.html               │   │
 │  │    ├── css/style.css     │   │  dashboard.html (shell)   │   │
 │  │    ├── css/chat.css      │   │    ├── dashboard.css      │   │
-│  │    ├── js/shared-*.js    │   │    ├── core/               │   │
-│  │    ├── js/data.js        │   │    │   ├── dashboard-auth.js
-│  │    ├── js/app.js         │   │    │   ├── dashboard-page-registry.js
-│  │    └── js/chat.js        │   │    │   └── dashboard-nav.js
-│  │                          │   │    ├── modules/            │   │
-│  │  pages/                  │   │    │   ├── dashboard-games.js
-│  │    ├── news.html         │   │    │   ├── dashboard-drinks.js
-│  │    ├── boardgame.html    │   │    │   ├── dashboard-chat.js
-│  │    ├── contact.html      │   │    │   ├── dashboard-analytics.js
-│  │    └── settings.html     │   │    │   ├── dashboard-banners.js
-│  │                          │   │    │   ├── dashboard-media.js
-│  │                          │   │    │   └── dashboard-accounts.js
-│  │                          │   │    └── dashboard-mobile-menu.js
+│  │    ├── js/shared-*.js    │   │    ├── dashboard-shared.css
+│  │    ├── js/data.js        │   │    ├── core/              │   │
+│  │    ├── js/app.js         │   │    │   ├── dashboard-permissions.js
+│  │    ├── js/membership.js  │   │    │   ├── dashboard-auth.js
+│  │    └── js/chat.js        │   │    │   ├── dashboard-page-registry.js
+│  │                          │   │    │   └── dashboard-nav.js
+│  │  pages/                  │   │    └── modules/            │   │
+│  │    ├── news.html         │   │        ├── games/          │   │
+│  │    ├── boardgame.html    │   │        ├── drinks/         │   │
+│  │    ├── contact.html      │   │        ├── membership/     │   │
+│  │    ├── settings.html     │   │        ├── chat/           │   │
+│  │    └── membership.html   │   │        ├── analytics/      │   │
+│  │                          │   │        ├── banners/        │   │
+│  │                          │   │        ├── media/          │   │
+│  │                          │   │        └── accounts/       │   │
 │  └──────────┬───────────────┘   └──────────┬────────────────┘   │
 │             │                              │                     │
 └─────────────┼──────────────────────────────┼─────────────────────┘
-│                              │
-┌────────▼────────┐           ┌─────────▼────────┐
-│    SUPABASE      │           │    FIREBASE       │
-│  (PostgreSQL)    │           │ Realtime Database │
-│                  │           │                   │
-│  • games         │           │  • communityChat  │
-│  • drinks        │           │  • onlineUsers    │
-│  • admin_users   │           │  • analytics/      │
-│  • media_library │           │      gameViews     │
-│  • site_settings │           │      hourly        │
-└──────────────────┘           └───────────────────┘
+              │                              │
+    ┌─────────▼────────┐           ┌─────────▼────────┐
+    │    SUPABASE       │           │    FIREBASE       │
+    │  (PostgreSQL)      │           │ Realtime Database │
+    │                    │           │                   │
+    │  • games           │           │  • communityChat  │
+    │  • drinks          │           │  • onlineUsers    │
+    │  • admin_users     │           │  • analytics/      │
+    │  • media_library    │           │      gameViews     │
+    │  • site_settings    │           │      hourly        │
+    │  • customers        │           └───────────────────┘
+    │  • quests           │
+    │  • membership_levels│
+    │  • customer_*        │
+    └──────────────────────┘
+```
 
-### Quan hệ giữa các module — Admin
-dashboard.html (chỉ còn HTML shell — KHÔNG còn <script> logic inline)
+### Quan hệ giữa các module — Admin (thứ tự nạp thật, khớp `<script>` trong `dashboard.html`)
+
+```
+dashboard.html (shell — KHÔNG còn modal HTML, KHÔNG còn <style> inline)
 │
-├── [load]──► js/shared-config.js         (Supabase URL/Key, Firebase config)
-├── [load]──► js/shared-emoji.js          (danh sách emoji dùng chung)
-├── [load]──► js/shared-utils.js          (escHtml, showToast, formatTime, slugify...)
-├── [load]──► Supabase SDK (CDN)
+├── [load]──► js/shared-config.js
+├── [load]──► js/shared-emoji.js
+├── [load]──► js/shared-categories.js
+├── [load]──► js/shared-utils.js
+├── [load]──► core/dashboard-permissions.js      (window.AdminPermissions)
+├── [load]──► Supabase SDK (CDN) + QRCode SDK (CDN)
 │
-├── [load]──► core/dashboard-auth.js
-│                 │  requireAuth() + tạo client + currentSession (global)
-│                 └── inject User bar vào sidebar
+├── [load]──► core/dashboard-auth.js             (client + currentSession)
+├── [load]──► core/dashboard-page-registry.js    (window.AdminDashboard)
 │
-├── [load]──► core/dashboard-page-registry.js
-│                 └── tạo window.AdminDashboard.registerPage() / showPage()
-│                     (nơi DUY NHẤT các module đăng ký page + menu item)
+├── [load]──► modules/games/dashboard-games.js
+│                 └── tự inject #gameModal vào <body>
+├── [load]──► modules/drinks/dashboard-drinks.js
+│                 └── tự inject #drinkModal vào <body>
+├── [load]──► modules/games/dashboard-game-detail.js
+│                 └── cần games/parseLines/... từ dashboard-games.js (load trước)
 │
-├── [load]──► modules/dashboard-games.js   (script thường — CRUD game + emoji picker)
-├── [load]──► modules/dashboard-drinks.js  (script thường — CRUD đồ uống)
+├── [load]──► modules/membership/membership-shared.js   (window.Membership — PHẢI load trước 3 file dưới)
+├── [load]──► modules/membership/dashboard-customers.js (registerPage() — DUY NHẤT cho domain này)
+├── [load]──► modules/membership/dashboard-quests.js     (render vào tab có sẵn)
+├── [load]──► modules/membership/dashboard-levels.js     (render vào tab có sẵn)
 │
-├── [load]──► core/dashboard-nav.js
-│                 └── showDashboard(), showBoardgames(), showDrinks()...
-│                     (dùng loadGames()/loadDrinks() đã có ở trên)
+├── [load]──► core/dashboard-nav.js              (showDashboard/showBoardgames/showDrinks)
 │
-├── [module]─► modules/dashboard-chat.js       (Firebase chat admin)
-├── [module]─► modules/dashboard-analytics.js  (Firebase — biểu đồ lượt xem/online)
-├── [module]─► modules/dashboard-banners.js    (Supabase site_settings)
-├── [module]─► modules/dashboard-media.js      (Supabase media_library)
-├── [module]─► modules/dashboard-accounts.js   (Supabase admin_users, chỉ superadmin)
+├── [module]─► modules/chat/dashboard-chat.js
+├── [module]─► modules/analytics/dashboard-analytics.js
+├── [module]─► modules/banners/dashboard-banners.js
+├── [module]─► modules/media/dashboard-media.js
+├── [module]─► modules/accounts/dashboard-accounts.js
 │
-└── [load]──► dashboard-mobile-menu.js     (off-canvas sidebar mobile, load CUỐI CÙNG)
+└── [load]──► dashboard-mobile-menu.js           (cuối cùng — cần .sidebar đã có trong DOM)
+```
+
+### Frontend
+```
 index.html
 │
 ├── [load]──► js/shared-config.js
 ├── [load]──► js/shared-emoji.js
+├── [load]──► js/shared-categories.js
+├── [load]──► js/shared-utils.js
 ├── [load]──► js/data.js            (fetch games từ Supabase → window.GAMES)
-├── [load]──► js/app.js             (router, render UI, dùng window.GAMES)
-│                   │
-│                   └── GAMES_READY.then(routeFromHash)
+├── [load]──► js/app.js             (router + render game/lightbox/daily-pick — KHÔNG còn logic Membership)
+├── [load]──► js/membership.js      (logic trang Thẻ thành viên — expose window.initMembership)
 │
 └── [module]─► js/chat.js           (Firebase chat + online users)
+```
 
 ---
 
-## 3. Cấu trúc thư mục
+## 4. Cấu trúc thư mục
+
+```
 project-root/
-│
-├── index.html                  ← Trang chủ frontend (SPA shell)
+├── index.html
+├── README.md
+├── MIGRATION_NOTES.md               ← lịch sử tái cấu trúc, so sánh trước/sau
 │
 ├── css/
-│   ├── style.css               ← Entry point, chỉ chứa @import
-│   ├── chat.css                ← Style riêng cho widget chat nổi
+│   ├── style.css
+│   ├── chat.css
 │   └── base/
-│       ├── variables.css       ← CSS variables (đổi màu/font tại đây)
-│       ├── reset.css           ← Reset & base + animation page
-│       ├── header-menu.css     ← Header + Side menu
-│       ├── news-banner.css     ← Banner trang News + Daily pick
-│       ├── boardgame-list.css  ← Filter bar, grid, game card
-│       ├── boardgame-detail.css← Trang chi tiết game + related
-│       ├── pages.css           ← Trang Contact + Settings
-│       ├── modals.css          ← Username modal + Lightbox
-│       └── responsive.css      ← Footer, animations, responsive
+│       ├── variables.css
+│       ├── reset.css
+│       ├── header-menu.css
+│       ├── news-banner.css
+│       ├── boardgame-list.css
+│       ├── boardgame-detail.css
+│       ├── pages.css                (Contact + Settings + Membership)
+│       ├── modals.css
+│       └── responsive.css
 │
 ├── js/
-│   ├── shared-config.js        ← Supabase URL/Key + Firebase config (DUY NHẤT)
-│   ├── shared-emoji.js         ← Danh sách emoji dùng chung (EMOJI_CATEGORIES, CHAT_EMOJIS)
-│   ├── shared-utils.js         ← Hàm tiện ích dùng chung (escHtml, showToast, formatTime, slugify)
-│   ├── data.js                 ← Fetch games từ Supabase, export window.GAMES
-│   ├── app.js                  ← Router, render list/detail, daily pick, lightbox
-│   └── chat.js                 ← Chat Firebase, online users, emoji picker (frontend)
+│   ├── shared-config.js
+│   ├── shared-emoji.js
+│   ├── shared-categories.js
+│   ├── shared-utils.js
+│   ├── data.js
+│   ├── app.js                       ← CHỈ router + render game/lightbox/daily-pick
+│   ├── membership.js                ← MỚI: logic trang Thẻ thành viên (tách khỏi app.js)
+│   └── chat.js
 │
-├── pages/                      ← Các trang con, load động bởi app.js
-│   ├── news.html               ← Trang chủ: banner + daily pick
-│   ├── boardgame.html          ← List game + detail game (2 div.page trong 1 file)
-│   ├── contact.html            ← Thông tin liên hệ + gallery
-│   └── settings.html           ← Đổi tên hiển thị chat
-│
-├── assets/
-│   ├── img/                    ← Banner, ảnh trang trí
-│   └── store/                  ← Ảnh thực tế quán (contact page)
+├── pages/
+│   ├── news.html
+│   ├── boardgame.html
+│   ├── contact.html
+│   ├── settings.html
+│   └── membership.html
 │
 └── admin/
-├── login.html               ← Trang đăng nhập admin (SHA-256 + Supabase, tự chứa)
-├── dashboard.html           ← Shell dashboard: CHỈ còn HTML (sidebar + page sections + modal)
-├── dashboard.css            ← Style toàn bộ dashboard
-├── dashboard-mobile-menu.js ← Off-canvas sidebar trên mobile/tablet
-│
-├── core/                    ← Hạ tầng dùng chung cho mọi module admin
-│   ├── dashboard-auth.js          ← Auth guard, tạo client (Supabase) + currentSession, user bar
-│   ├── dashboard-page-registry.js ← window.AdminDashboard.registerPage()/showPage() — nơi DUY NHẤT
-│   │                                quản lý hiện/ẩn page + tạo menu item sidebar
-│   └── dashboard-nav.js           ← Điều hướng cho 3 page tĩnh có sẵn trong HTML:
-│                                     Dashboard, Boardgames, Drinks (showDashboard, showBoardgames,
-│                                     toggleBgMenu, showDrinks, toggleDrinkMenu, filterDrinks...)
-│
-└── modules/                 ← Từng module nghiệp vụ, độc lập, tự đăng ký qua AdminDashboard
-├── dashboard-games.js       ← CRUD Boardgames + emoji picker (script thường)
-├── dashboard-drinks.js      ← CRUD Đồ uống (script thường, MỚI tách từ HTML inline)
-├── dashboard-chat.js        ← Chat real-time admin (ES module — Firebase)
-├── dashboard-analytics.js   ← Thống kê lượt xem/online (ES module — Firebase + Canvas chart)
-├── dashboard-banners.js     ← Quản lý banner trang News (ES module — Supabase site_settings)
-├── dashboard-media.js       ← Thư viện media/ảnh (ES module — Supabase media_library)
-└── dashboard-accounts.js    ← Quản lý tài khoản admin (ES module — chỉ hiện với superadmin)
+    ├── login.html
+    ├── dashboard.html                ← SHELL THUẦN: sidebar + 3 page tĩnh + script tags
+    ├── dashboard.css
+    ├── dashboard-shared.css          ← MỚI: toàn bộ CSS từng inline trong dashboard.html
+    ├── dashboard-mobile-menu.js
+    │
+    ├── core/
+    │   ├── dashboard-permissions.js
+    │   ├── dashboard-auth.js
+    │   ├── dashboard-page-registry.js
+    │   └── dashboard-nav.js
+    │
+    └── modules/                      ← nhóm theo DOMAIN, mỗi thư mục con = 1 tính năng độc lập
+        ├── games/
+        │   ├── dashboard-games.js        (CRUD + emoji picker + tự inject modal)
+        │   └── dashboard-game-detail.js  (trang chi tiết + QR)
+        ├── drinks/
+        │   └── dashboard-drinks.js       (CRUD + tự inject modal)
+        ├── membership/
+        │   ├── membership-shared.js      (state + helper dùng chung — load ĐẦU TIÊN trong domain)
+        │   ├── dashboard-customers.js    (bảng khách hàng, check-in, giao dịch — registerPage() DUY NHẤT)
+        │   ├── dashboard-quests.js       (tab Nhiệm vụ)
+        │   └── dashboard-levels.js       (tab Cấp độ)
+        ├── chat/
+        │   └── dashboard-chat.js
+        ├── analytics/
+        │   └── dashboard-analytics.js
+        ├── banners/
+        │   └── dashboard-banners.js
+        ├── media/
+        │   └── dashboard-media.js
+        └── accounts/
+            └── dashboard-accounts.js
+```
 
-> **Quy ước:** `core/` chứa hạ tầng mà mọi module admin phụ thuộc vào (auth, page registry, nav 3 trang tĩnh). `modules/` chứa từng tính năng nghiệp vụ độc lập — muốn thêm/bớt tính năng chỉ cần thêm/xóa 1 file trong `modules/` + 1 dòng `<script>` trong `dashboard.html`, không đụng vào các module khác.
-
----
-
-## 4. Luồng dữ liệu
-
-### 4.1 Tải danh sách game (Frontend)
-
-index.html load
-│
-▼
-js/data.js
-│  import Supabase SDK (CDN ESM)
-│  fetch games table → order by sort_order
-│  map sang object chuẩn (camelCase)
-▼
-window.GAMES = [...]          ← mảng global dùng xuyên suốt app
-window.GAMES_READY = Promise  ← các module khác await cái này
-
-│
-▼ (khi GAMES_READY resolve)
-js/app.js → routeFromHash()
-│
-├── hash = #boardgame  → loadPage('boardgame') → initBoardgame() → renderGrid()
-├── hash = #news       → loadPage('news')      → renderDailyPick()
-├── hash = #game-N     → loadPage('boardgame') → goDetail(N)
-└── hash = #settings   → loadPage('settings')  → initSettings()
-### 4.2 Chat realtime (Frontend)
-User mở trang
-│
-▼
-js/chat.js
-│  kiểm tra localStorage['tcq_username']
-├── chưa có → hiện modal nhập tên
-└── có rồi  → tiếp tục
-│
-│  set onlineUsers/{userId} = {name, online:true}
-│  onDisconnect → remove (tự xóa khi tắt tab)
-│
-│  get(communityChat)     ← load lịch sử 1 lần
-│  onChildAdded(...)      ← lắng nghe tin mới realtime
-▼
-render buildMessageEl(msg)
-├── msg.isStaff = true  → style bubble tối + badge THE COFFEEQUEST
-└── msg.isStaff = false → style bubble trắng thường
-
-### 4.3 Admin đăng nhập
-login.html
-│  nhập username + password
-│  sha256(password) ← Web Crypto API, hash phía client
-│
-▼
-Supabase: SELECT * FROM admin_users WHERE username = ?
-│  so sánh password_hash
-├── sai → hiện error
-└── đúng → lưu session vào sessionStorage['bg_admin_session']
-redirect → dashboard.html
-admin/core/dashboard-auth.js (chạy ngay khi dashboard.html load)
-│  requireAuth() → đọc sessionStorage
-└── không có session → redirect login.html (chặn toàn bộ script phía sau)
-
-### 4.4 Admin dashboard khởi động & điều hướng
-dashboard.html
-│
-├── core/dashboard-auth.js chạy trước tiên
-│       → tạo client (Supabase) + currentSession (global, KHÔNG cần import)
-│
-├── core/dashboard-page-registry.js chạy tiếp
-│       → định nghĩa window.AdminDashboard.registerPage({...})
-│         và window.AdminDashboard.showPage(pageId, menuId, onShow)
-│       → cũng expose window.__showPage(pageId) để tương thích ngược
-│
-├── modules/dashboard-games.js + modules/dashboard-drinks.js
-│       → chạy loadGames() / expose loadDrinks() ra window
-│
-├── core/dashboard-nav.js
-│       → định nghĩa showDashboard(), showBoardgames(), showDrinks()...
-│         (3 page TĨNH đã có sẵn HTML trong dashboard.html)
-│
-└── các module ES (chat/analytics/banners/media/accounts)
-→ mỗi module tự gọi:
-window.AdminDashboard.registerPage({
-pageId, menuId, icon, label, onShow, guard, ...
-})
-→ registry tự tạo menu item trong sidebar + gắn onclick
-→ khi click: ẩn hết page khác, hiện đúng page này, gọi onShow()
-
-### 4.5 Admin gửi tin chat
-admin/modules/dashboard-chat.js
-│  push(communityChat, { user, text, time, isStaff: true, staffName })
-│
-▼  (realtime onChildAdded trên frontend)
-js/chat.js → buildMessageEl({ isStaff: true })
-→ render bubble màu tối + badge "☕ THE COFFEEQUEST"
+> **Quy ước:** `core/` chứa hạ tầng mọi module admin phụ thuộc vào (auth, permissions, page registry, nav 3 trang tĩnh). `modules/{domain}/` chứa từng tính năng nghiệp vụ độc lập theo domain — muốn thêm/bớt tính năng chỉ cần thêm/xóa 1 thư mục con + dòng `<script>` tương ứng, không đụng module khác.
 
 ---
 
-## 5. Hướng dẫn sử dụng — Frontend (khách)
+## 5. Luồng dữ liệu
+
+### 5.1 Frontend — tải danh sách game
+```
+index.html load → js/data.js → window.GAMES / window.GAMES_READY
+                → js/app.js → GAMES_READY.then(routeFromHash)
+```
+
+### 5.2 Frontend — trang Thẻ thành viên (MỚI: tách riêng khỏi app.js)
+```
+pages/membership.html
+│
+▼
+js/app.js::loadPage('membership')
+│  gọi window.initMembership()  ← hàm thật nằm ở js/membership.js
+▼
+js/membership.js
+│  initMembership() gắn sự kiện nút Tra cứu + Enter
+│  lookupMembership() → chuẩn hoá SĐT → Supabase RPC get_membership_by_phone
+▼
+render thẻ hạng/XP/ưu đãi vào #member-result
+```
+
+### 5.3 Chat realtime (không đổi)
+```
+js/chat.js → localStorage['tcq_username'] → Firebase communityChat / onlineUsers
+           → analytics/gameViews, analytics/hourly
+```
+
+### 5.4 Admin đăng nhập & khởi động (không đổi luồng, chỉ đổi đường dẫn file)
+```
+login.html → sha256(password) → Supabase admin_users → sessionStorage
+           → redirect dashboard.html
+dashboard.html → core/dashboard-auth.js → requireAuth() → client + currentSession
+              → core/dashboard-page-registry.js → window.AdminDashboard
+              → modules/{domain}/*.js tự đăng ký page qua registerPage()
+```
+
+### 5.5 Admin — CRUD Boardgame (modal giờ JS-inject)
+```
+modules/games/dashboard-games.js load
+│  injectGameModal() → appendChild #gameModal vào <body> (KHÔNG còn trong dashboard.html)
+│  loadGames() → Supabase games → renderGames()
+│
+User bấm "+ Thêm Game" / "✏️ Sửa"
+│  clearForm()/fill data → modal.classList.remove('hidden')
+│
+User bấm "💾 Lưu" → saveGame() → Supabase insert/update → loadGames()
+```
+
+### 5.6 Admin — Membership (3 file phối hợp qua `window.Membership`)
+```
+modules/membership/membership-shared.js
+│  window.Membership.state = { customers: [], levels: [], quests: [] }
+│  window.Membership.loadCustomers()/loadLevels()/loadQuests() → cập nhật state
+▼
+modules/membership/dashboard-customers.js
+│  registerPage({ pageId: "customersPage", onShow: load cả 3 nguồn })
+│  render tab "Danh sách" đọc M.state.customers
+│  mở modal chi tiết → đọc M.state.levels + M.state.quests (đã load sẵn)
+▼
+modules/membership/dashboard-quests.js    → renderQuestsTab() đọc M.state.quests
+modules/membership/dashboard-levels.js    → renderLevelsTab() đọc M.state.levels
+                                             sau khi lưu → M.loadLevels() + window.loadCustomers()
+                                             để đồng bộ lại tab Danh sách
+```
+
+---
+
+## 6. Hướng dẫn sử dụng — Frontend
+
+*(Không đổi so với trước — chức năng người dùng cuối không bị ảnh hưởng bởi tái cấu trúc)*
 
 ### Điều hướng
-- Menu hamburger `☰` ở góc trên trái → mở side menu
-- Các mục: **Tin tức**, **Luật Boardgame**, **Thông tin liên hệ**, **Cài đặt**
+Menu `☰` → **Tin tức**, **Luật Boardgame**, **Thông tin liên hệ**, **Thẻ thành viên**, **Cài đặt**.
 
-### Trang Tin tức (News)
-- Hiển thị các banner quảng bá
-- Phần **"Hôm nay chơi gì?"** chọn ngẫu nhiên 3 game mỗi lần tải trang / bấm "Thử game khác"
-- Nhấn vào card → chuyển sang trang chi tiết game đó
+### Trang Tin tức
+Banner (quản lý ở Admin → Banners) + "Hôm nay chơi gì?" (3 game ngẫu nhiên).
 
 ### Trang Boardgame
-- Thanh filter theo thể loại (Party, Chiến lược, Gia đình...)
-- Search theo tên game (live filter)
-- Nhấn card → trang chi tiết với: mục tiêu, chuẩn bị, lượt chơi, điều kiện thắng, mẹo, ảnh, video
-- Ảnh hướng dẫn → click để phóng to (lightbox)
+Filter theo thể loại, search theo tên, trang chi tiết đầy đủ, ảnh lightbox.
+
+### Trang Thẻ thành viên
+Nhập số điện thoại đã đăng ký tại quầy → xem cấp độ, XP, thanh tiến độ, ưu đãi, streak check-in.
 
 ### Chat cộng đồng
-- Nhấn nút 💬 góc dưới phải → mở cửa sổ chat
-- Lần đầu tiên → nhập tên hiển thị
-- Có thể đổi tên trong **Cài đặt cá nhân**
-- Emoji picker: nhấn 😊 bên cạnh ô nhập
-- Dấu chấm vàng trên nút 💬 = có tin mới từ quán khi cửa sổ đang đóng
-- Chat tự reset mỗi ngày mới (0:00)
+Nút 💬 góc dưới phải, đổi tên trong Cài đặt, emoji picker, tự reset mỗi ngày mới.
 
 ---
 
-## 6. Hướng dẫn sử dụng — Admin Dashboard
+## 7. Hướng dẫn sử dụng — Admin Dashboard
 
-### Đăng nhập
-- Truy cập `/admin/login.html`
-- Tài khoản được tạo sẵn trong bảng `admin_users` trên Supabase
-- Session lưu trong `sessionStorage` → tắt tab là mất, phải đăng nhập lại
+### Đăng nhập & vai trò
+`/admin/login.html` — session lưu `sessionStorage`.
 
-### Dashboard (trang chủ)
-- Xem **số người đang online** trên website realtime (kéo từ Firebase)
-- Stat card: tổng game, tổng công thức đồ uống, game có YouTube, game có ảnh
-
-### Boardgames
-Mở từ sidebar → **🎲 Boardgames**
-
-| Sub-menu | Chức năng |
+| Role | Quyền |
 |---|---|
-| Tất cả game | Hiển thị bảng toàn bộ game, có search |
-| + Thêm game mới | Mở modal thêm mới ngay |
-| Tìm kiếm | Focus vào ô search |
+| `superadmin` | Toàn quyền, bao gồm Quản lý tài khoản + Khách hàng (Membership) |
+| `editor` | Mọi trang trừ Quản lý tài khoản + Khách hàng |
+| `barstaff` | Chỉ xem (read-only), không thấy Banners/Media/Accounts/Customers |
 
-**Thêm / Sửa game:**
-- Điền form → nhấn **💾 Lưu**
-- Emoji: click vào ô → picker với 8 danh mục + search
-- Màu: dùng color picker hoặc gõ hex
-- Ảnh hướng dẫn: mỗi dòng `URL | Chú thích`
-- Bước chuẩn bị / lượt chơi / mẹo: mỗi dòng = 1 mục
-- Thứ tự hiển thị: số nhỏ lên trước
+### Boardgames / Đồ uống
+CRUD trực tiếp qua modal (giờ tự bật lên bằng JS, không còn HTML tĩnh phía sau). Emoji picker 8 danh mục, category-picker chip chọn nhiều thể loại, color picker 2 chiều (gõ tay hex ⇄ chọn màu) đồng bộ bằng sự kiện thay vì `oninput=""` inline.
 
-**Xóa game:** Mở modal sửa → nút **🗑️ Xóa game** (có confirm)
+### Chi tiết game + QR
+Trang riêng cho từng game, có mã QR dẫn tới link luật chơi, tải PNG.
 
-### Đồ uống
-Mở từ sidebar → **☕ Đồ uống**
+### Khách hàng (Membership) — chỉ Super Admin
+3 tab: **Danh sách** (check-in, giao dịch, chi tiết khách) / **Nhiệm vụ** (CRUD quest) / **Cấp độ** (XP tối thiểu, % giảm giá, quà, ưu tiên đặt bàn). 3 tab nằm trong **cùng 1 trang** (`customersPage`) nhưng được render bởi 3 file JS độc lập, phối hợp qua `window.Membership`.
 
-- Filter theo loại: Cà phê / Trà hoa quả / Trà sữa / Sữa chua
-- **+ Thêm công thức** → modal nhập tên, loại, emoji, nguyên liệu, các bước, mẹo, ảnh
-- Nhấn **✏️ Sửa** trên card để chỉnh sửa hoặc xóa
-
-### Thư viện Media
-Mở từ sidebar → **🗂️ Thư viện Media**
-
-- Lưu link ảnh dùng làm banner/poster, hỗ trợ tự chuyển link Google Drive sang link ảnh trực tiếp
-- Gắn tag, tìm kiếm, copy link, tải ảnh xuống máy
-- Mọi tài khoản đã đăng nhập đều thêm được ảnh mới; **chỉ Super Admin mới xóa được**
-
-### Banners
-Mở từ sidebar → **🖼️ Banners**
-
-- Quản lý 2 banner hiển thị trên trang News (URL ảnh + bật/tắt hiển thị)
-- Nhấn **💾 Lưu thay đổi** để áp dụng
-
-### Thống kê
-Mở từ sidebar → **📈 Thống kê**
-
-- Xem lượt xem theo game và giờ cao điểm online, lọc theo Hôm nay / 7 ngày / tùy chọn khoảng ngày
-- Biểu đồ vẽ bằng Canvas thuần (không dùng thư viện ngoài)
-
-### Chat Cộng đồng
-Mở từ sidebar → **💬 Cộng đồng**
-
-- Xem toàn bộ lịch sử chat của khách
-- Gửi tin với tư cách **THE COFFEEQUEST** (hiển thị bubble tối trên client)
-- Sidebar phải: **Tag quán** — tự động bắt các tin nhắn có `@thecoffeequest`, `@quán`...
-- **Trả lời nhanh**: click để đưa câu trả lời mẫu vào ô nhập, chỉnh sửa rồi gửi
-- **Xóa chat hôm nay**: xóa toàn bộ lịch sử (không hoàn tác)
-- Badge đỏ trên menu = có tin nhắn mới chưa đọc
-- Thông báo trình duyệt (nếu đã cho phép): hiện khi có tin nhắn mới mà đang ở tab khác
-
-### Quản lý tài khoản (chỉ Super Admin)
-Mở từ sidebar → **👤 Quản lý tài khoản**
-
-- Chỉ hiển thị với tài khoản có `role = 'superadmin'`
-- Thêm/sửa tài khoản, đổi vai trò (`editor` / `superadmin`)
-- Mật khẩu luôn được hash SHA-256 phía client trước khi lưu
+### Thư viện Media / Banners / Thống kê / Chat / Quản lý tài khoản
+Không đổi so với trước — xem mục 8.
 
 ---
 
-## 7. Chú thích từng file
-
-### `js/shared-config.js`
-**Nhiệm vụ:** Nơi DUY NHẤT chứa Supabase URL/Key và Firebase config.
-Exports: window.APP_CONFIG = { supabaseUrl, supabaseKey, firebaseConfig }
-Phải load ĐẦU TIÊN trong mọi trang (frontend lẫn admin).
-
-### `js/shared-emoji.js`
-**Nhiệm vụ:** Danh sách emoji dùng chung toàn dự án.
-Exports:
-window.EMOJI_CATEGORIES — 8 danh mục, dùng cho emoji picker game (admin/modules/dashboard-games.js)
-window.CHAT_EMOJIS      — 80 emoji phẳng, dùng cho emoji picker chat (js/chat.js)
-window.ALL_EMOJIS / window.UNIQUE_EMOJIS — flatten để search
-
-### `js/shared-utils.js`
-**Nhiệm vụ:** Hàm tiện ích dùng chung cho TOÀN BỘ dự án (frontend + admin) — nơi DUY NHẤT tránh lặp code escHtml/showToast từng bị viết lại 5 lần.
-Exports:
-window.escHtml(s)            — escape HTML an toàn khi chèn text động vào innerHTML
-window.formatTime(ts)        — timestamp → "HH:MM"
-window.formatDateVN(dateStr) — "2026-06-11" → "11/06/2026"
-window.showToast(msg, bg)    — toast notification góc phải dưới
-window.slugify(s)            — chuỗi → slug an toàn cho tên file/URL
-Load SAU shared-config.js, TRƯỚC mọi script cần dùng các hàm trên.
-
-### `js/data.js`
-**Nhiệm vụ duy nhất:** Fetch dữ liệu từ Supabase và nạp vào `window.GAMES`.
-Exports:
-window.GAMES        — mảng object game (camelCase)
-window.GAMES_READY  — Promise, resolve khi fetch xong
-Mapping Supabase → window.GAMES:
-g.youtube_url → youtubeUrl
-g.hero_bg     → heroBg
-g.categories  → categories (array)
-g.setup/turn/tips/images → giữ nguyên (array)
-Lưu ý: Phải await GAMES_READY trước khi dùng window.GAMES
-
-### `js/app.js`
-**Nhiệm vụ:** Router hash-based + toàn bộ render UI frontend.
-Hàm quan trọng:
-routeFromHash()     — đọc location.hash, gọi loadPage() + setActive()
-loadPage(name)      — fetch pages/{name}.html vào #app
-renderGrid()        — render danh sách game theo filter + search
-renderDetail(idx)   — render trang chi tiết game[idx]
-renderDailyPick()   — chọn ngẫu nhiên 3 game, render card gợi ý
-goDetail(idx)       — chuyển sang trang detail game[idx]
-goList()            — quay về list
-openLb(url, cap)    — mở lightbox ảnh
-saveUsernameSettings() — đọc input settings, lưu localStorage
-State: activeFilter, searchQ, currentIdx
-Phụ thuộc: window.GAMES, window.GAMES_READY (từ data.js)
-
-### `js/chat.js`
-**Nhiệm vụ:** Chat realtime + quản lý online users + analytics (Firebase, phía khách).
-Firebase paths:
-communityChat/           — tin nhắn chat
-onlineUsers/{id}         — presence (tự xóa khi disconnect)
-analytics/gameViews/...  — lượt xem từng game theo ngày
-analytics/hourly/...     — peak online theo giờ/ngày
-Hàm quan trọng:
-saveUsername() / sendMessage() / buildMessageEl(msg)
-clearChatIfNewDay()   — reset chat khi sang ngày mới
-window.__fbTrack(...) — ghi lượt xem game (gọi từ app.js)
-window.updateChatUsername(name) — được gọi từ app.js khi đổi tên trong Settings
-Lưu ý: ES Module (type="module")
-
-### `admin/login.html`
-**Tự chứa toàn bộ logic** (không file JS riêng, không đổi so với trước).
-Flow:
-
-Kiểm tra sessionStorage → nếu có session → redirect dashboard ngay
-Nhập username + password → sha256(password) bằng Web Crypto API
-SELECT từ admin_users WHERE username = ? → so sánh password_hash
-Đúng → lưu session, hiện progress bar, redirect sau 1.7s
-
-Session object: { id, username, displayName, role, loginAt }
+## 8. Chú thích từng file
 
 ### `admin/dashboard.html`
-**Nhiệm vụ:** CHỈ còn HTML shell — sidebar, 3 page tĩnh (Dashboard/Boardgames/Drinks),
-game modal, drink modal. KHÔNG còn `<script>` chứa logic nghiệp vụ.
-Load theo đúng thứ tự (rất quan trọng):
+**Nhiệm vụ:** CHỈ còn shell — sidebar, 3 page tĩnh (Dashboard/Boardgames/Drinks), danh sách `<script>`. KHÔNG còn modal HTML, KHÔNG còn `<style>` inline.
+Load theo đúng thứ tự — xem sơ đồ mục 3.
 
-shared-config.js / shared-emoji.js / shared-utils.js / Supabase SDK
-core/dashboard-auth.js            → tạo client + currentSession
-core/dashboard-page-registry.js   → tạo window.AdminDashboard
-modules/dashboard-games.js        → CRUD game (cần client + AdminDashboard KHÔNG bắt buộc)
-modules/dashboard-drinks.js       → CRUD đồ uống
-core/dashboard-nav.js             → điều hướng 3 page tĩnh, dùng loadGames()/loadDrinks()
-modules/*.js (type="module")      → chat, analytics, banners, media, accounts
-— mỗi module tự registerPage()
-dashboard-mobile-menu.js          → cuối cùng, cần .sidebar đã tồn tại
+### `admin/dashboard-shared.css`
+**Nhiệm vụ:** Toàn bộ CSS dùng chung của dashboard từng nằm inline trong `dashboard.html` (category-picker, section-divider, color-row, online-widget, skip-link, focus-visible, drink-modal select...). Load sau `dashboard.css`.
 
+### `admin/modules/games/dashboard-games.js`
+**Nhiệm vụ:** CRUD Boardgames + emoji picker + category picker + color picker.
+**Khác bản trước:** tự `injectGameModal()` (IIFE chạy 1 lần lúc file load) thay vì đọc `#gameModal` có sẵn trong HTML; đồng bộ 2 ô màu bằng `bindColorPickerSync()` (addEventListener) thay vì `oninput=""` inline.
+`window.getGameById(id)` — expose cho `dashboard-game-detail.js`. `window.loadGames` — expose cho `core/dashboard-nav.js`.
 
-### `admin/core/dashboard-auth.js`
-**Nhiệm vụ:** Auth guard + Supabase client dùng chung + user bar. Chạy đầu tiên trong chuỗi script admin.
-requireAuth()  — đọc sessionStorage, redirect login.html nếu không hợp lệ (throw để chặn script sau)
-logout()       — xóa session, redirect login.html
-Global (KHÔNG cần import, mọi script admin đọc được qua top-level scope):
-const client         — Supabase client
-const currentSession — { id, username, displayName, role, loginAt }
-Tự động inject User bar (avatar, tên, vai trò, nút đăng xuất) vào cuối .sidebar
+### `admin/modules/games/dashboard-game-detail.js`
+Không đổi so với bản trước — trang chi tiết + mã QR (thư viện `qrcode` CDN). Cần `games`/`parseLines`/`parseImages`/`setLines`/`setImages`/`isGamesReadOnly` từ `dashboard-games.js` (cùng thư mục `games/`, load trước).
 
-### `admin/core/dashboard-page-registry.js`
-**Nhiệm vụ:** Nơi DUY NHẤT quản lý hiện/ẩn page trong `.main-content` + tạo menu item sidebar.
-Thay thế cho 5 IIFE polling gần giống hệt nhau ở bản cũ (mỗi module tự dò `.menu-group`).
-window.AdminDashboard.registerPage({
-pageId,             // id của <div> page trong .main-content
-menuId,             // id của menu item sẽ tạo
-icon, label,        // hiển thị trên menu item
-badgeHtml,          // HTML phụ (vd: badge unread số tin chưa đọc)
-group,              // index .menu-group (mặc định 1 = "Quản trị")
-placeholderId,      // nếu HTML đã có sẵn placeholder (vd: #chatMenuItemPlaceholder)
-insertBeforeMenuId, // chèn trước 1 menu item cụ thể (mặc định: trước "Settings")
-onShow,             // callback chạy mỗi khi mở trang (vd loadAnalytics())
-guard,              // hàm trả về true/false — false thì KHÔNG đăng ký (vd chỉ superadmin)
-})
-window.AdminDashboard.showPage(pageId, menuId, onShow)
-window.__showPage(pageId)  — bản rút gọn, tương thích ngược cho code cũ
+### `admin/modules/drinks/dashboard-drinks.js`
+**Nhiệm vụ:** CRUD Đồ uống.
+**Khác bản trước:** tự `injectDrinkModal()`; nút "+ Thêm công thức" trong `dashboard.html` chỉ còn `id="addDrinkBtn"`, gắn `addEventListener` ở đây thay vì `onclick="openAddDrink()"` inline.
 
-### `admin/core/dashboard-nav.js`
-**Nhiệm vụ:** Điều hướng cho 3 page TĨNH có sẵn trong `dashboard.html` (Dashboard, Boardgames, Drinks).
-Các page ĐỘNG (chat/analytics/banners/media/accounts) tự đăng ký qua `registerPage()` ở module riêng, KHÔNG nằm trong file này.
-showDashboard()                — hiện Dashboard page
-toggleBgMenu() / showBoardgames(mode) — mở/đóng submenu + hiện trang Boardgames, mode: 'all' | 'search'
-openAddGame()                  — mở modal thêm game trực tiếp từ sidebar
-toggleDrinkMenu() / showDrinks(cat)   — mở/đóng submenu + hiện trang Drinks theo loại
-filterDrinks(cat, btnEl)       — lọc drink grid theo tab (không đổi trang)
-syncOnlineCountToDashboard()   — dùng MutationObserver mirror #adminOnlineCount → #dashOnlineCount
+### `admin/modules/membership/membership-shared.js` — MỚI
+**Nhiệm vụ:** Hàm thuần + state dùng chung cho domain Membership. Export `window.Membership`:
+- `state.customers / state.levels / state.quests` — nguồn dữ liệu chung, 3 file con đọc/ghi qua đây.
+- `getLevelForXp(xp)`, `getLevelInfo(level)`, `getNextLevelInfo(level)`, `formatVND(n)`, `getISOWeek(d)`, `periodKeyFor(type)`, `normalizePhone(raw)`.
+- `clearFieldError(id)` / `showFieldError(id, msg)` — validate UI dùng chung.
+- `loadCustomers()` / `loadLevels()` / `loadQuests()` — fetch Supabase, tự cập nhật `state`, ném lỗi để caller tự xử lý hiển thị.
+Load **đầu tiên** trong domain Membership, trước 3 file dưới.
 
-### `admin/modules/dashboard-games.js`
-**Nhiệm vụ:** CRUD Boardgames (bảng `games`) + emoji picker. Đổi tên từ `admin/dashboard.js` cũ,
-đã bỏ phần auth + user bar (chuyển sang `core/dashboard-auth.js`).
-loadGames() / renderGames() / saveGame() / deleteGame() / clearForm()
-Emoji Picker: openPicker()/closePicker()/buildCategoryTabs()/renderEmojiGrid()/selectEmoji()
-Helpers: parseLines(id), parseImages(id), setLines(id,arr), setImages(id,arr)
-Expose ra window: window.loadGames (dùng bởi core/dashboard-nav.js)
-Cần: client (từ core/dashboard-auth.js), window.escHtml (từ shared-utils.js)
+### `admin/modules/membership/dashboard-customers.js`
+**Nhiệm vụ:** Tab "👥 Danh sách" — bảng khách hàng, check-in, ghi nhận giao dịch, modal thêm khách + modal chi tiết khách (bao gồm cả nút tiến độ nhiệm vụ, gọi `markQuestProgress`).
+File **DUY NHẤT** của domain Membership gọi `registerPage({ pageId: "customersPage", guard: () => isSuperAdminCust })` — 2 file `dashboard-quests.js`/`dashboard-levels.js` chỉ render nội dung vào `#custTabQuests`/`#custTabLevels` đã có sẵn trong page này.
+`window.loadCustomers` — expose để `dashboard-levels.js` gọi lại sau khi lưu cấu hình cấp độ (đồng bộ dữ liệu giữa các tab).
 
-### `admin/modules/dashboard-drinks.js`
-**Nhiệm vụ:** CRUD Đồ uống (bảng `drinks`). MỚI tách ra từ khối `<script>` inline
-trong `admin/dashboard.html` bản cũ — nay cùng chuẩn file riêng như các module khác.
-loadDrinks() / renderDrinkGrid() / openAddDrink() / editDrink(id) / saveDrink() / deleteDrink()
-Helper: parseDrinkLines(id)
-State: window.activeDrinkFilter (đọc/ghi bởi core/dashboard-nav.js qua filterDrinks())
-Expose ra window: loadDrinks, renderDrinkGrid, openAddDrink, editDrink, saveDrink, deleteDrink
-Cần: client, window.escHtml, window.showToast
+### `admin/modules/membership/dashboard-quests.js` — MỚI (tách từ file cũ)
+**Nhiệm vụ:** Tab "🗺️ Nhiệm vụ" — CRUD bảng `quests` (daily/weekly/onetime), modal thêm/sửa tự inject.
+Export `window.renderQuestsTab()` — gọi bởi `dashboard-customers.js` khi tab này được mở.
 
-### `admin/modules/dashboard-chat.js`
-**Nhiệm vụ:** Module chat dành riêng cho admin (ES module — Firebase).
-Tự đăng ký qua: window.AdminDashboard.registerPage({
-pageId: "chatAdminPage", menuId: "chatMenuItem",
-placeholderId: "chatMenuItemPlaceholder", onShow: openChatPage, ...
-})
-State: unreadCount, chatPageOpen, allMessages[], tagAlerts[] (tối đa 20)
-TAG_PATTERN: /@thecoffeequest|@the\scoffee\squest|@quán|@quan|@staff|@admin/i
-Hàm quan trọng:
-openChatPage() / closeChatPage()
-sendStaffMessage()  — push với isStaff:true, staffName từ session
-buildMsgEl(msg)     — render bubble (phân biệt staff/khách/tag)
-addTagAlert(msg) / pushNotification() — browser Notification API
-Dùng window.escHtml / window.formatTime / window.showToast (KHÔNG tự định nghĩa lại)
-Firebase: dùng lại app đã init nếu có, fallback init mới
+### `admin/modules/membership/dashboard-levels.js` — MỚI (tách từ file cũ)
+**Nhiệm vụ:** Tab "🏆 Cấp độ" — bảng sửa trực tiếp (inline edit) cấu hình `membership_levels`, validate (XP tăng dần, % giảm giá 0-100) trước khi `upsert` hàng loạt.
+Export `window.renderLevelsTab()`. Sau khi lưu thành công, gọi lại `M.loadLevels()` + `window.loadCustomers()` để tab Danh sách phản ánh đúng cấp độ mới ngay.
 
-### `admin/modules/dashboard-analytics.js`
-**Nhiệm vụ:** Thống kê lượt xem game & giờ cao điểm online (ES module — Firebase + Canvas thuần).
-Tự đăng ký qua registerPage({ pageId: "analyticsPage", menuId: "analyticsMenuItem", onShow: loadAnalytics })
-setAnalyticsRange('today'|'7days'|'custom', btn) — đổi khoảng ngày
-loadAnalytics()          — fetch song song gameViews + hourly, render tất cả
-renderSummaryCards() / renderGameChart() / renderHourlyChart() / renderDetailTable()
-Biểu đồ vẽ bằng Canvas API thuần, không dùng thư viện ngoài
-Tự redraw khi resize window (debounce 300ms)
+### `admin/modules/{chat,analytics,banners,media,accounts}/dashboard-*.js`
+Không đổi nội dung so với bản trước — chỉ đổi đường dẫn thư mục theo domain. Xem mô tả chi tiết trong lịch sử README trước hoặc đọc trực tiếp file (đều có comment đầu file mô tả đầy đủ).
 
-### `admin/modules/dashboard-banners.js`
-**Nhiệm vụ:** Quản lý 2 banner hiển thị ở trang News (ES module — Supabase bảng `site_settings`).
-Tự đăng ký qua registerPage({ pageId: "bannersPage", menuId: "bannersMenuItem" })
-loadBanners() / renderBannerList() / attachBannerEvents() / window.saveBanners()
-Toggle switch hiện/ẩn từng banner, live preview khi nhập URL
-Lưu dạng JSON { url, visible } vào cột value của site_settings
+### `js/app.js`
+**Nhiệm vụ:** CHỈ còn router hash-based + render list/detail boardgame + lightbox + daily pick + settings.
+**Khác bản trước:** đã bỏ `initMembership()`/`lookupMembership()`/`normalizePhoneVN()` — `loadPage()` giờ gọi `window.initMembership()` (định nghĩa ở `js/membership.js`) khi vào trang `membership`.
 
-### `admin/modules/dashboard-media.js`
-**Nhiệm vụ:** Thư viện media/ảnh dùng làm banner/poster (ES module — Supabase bảng `media_library`).
-Tự đăng ký qua registerPage({
-pageId: "mediaPage", menuId: "mediaMenuItem", insertBeforeMenuId: "chatMenuItem"
-})
-loadMedia() / renderMediaGrid() / renderTagFilters()
-window.addMedia() / deleteMedia(id) / copyMediaLink(url) / downloadMedia(url, label)
-convertGDriveUrl(url) — tự nhận diện & chuyển link Google Drive sang link ảnh trực tiếp
-fetchMediaSize(url)   — best-effort đo dung lượng ảnh qua HEAD request
-Quyền: mọi tài khoản thêm được, chỉ superadmin (currentSession.role) mới xóa được
+### `js/membership.js` — MỚI (tách từ app.js)
+**Nhiệm vụ:** Toàn bộ logic trang "Thẻ thành viên" phía khách — chuẩn hoá SĐT, gọi Supabase RPC `get_membership_by_phone`, render thẻ hạng/XP/ưu đãi.
+Export `window.initMembership()`. Load sau `js/app.js` trong `index.html` (thứ tự không bắt buộc nghiêm ngặt vì không phụ thuộc lẫn nhau, nhưng nên giữ ngay sau `app.js` cho dễ đọc).
 
-### `admin/modules/dashboard-accounts.js`
-**Nhiệm vụ:** Quản lý tài khoản quản trị (ES module — Supabase bảng `admin_users`, chỉ superadmin).
-Tự đăng ký qua registerPage({
-pageId: "accountsPage", menuId: "accountsMenuItem",
-guard: () => isSuperAdmin,   // KHÔNG đăng ký page/menu nếu không phải superadmin
-onShow: loadAccounts,
-})
-loadAccounts() / renderAccountsTable() / openAddAccount() / openEditAccount(id)
-saveAccount() / deleteAccount()
-sha256(text) — hash mật khẩu phía client trước khi gửi lên Supabase (giống login.html)
-
-### `admin/dashboard-mobile-menu.js`
-**Nhiệm vụ:** Đóng/mở sidebar dạng off-canvas trên mobile/tablet (≤900px). KHÔNG đổi so với bản cũ.
-Phải load SAU khi `.sidebar` đã tồn tại trong DOM (đặt cuối danh sách script).
-
-### `css/style.css`
-Entry point, chỉ chứa `@import` theo đúng thứ tự (variables.css load đầu, responsive.css load cuối):
-base/variables.css → base/reset.css → base/header-menu.css → base/news-banner.css
-→ base/boardgame-list.css → base/boardgame-detail.css → base/pages.css
-→ base/modals.css → base/responsive.css
+*(Các file không đổi: `shared-config.js`, `shared-emoji.js`, `shared-categories.js`, `shared-utils.js`, `data.js`, `chat.js`, `login.html`, `core/dashboard-auth.js`, `core/dashboard-page-registry.js`, `core/dashboard-nav.js`, `core/dashboard-permissions.js`, `dashboard-mobile-menu.js` — xem mô tả đầy đủ trong lịch sử tài liệu.)*
 
 ---
 
-## 8. Database Schema
+## 9. Database Schema
 
-### Bảng `games` (Supabase)
+Không đổi so với trước — tái cấu trúc lần này thuần về tổ chức code, không đổi schema.
 
-| Cột | Kiểu | Ghi chú |
-|---|---|---|
-| `id` | bigint PK | Auto increment |
-| `name` | text | Tên game |
-| `emoji` | text | Ký tự emoji |
-| `color` | text | Hex color, vd `#6c5ce7` |
-| `categories` | jsonb | `["🎉 Party", "👨‍👩‍👧 Gia đình"]` |
-| `players` | text | Vd `"2-4 người"` |
-| `time` | text | Vd `"30-60 phút"` |
-| `difficulty` | text | `"Dễ"` / `"Trung bình"` / `"Khó"` |
-| `objective` | text | Mục tiêu game |
-| `win` | text | Điều kiện thắng |
-| `setup` | jsonb | `["Bước 1", "Bước 2"]` |
-| `turn` | jsonb | Các bước trong lượt chơi |
-| `tips` | jsonb | Mẹo chơi |
-| `images` | jsonb | `[{"url":"...","caption":"..."}]` |
-| `hero_bg` | text | URL ảnh nền trang detail |
-| `youtube_url` | text | URL video hướng dẫn |
-| `sort_order` | integer | Thứ tự hiển thị (nhỏ lên trước) |
+### Bảng chính: `games`, `drinks`, `admin_users`, `media_library`, `site_settings`
+Xem README lịch sử hoặc comment SQL trong `dashboard-media.js`.
 
-### Bảng `drinks` (Supabase)
+### Domain Membership: `customers`, `membership_levels`, `quests`, `customer_quests`, `customer_checkins`, `customer_transactions`
+| Bảng | Cột chính |
+|---|---|
+| `customers` | id, name, phone (unique), age, gender, xp, level, total_spent, streak_days, last_checkin |
+| `membership_levels` | level (PK), xp_required, rank_name, rank_icon, discount_pct, free_item, priority_booking |
+| `quests` | id, title, description, type (daily/weekly/onetime), xp_reward, target_count, active |
+| `customer_quests` | customer_id, quest_id, period_key, progress, completed, completed_at |
+| `customer_checkins` | customer_id, xp_earned, created_at |
+| `customer_transactions` | customer_id, amount, note, staff_name, created_at |
 
-| Cột | Kiểu | Ghi chú |
-|---|---|---|
-| `id` | bigint PK | Auto increment |
-| `name` | text | Tên đồ uống |
-| `category` | text | `"Cà phê"` / `"Trà hoa quả"` / `"Trà sữa"` / `"Sữa chua"` |
-| `emoji` | text | Ký tự emoji |
-| `description` | text | Mô tả ngắn |
-| `ingredients` | jsonb | `["20ml espresso", "150ml sữa"]` |
-| `steps` | jsonb | Các bước pha chế |
-| `tips` | jsonb | Mẹo pha chế |
-| `image_url` | text | URL ảnh minh hoạ |
-| `sort_order` | integer | Thứ tự hiển thị |
-| `created_at` | timestamptz | Tự động điền |
-
-### Bảng `admin_users` (Supabase)
-
-| Cột | Kiểu | Ghi chú |
-|---|---|---|
-| `id` | bigint PK | |
-| `username` | text | Tên đăng nhập (unique) |
-| `display_name` | text | Tên hiển thị trong dashboard |
-| `password_hash` | text | SHA-256 của mật khẩu |
-| `role` | text | `"superadmin"` hoặc `"editor"` |
-| `last_login` | timestamptz | Cập nhật mỗi lần đăng nhập |
-
-### Bảng `media_library` (Supabase)
-
-| Cột | Kiểu | Ghi chú |
-|---|---|---|
-| `id` | bigint PK | Auto increment (identity) |
-| `url` | text | URL ảnh (đã tự động convert nếu là Google Drive) |
-| `label` | text | Ghi chú (tuỳ chọn) |
-| `tags` | text[] | VD `{"banner","noel","sukien"}` |
-| `added_by` | text | Tên người thêm |
-| `created_at` | timestamptz | Tự động điền |
-
-```sql
-create table if not exists media_library (
-  id         bigint generated always as identity primary key,
-  url        text not null,
-  label      text,
-  tags       text[] not null default '{}',
-  added_by   text,
-  created_at timestamptz not null default now()
-);
-```
-
-### Bảng `site_settings` (Supabase)
-
-| Cột | Kiểu | Ghi chú |
-|---|---|---|
-| `key` | text PK | `"banner_1"` / `"banner_2"` |
-| `value` | text | JSON string `{"url":"...","visible":true}` |
-| `updated_at` | timestamptz | |
-
-### Firebase Realtime Database
-root/
-├── communityChat/
-│   └── {pushId}/
-│       ├── user:      string   — tên người gửi
-│       ├── text:      string   — nội dung
-│       ├── time:      number   — Date.now()
-│       ├── isStaff:   boolean  — true nếu từ admin
-│       └── staffName: string   — tên nhân viên (chỉ khi isStaff=true)
-│
-├── onlineUsers/
-│   └── {userId}/
-│       ├── name:   string
-│       └── online: true
-│
-└── analytics/
-├── gameViews/{date}/{gameId}/
-│       ├── count: number
-│       └── name:  string
-└── hourly/{date}/{hour}/
-└── peak:  number
+### RPC `get_membership_by_phone(p_phone text)`
+Trả về hạng + XP + ưu đãi + `xp_required_next` cho trang tra cứu công khai (tránh lộ toàn bảng `customers` qua anon key).
 
 ---
 
-## 9. Biến môi trường & cấu hình
+## 10. Biến môi trường & cấu hình
 
-Dự án **không dùng file `.env`** — credentials được viết thẳng trong code (phù hợp với anon key public của Supabase).
-
-### Supabase URL & Key + Firebase Config
-Nay chỉ còn **1 nơi DUY NHẤT**: `js/shared-config.js`
-
-```js
-window.APP_CONFIG = Object.freeze({
-  supabaseUrl: "...",
-  supabaseKey: "...",
-  firebaseConfig: Object.freeze({ ... }),
-});
-```
-
-Mọi file khác (`data.js`, `app.js`, `chat.js`, toàn bộ `admin/core/*.js` và `admin/modules/*.js`) đều đọc qua `window.APP_CONFIG` — **không hardcode lại**. Khi cần đổi Supabase project hoặc Firebase project, chỉ sửa đúng 1 file này.
-
-> ⚠️ `js/shared-config.js` phải là **file đầu tiên** được load trong mọi trang (cả `index.html` và `admin/dashboard.html` / `admin/login.html`).
-
----
-
-## 10. Quy trình bảo trì thường gặp
-
-### Thêm thể loại game mới
-1. Thêm `<div class="chip" data-filter="...">` vào `pages/boardgame.html`
-2. Không cần sửa code khác — filter tự hoạt động
-
-### Thêm câu trả lời nhanh cho admin chat
-Sửa mảng trong `admin/modules/dashboard-chat.js`, tìm đoạn:
-```js
-${[
-  "Xin chào! The CoffeeQuest...",
-  ...
-].map(t => ...)}
-```
-
-### Thêm 1 trang admin mới (module mới)
-1. Tạo file `admin/modules/dashboard-xxx.js`
-2. Gọi `window.AdminDashboard.registerPage({ pageId, menuId, icon, label, onShow, guard })` ở đầu file
-3. Inject HTML page bằng 1 IIFE `appendChild` vào `.main-content` (theo mẫu các module khác)
-4. Thêm `<script type="module" src="./modules/dashboard-xxx.js"></script>` vào cuối `admin/dashboard.html`, **sau** `core/dashboard-page-registry.js`
-
-Không cần đụng vào `core/dashboard-nav.js` hay các module khác.
-
-### Đổi màu chủ đạo toàn trang frontend
-Sửa `--accent` trong `css/base/variables.css`
-
-### Đổi màu chủ đạo dashboard admin
-Sửa `--primary` trong `admin/dashboard.css` mục `RESET & BASE`
-
-### Thêm admin user mới
-Chạy SQL trong Supabase SQL Editor:
-```sql
-INSERT INTO admin_users (username, display_name, password_hash, role)
-VALUES (
-  'ten_dang_nhap',
-  'Tên Hiển Thị',
-  -- Lấy hash bằng: https://emn178.github.io/online-tools/sha256.html
-  'sha256_cua_mat_khau',
-  'editor'   -- hoặc 'superadmin'
-);
-```
-
-### Đổi banner trang News
-Vào Admin → **🖼️ Banners** → dán URL ảnh mới → **💾 Lưu thay đổi** (khuyến khích thay vì sửa file tĩnh).
-
-### Chat bị đầy / cần reset thủ công
-Trong Admin Dashboard → **💬 Cộng đồng** → nút **🗑️ Xóa chat hôm nay**
-
-Hoặc trực tiếp trong Firebase Console → xóa node `communityChat`
+Không đổi — vẫn 1 nơi DUY NHẤT: `js/shared-config.js` chứa `window.APP_CONFIG` (Supabase URL/Key + Firebase config). Mọi file khác đọc qua đây, **không hardcode lại**.
 
 ---
 
 ## 11. Hệ thống Page Registry (Admin)
 
-Đây là phần kiến trúc quan trọng nhất của bản refactor — đáng để hiểu kỹ trước khi sửa bất kỳ module admin nào.
-
-### Vấn đề trước đây
-Mỗi module (`chat`, `analytics`, `banners`, `media`, `accounts`) tự viết 1 IIFE riêng để:
-- `setTimeout` polling chờ `.menu-group` xuất hiện trong DOM
-- Tự tìm menu item có text `"Settings"` để chèn trước nó
-- Tự định nghĩa lại `window.__showPage` (ẩn/hiện các page)
-
-→ 5 bản gần giống hệt nhau, dễ lệch nhau khi sửa 1 chỗ quên sửa chỗ khác.
-
-### Giải pháp: `admin/core/dashboard-page-registry.js`
+Không đổi API — vẫn `window.AdminDashboard.registerPage({...})` / `showPage()` / `window.__showPage()`. Khác biệt duy nhất: với domain Membership, **chỉ 1 trong 3 file** (`dashboard-customers.js`) được gọi `registerPage()`; 2 file còn lại (`dashboard-quests.js`, `dashboard-levels.js`) không đăng ký page riêng — chúng chỉ cung cấp hàm `renderXTab()` để file đăng ký gọi lại khi cần (xem mục 12).
 
 ```js
 window.AdminDashboard.registerPage({
-  pageId,             // id của <div> page trong .main-content
-  menuId,             // id sẽ gán cho menu item
-  icon, label,        // hiển thị trên menu item
-  badgeHtml,          // (tuỳ chọn) HTML thêm vào cuối menu item, vd badge số
-  group,              // (tuỳ chọn) index .menu-group, mặc định 1 = "Quản trị"
-  placeholderId,      // (tuỳ chọn) nâng cấp <a id="..."> có sẵn thay vì tạo mới
-  insertBeforeMenuId, // (tuỳ chọn) chèn trước menu item cụ thể; mặc định trước "Settings"
-  onShow,             // (tuỳ chọn) callback chạy mỗi lần trang được mở
-  guard,              // (tuỳ chọn) hàm trả về boolean — false thì KHÔNG đăng ký
+  pageId, menuId, icon, label, badgeHtml, group,
+  placeholderId, insertBeforeMenuId, onShow, guard,
 });
 ```
-
-Mỗi module chỉ cần gọi hàm này **1 lần** ở đầu file — không cần polling, không cần tự tìm `.menu-group`, không cần tự viết lại logic ẩn/hiện page.
-
-### Ví dụ thực tế — 3 kiểu dùng khác nhau
-
-**1. Trang đơn giản** (`dashboard-banners.js`):
-```js
-window.AdminDashboard.registerPage({
-  pageId: "bannersPage",
-  menuId: "bannersMenuItem",
-  icon: "🖼️",
-  label: "Banners",
-});
-```
-
-**2. Trang có placeholder sẵn trong HTML + badge động** (`dashboard-chat.js`):
-```js
-window.AdminDashboard.registerPage({
-  pageId: "chatAdminPage",
-  menuId: "chatMenuItem",
-  placeholderId: "chatMenuItemPlaceholder", // đã có sẵn <a> trong dashboard.html
-  icon: "💬",
-  label: "Cộng đồng",
-  badgeHtml: `<span id="chatMenuBadge" ...></span>`,
-  onShow: () => openChatPage(),
-});
-```
-
-**3. Trang có điều kiện quyền hạn** (`dashboard-accounts.js`):
-```js
-window.AdminDashboard.registerPage({
-  pageId: "accountsPage",
-  menuId: "accountsMenuItem",
-  icon: "👤",
-  label: "Quản lý tài khoản",
-  guard: () => isSuperAdmin,   // editor sẽ KHÔNG thấy mục này
-  onShow: () => loadAccounts(),
-});
-```
-
-### Quan hệ với `core/dashboard-nav.js`
-
-`dashboard-nav.js` **không** dùng `registerPage()` vì 3 trang Dashboard/Boardgames/Drinks đã có sẵn menu item + submenu tĩnh trong HTML (có collapsible submenu riêng, khác cấu trúc menu item đơn giản). File này gọi thẳng `window.__showPage(pageId)` (hàm rút gọn được `page-registry.js` expose ra) để giữ hành vi ẩn/hiện page nhất quán với các trang động khác.
 
 ### Khi cần debug
-- Menu item không xuất hiện → kiểm tra `guard` có trả về `true` không, và `group` có trỏ đúng `.menu-group` không (0 = "Hệ thống", 1 = "Quản trị")
-- Click menu không chuyển trang → kiểm tra `pageId` có khớp với `id` của `<div>` page đã inject vào `.main-content` chưa
-- Trang mở nhưng dữ liệu không load → kiểm tra `onShow` có được truyền đúng hàm chưa (phải là reference hoặc arrow function, không gọi hàm luôn lúc khai báo)
+- Menu item không xuất hiện → kiểm tra `guard()` và `group`.
+- Click không chuyển trang → kiểm tra `pageId` khớp `id` div đã inject.
+- Trang mở nhưng không load dữ liệu → kiểm tra `onShow` là reference/arrow function.
+- **Riêng domain Membership:** nếu tab Nhiệm vụ/Cấp độ trống khi mở → kiểm tra `membership-shared.js` đã load trước và `M.loadQuests()`/`M.loadLevels()` đã resolve trước khi `renderQuestsTab()`/`renderLevelsTab()` chạy (xem `onShow` trong `dashboard-customers.js`).
+- Lỗi `window.Membership is undefined` → thứ tự `<script>` sai, `membership-shared.js` phải nằm trước 3 file domain kia trong `dashboard.html`.
 
 ---
 
-*Cập nhật lần cuối: 2026 — Dự án The Coffee Quest (đã refactor cấu trúc admin thành core/ + modules/)*
+## 12. Domain Membership — kiến trúc chi tiết
+
+Đây là domain phức tạp nhất (1 page, 3 tab, 3 file JS phối hợp) nên cần giải thích riêng.
+
+### Vì sao 1 page nhưng 3 file?
+Tab "Danh sách"/"Nhiệm vụ"/"Cấp độ" dùng chung 1 trang admin (`#customersPage`) vì về mặt UX chúng thuộc cùng 1 màn hình điều hướng — nhưng về mặt code, mỗi tab là 1 domain con gần như độc lập (khác bảng Supabase, khác modal, khác validate). Tách file giúp:
+- Mỗi file ngắn (80–330 dòng) thay vì 1 file ~700 dòng.
+- Sửa tab Nhiệm vụ không có nguy cơ đụng code tab Cấp độ.
+- Dễ viết test riêng cho từng phần (nếu sau này thêm testing).
+
+### Hợp đồng (contract) giữa 3 file
+```
+membership-shared.js
+  → export window.Membership { state, loadCustomers, loadLevels, loadQuests, helpers... }
+
+dashboard-customers.js  (chủ trang)
+  → registerPage({ onShow: () => { M.loadLevels()...; M.loadQuests()...; loadCustomers(); } })
+  → expose window.loadCustomers  (để dashboard-levels.js gọi lại khi cần đồng bộ)
+
+dashboard-quests.js  (tab con)
+  → expose window.renderQuestsTab()
+  → TỰ chịu trách nhiệm inject modal quest của riêng mình
+
+dashboard-levels.js  (tab con)
+  → expose window.renderLevelsTab()
+  → sau khi lưu, gọi M.loadLevels() + window.loadCustomers() để đồng bộ
+```
+
+Quy tắc: **file chủ trang** (`dashboard-customers.js`) là nơi duy nhất biết về cấu trúc DOM tổng (`#custTabList`/`#custTabQuests`/`#custTabLevels`) và nơi duy nhất gọi `registerPage()`. **File tab con** chỉ cần biết "tôi render vào div nào" và expose 1 hàm `renderXTab()` — không cần biết gì về việc chuyển tab hoạt động ra sao.
+
+### Khi thêm tab thứ 4 (ví dụ "Lịch sử ưu đãi đã dùng")
+1. Thêm nút tab + `<div id="custTabHistory">` trong `dashboard-customers.js`.
+2. Tạo `dashboard-history.js` mới, export `window.renderHistoryTab()`.
+3. Thêm nhánh gọi trong `switchCustTab()` (file `dashboard-customers.js`) và trong `onShow` của `registerPage()` nếu cần load dữ liệu ngay khi mở trang.
+4. Thêm `<script>` vào `dashboard.html`, đặt sau `dashboard-customers.js`.
+
+---
+
+## 13. Checklist: thêm 1 module admin mới
+
+Áp dụng cho domain hoàn toàn mới (không phải thêm tab vào Membership — xem mục 12 cho trường hợp đó):
+
+1. Tạo thư mục `admin/modules/{ten-domain}/`.
+2. File JS chính gọi `registerPage()` ngay đầu (sau khi định nghĩa các hàm cần thiết, hoặc dùng function hoisting).
+3. HTML page + modal (nếu có) **tự inject bằng IIFE**, KHÔNG thêm gì vào `dashboard.html`.
+4. CSS riêng (nếu cần) → `injectXStyles()` bằng JS, KHÔNG thêm `<style>` vào `dashboard.html`.
+5. Dùng `addEventListener`, tránh `onclick=""`/`oninput=""` inline trong HTML tự inject.
+6. Thêm đúng 1 dòng `<script>` vào cuối `dashboard.html`, đúng vị trí theo nhu cầu phụ thuộc (xem sơ đồ mục 3).
+7. Nếu module cần quyền hạn → dùng `window.AdminPermissions.isSuperAdmin()` / `.isReadOnly()` / `.can()`, không so sánh chuỗi role thủ công.
+8. Nếu module cần validate form → dùng pattern `clearFieldError`/`showFieldError` (border đỏ + text dưới field), không dùng `alert()`.
+9. Nếu module cần xác nhận xoá → dùng `window.showConfirm()`, không dùng `confirm()` native.
+
+---
+
+## 14. Quy trình bảo trì thường gặp
+
+- Thêm thể loại game mới → sửa `window.GAME_CATEGORIES` trong `js/shared-categories.js`.
+- Thêm câu trả lời nhanh chat admin → mảng trong `admin/modules/chat/dashboard-chat.js`.
+- Thêm 1 domain admin mới → theo checklist mục 13.
+- Thêm 1 tab mới trong Membership → theo hướng dẫn mục 12.
+- Đổi màu frontend → `--accent` trong `css/base/variables.css`.
+- Đổi màu admin → `--primary` trong `admin/dashboard.css`.
+- Đổi style chung của dashboard (category-picker, section-divider...) → `admin/dashboard-shared.css`, **không** thêm lại `<style>` vào `dashboard.html`.
+- Thêm admin user mới → SQL insert `admin_users` với `password_hash` SHA-256.
+- Đổi banner News → Admin → Banners.
+- Reset chat → Admin → Cộng đồng → Xóa chat hôm nay.
+- Đổi cấu hình cấp độ/ưu đãi thành viên → Admin → Khách hàng → tab Cấp độ.
+- Đổi logic trang Thẻ thành viên (khách) → sửa `js/membership.js`, **không** sửa `js/app.js`.
+
+---
+
+*Cập nhật lần cuối: 2026 — The Coffee Quest v2 (sau tái cấu trúc). Xem `MIGRATION_NOTES.md` để biết chi tiết những gì đã thay đổi so với cấu trúc trước.*
