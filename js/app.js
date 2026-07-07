@@ -1,10 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
 //  app.js — The Coffee Quest
+//  ─────────────────────────────────────────────────────────────
+//  ĐÃ TÁCH: toàn bộ logic trang "Thẻ thành viên" (initMembership,
+//  lookupMembership, normalizePhoneVN) chuyển sang js/membership.js.
+//  File này giờ CHỈ còn lo: router hash-based, render list/detail
+//  boardgame, lightbox, daily pick, settings — đúng với vai trò
+//  "Router + render UI" mà tài liệu vốn mô tả.
 // ═══════════════════════════════════════════════════════════════
 
 let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
 let gameSlugs = { slugById: {}, idBySlug: {} };
-let idxById = new Map();
 
 const esc = window.escHtml;
 function diffClass(d){ return d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium' }
@@ -59,7 +64,8 @@ async function loadPage(pageName){
     window.scrollTo(0, 0);
     if(pageName === 'boardgame') initBoardgame();
     if(pageName === 'settings')  initSettings();
-    if(pageName === 'membership') initMembership();
+    /* ĐÃ TÁCH: gọi qua window vì logic thật nằm ở js/membership.js */
+    if(pageName === 'membership' && typeof window.initMembership === 'function') window.initMembership();
     if(pageName === 'news')      renderDailyPick();
   } catch(e){
     app.innerHTML = '<div style="padding:60px 24px;text-align:center">'
@@ -78,7 +84,6 @@ function setActive(fn){
   });
 }
 
-/* BUG FIX: tránh loop khi hash đã đúng — dùng replace thay vì gán hash lại */
 function goNews(){
   closeMenu();
   if(location.hash === '#news'){ routeFromHash(); return; }
@@ -121,13 +126,11 @@ function goList(){
 }
 
 function goDetail(idx){
-  /* BUG FIX: guard nếu idx không hợp lệ */
   if(idx < 0 || idx >= GAMES.length) return;
   currentIdx = idx;
   showInApp('page-detail');
   renderDetail(idx);
   window.scrollTo(0,0);
-  /* Link đẹp: #game-{slug-ten-game} thay vì #game-{index} */
   const slug = gameSlugs.slugById[GAMES[idx].id] || idx;
   history.pushState(null,'','#game-'+slug);
   trackGameView(idx);
@@ -137,7 +140,6 @@ function goDetail(idx){
 function getDateStr(){ return new Date().toISOString().slice(0,10); }
 
 function trackGameView(idx){
-  /* BUG FIX: guard + không await (fire-and-forget intentional, nhưng wrap try/catch trong __fbTrack) */
   if(typeof window.__fbTrack !== 'function') return;
   const game = GAMES[idx];
   if(!game) return;
@@ -171,7 +173,6 @@ function renderGrid(){
   }
   if(empty) empty.style.display = 'none';
 
-  /* BUG FIX: dùng GAMES.indexOf(g) để lấy đúng real index kể cả khi đang filter */
   grid.innerHTML = games.map((g, i) => {
     const ri   = GAMES.indexOf(g);
     const cats = getCategories(g);
@@ -200,7 +201,7 @@ function renderGrid(){
 /* ═══ BOARDGAME DETAIL ═══ */
 function renderDetail(idx){
   const g    = GAMES[idx];
-  const cats = getCategories(g); /* BUG FIX: dùng helper thay vì g.category */
+  const cats = getCategories(g);
 
   const set  = (id,val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
   const setH = (id,val) => { const el=document.getElementById(id); if(el) el.innerHTML=val; };
@@ -258,7 +259,6 @@ function renderDetail(idx){
       : `<div class="no-video"><div class="nv-icon">📽️</div><p>Chưa có video hướng dẫn.</p><a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to play '+g.name)}" target="_blank" rel="noopener">Tìm trên YouTube →</a></div>`;
   }
 
-  /* BUG FIX: so sánh categories đúng cách */
   const related = GAMES
     .filter((r, i) => i !== idx && getCategories(r).some(c => cats.includes(c)))
     .slice(0, 4);
@@ -286,14 +286,12 @@ function renderDetail(idx){
 /* ═══ INIT BOARDGAME PAGE ═══ */
 function initBoardgame(){
   renderGrid();
-  /* Sync search input với state hiện tại (nếu quay lại từ detail) */
   const si = document.getElementById('searchInput');
   if(si){
     si.value = searchQ;
     si.addEventListener('input', e=>{ searchQ = e.target.value; renderGrid(); });
   }
   document.querySelectorAll('.chip').forEach(c=>{
-    /* Đánh dấu chip đang active */
     if(c.getAttribute('data-filter') === activeFilter) c.classList.add('active');
     c.addEventListener('click', ()=>{
       document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
@@ -308,108 +306,6 @@ function initBoardgame(){
 function initSettings(){
   const input = document.getElementById('settings-username');
   if(input) input.value = localStorage.getItem('tcq_username') || '';
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MEMBERSHIP LOOKUP
-   ─────────────────────────────────────────────────────────────
-   ⚠️ SỬA (audit membership):
-   - Thêm normalizePhoneVN(): chuẩn hoá SĐT (bỏ khoảng trắng/dấu
-     gạch, chuyển +84/84xxx → 0xxx) trước khi gửi lên Supabase —
-     tránh tình trạng "không tìm thấy" chỉ vì gõ khác định dạng so
-     với lúc đăng ký ở quầy.
-   - Validate định dạng SĐT tại client trước khi gọi network, đỡ
-     tốn 1 round-trip vô ích khi người dùng gõ sai/thiếu số.
-   - Khoá nút "Tra cứu" + đổi text khi đang xử lý, tránh bấm liên
-     tục gây gọi API nhiều lần chồng nhau.
-   - Sửa lỗi chia cho 0 / % âm khi tính thanh XP (pct) — trước đây
-     nếu 2 cấp độ liên tiếp có xp_required bằng nhau (lỗi cấu hình)
-     sẽ ra NaN%, hoặc nếu dữ liệu khách lệch cấp có thể ra % âm.
-   - escape thêm m.last_checkin cho an toàn (dù là ngày tháng).
-   ═══════════════════════════════════════════════════════════════ */
-function initMembership(){
-  const input = document.getElementById('member-phone-input');
-  document.getElementById('member-lookup-btn')?.addEventListener('click', lookupMembership);
-  input?.addEventListener('keydown', e=>{
-    if(e.key === 'Enter') lookupMembership();
-  });
-  /* Xoá thông báo lỗi cũ ngay khi người dùng gõ lại */
-  input?.addEventListener('input', ()=>{
-    const result = document.getElementById('member-result');
-    if(result && result.querySelector('.member-not-found')) result.innerHTML = '';
-  });
-}
-
-/* Chuẩn hoá số điện thoại VN: "+84 912 345 678" / "84912345678" / "0912-345-678"
-   → "0912345678". Không cố "sửa đúng" số sai be bét, chỉ xử lý các
-   biến thể phổ biến nhất khi người dùng gõ tay. */
-function normalizePhoneVN(raw){
-  let p = (raw || '').trim().replace(/[\s.\-()]/g, '');
-  if(p.startsWith('+84')) p = '0' + p.slice(3);
-  else if(p.startsWith('84') && p.length > 9) p = '0' + p.slice(2);
-  return p;
-}
-
-async function lookupMembership(){
-  const input  = document.getElementById('member-phone-input');
-  const btn    = document.getElementById('member-lookup-btn');
-  const result = document.getElementById('member-result');
-  const phone  = normalizePhoneVN(input.value);
-
-  if(!phone){ input.focus(); return; }
-
-  /* Validate định dạng cơ bản trước khi gọi network */
-  if(!/^0\d{9,10}$/.test(phone)){
-    result.innerHTML = '<div class="member-not-found">⚠️ Số điện thoại chưa đúng định dạng.<br>Vui lòng nhập dạng: 0912345678</div>';
-    input.focus();
-    return;
-  }
-
-  if(btn){
-    btn.disabled = true;
-    btn.dataset.origText = btn.dataset.origText || btn.textContent;
-    btn.textContent = '⏳ Đang tra...';
-  }
-  result.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px;">⏳ Đang tra cứu...</p>';
-
-  try{
-    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
-    const supabase = createClient(window.APP_CONFIG.supabaseUrl, window.APP_CONFIG.supabaseKey);
-    const { data, error } = await supabase.rpc('get_membership_by_phone', { p_phone: phone });
-
-    if(error) throw error;
-    const m = data && data[0];
-    if(!m){
-      result.innerHTML = '<div class="member-not-found">🔍 Không tìm thấy khách hàng với số điện thoại này.<br>Vui lòng liên hệ quầy để đăng ký thẻ thành viên.</div>';
-      return;
-    }
-
-    /* BUG FIX: guard chia cho 0 + clamp 0-100% */
-    const hasNext = m.xp_required_next != null && m.xp_required_next > m.xp_required_current;
-    const pct = hasNext
-      ? Math.max(0, Math.min(100, Math.round((m.xp - m.xp_required_current) / (m.xp_required_next - m.xp_required_current) * 100)))
-      : 100;
-
-    const perks = [
-      m.discount_pct > 0 ? `<span class="member-perk-chip">💸 Giảm ${m.discount_pct}%</span>` : '',
-      m.free_item        ? `<span class="member-perk-chip">🎁 ${esc(m.free_item)}</span>` : '',
-      m.priority_booking  ? `<span class="member-perk-chip">⭐ Ưu tiên đặt bàn/slot game</span>` : '',
-    ].filter(Boolean).join('') || '<span style="color:var(--muted);font-size:.85rem;">Chưa có ưu đãi ở cấp này</span>';
-
-    result.innerHTML = `
-      <div class="member-card">
-        <div class="member-rank">${esc(m.rank_icon)} ${esc(m.name)} — ${esc(m.rank_name)}</div>
-        <div class="member-xp-bar-outer"><div class="member-xp-bar-fill" style="width:${pct}%"></div></div>
-        <div class="member-xp-label">${m.xp} XP ${hasNext ? `· cần ${m.xp_required_next} XP để lên cấp tiếp theo` : '· Cấp cao nhất 🎉'}</div>
-        <div class="member-perks">${perks}</div>
-        <div style="margin-top:16px;font-size:.82rem;color:var(--muted);">🔥 Streak: ${m.streak_days || 0} ngày · Check-in gần nhất: ${esc(m.last_checkin) || '—'}</div>
-      </div>`;
-  }catch(err){
-    console.error(err);
-    result.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px;">⚠️ Có lỗi khi tra cứu, thử lại sau.</p>';
-  } finally {
-    if(btn){ btn.disabled = false; btn.textContent = btn.dataset.origText || '🔍 Tra cứu'; }
-  }
 }
 
 function saveUsernameSettings(){
@@ -454,29 +350,24 @@ function routeFromHash(){
         const key = hash.replace('game-','');
         let idx = -1;
 
-        /* Ưu tiên tra theo slug (link mới, dễ đọc: #game-catan) */
         const idFromSlug = gameSlugs.idBySlug[key];
         if(idFromSlug !== undefined){
           idx = GAMES.findIndex(g => g.id === idFromSlug);
         }
-
-        /* Tương thích ngược: link/QR cũ dạng #game-2 (theo index) vẫn hoạt động */
         if(idx === -1){
           const numIdx = parseInt(key, 10);
           if(!isNaN(numIdx) && numIdx >= 0 && numIdx < GAMES.length) idx = numIdx;
         }
-
         if(idx !== -1) setTimeout(()=>goDetail(idx), 80);
       }
     });
   } else if(hash === 'contact'){
     loadPage('contact'); updateHeader('contact'); setActive('goContact');
   } else if(hash === 'membership'){
-  loadPage('membership'); updateHeader('membership'); setActive('goMembership');
+    loadPage('membership'); updateHeader('membership'); setActive('goMembership');
   } else if(hash === 'settings'){
     loadPage('settings'); updateHeader('settings'); setActive('goSettings');
   } else {
-    /* BUG FIX: dùng replace() tránh thêm entry vào history khi đang ở news */
     if(location.hash !== '#news') history.replaceState(null,'','#news');
     loadPage('news'); updateHeader('news'); setActive('goNews');
   }
@@ -512,7 +403,6 @@ function renderDailyPick(){
   const wrap = document.getElementById('daily-pick-card');
   if(!wrap || !GAMES || !GAMES.length) return;
 
-  /* Chọn n game ngẫu nhiên không trùng */
   function pickRandom(arr, n){
     const pool   = [...arr];
     const result = [];
