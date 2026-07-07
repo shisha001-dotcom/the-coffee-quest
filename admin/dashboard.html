@@ -8,278 +8,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./dashboard.css">
-  <style>
-    /* ⚠️ MỚI (UI/UX audit — ưu tiên cao): skip-link + focus-visible cho
-       admin (dashboard.css chưa có, bổ sung tại đây để không phải sửa
-       lại toàn bộ file dashboard.css). */
-    .skip-link {
-      position: absolute; top: -60px; left: 12px; z-index: 99999;
-      background: var(--primary); color: #fff; font-weight: 700;
-      font-size: 13px; padding: 10px 18px; border-radius: 10px;
-      text-decoration: none; transition: top .18s ease;
-    }
-    .skip-link:focus { top: 12px; }
-    :focus-visible {
-      outline: 3px solid var(--primary);
-      outline-offset: 2px;
-    }
-    .visually-hidden {
-      position: absolute; width: 1px; height: 1px;
-      padding: 0; margin: -1px; overflow: hidden;
-      clip: rect(0,0,0,0); white-space: nowrap; border: 0;
-    }
-
-    /* ── SECTION DIVIDER trong modal ── */
-    .section-divider {
-      grid-column: 1 / -1;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 4px 0 -4px;
-    }
-    .section-divider span {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-    .section-divider::before,
-    .section-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-    .form-group textarea {
-      height: 100px;
-      padding: 10px 14px;
-      resize: vertical;
-      font-size: 13px;
-      line-height: 1.6;
-    }
-    .form-group textarea.tall { height: 140px; }
-    .form-group .hint {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: -4px;
-    }
-    .color-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .color-row input[type="color"] {
-      width: 44px;
-      height: 44px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 3px;
-      cursor: pointer;
-      background: #fff;
-      flex-shrink: 0;
-    }
-    .color-row input[type="text"] { flex: 1; }
-
-    /* ── CATEGORY PICKER (chip chọn nhiều thể loại) ── */
-    .category-picker {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 4px 0;
-    }
-    .cat-chip {
-      padding: 8px 16px;
-      border-radius: 20px;
-      border: 1.5px solid var(--border);
-      background: var(--card);
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 600;
-      font-family: 'Inter', sans-serif;
-      cursor: pointer;
-      transition: all .15s;
-      user-select: none;
-      min-height: 38px;
-    }
-    .cat-chip:hover { border-color: var(--primary); color: var(--primary); }
-    .cat-chip.selected {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: #fff;
-    }
-    .cat-chip:disabled {
-      opacity: .55;
-      cursor: not-allowed;
-    }
-    .cat-chip:disabled:hover { border-color: var(--border); color: var(--text-muted); }
-
-    /* ── DIFFICULTY SELECT — dùng chung style với input thường ── */
-    #difficultyInput, #gdDifficulty {
-      height: 44px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      padding: 0 14px;
-      font-size: 14px;
-      font-family: 'Inter', sans-serif;
-      color: var(--text);
-      outline: none;
-      background: var(--card);
-      transition: border-color 0.2s;
-    }
-    #difficultyInput:focus, #gdDifficulty:focus { border-color: var(--primary); }
-
-    /* ── SIDEBAR: menu group labels ── */
-    .menu-group-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1.4px;
-      color: rgba(160,168,192,.55);
-      text-transform: uppercase;
-      padding: 0 14px 6px;
-      margin-top: 6px;
-    }
-
-    /* ── SIDEBAR: sub-items (không còn dùng cho Boardgames/Đồ uống,
-       nhưng giữ lại style phòng khi cần dùng chỗ khác) ── */
-    .menu-sub-item {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      padding: 8px 14px 8px 36px;
-      border-radius: 8px;
-      color: rgba(160,168,192,.75);
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background 0.18s, color 0.18s;
-      position: relative;
-    }
-    .menu-sub-item::before {
-      content: '';
-      position: absolute;
-      left: 22px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: rgba(160,168,192,.35);
-      transition: background 0.18s;
-    }
-    .menu-sub-item:hover {
-      background: rgba(255,255,255,.07);
-      color: #fff;
-    }
-    .menu-sub-item:hover::before { background: #fff; }
-    .menu-sub-item.active {
-      background: rgba(108,92,231,.18);
-      color: #c4b8ff;
-    }
-    .menu-sub-item.active::before { background: var(--primary); }
-
-    /* ── SIDEBAR: collapsible parent (không còn dùng cho Boardgames/
-       Đồ uống, nhưng giữ lại style phòng khi cần dùng chỗ khác) ── */
-    .menu-item-parent {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-radius: 10px;
-      color: var(--sidebar-text);
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s, color 0.2s;
-      user-select: none;
-      position: relative;
-    }
-    .menu-item-parent:hover {
-      background: rgba(255,255,255,.07);
-      color: #fff;
-    }
-    .menu-item-parent.active {
-      background: var(--primary);
-      color: #fff;
-    }
-    .menu-item-parent .chevron {
-      margin-left: auto;
-      font-size: 10px;
-      opacity: .5;
-      transition: transform .2s;
-    }
-    .menu-item-parent.open .chevron { transform: rotate(180deg); }
-
-    .menu-children {
-      overflow: hidden;
-      max-height: 0;
-      transition: max-height .25s ease;
-    }
-    .menu-children.open { max-height: 400px; }
-
-    /* ── ONLINE WIDGET on dashboard ── */
-    .online-widget {
-      background: var(--card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 28px 32px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .online-widget-title {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .online-pulse {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: #00b894;
-      box-shadow: 0 0 0 3px rgba(0,184,148,.2);
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%,100% { box-shadow: 0 0 0 3px rgba(0,184,148,.2); }
-      50%      { box-shadow: 0 0 0 7px rgba(0,184,148,.08); }
-    }
-    .online-big-num {
-      font-size: 64px;
-      font-weight: 700;
-      color: var(--primary);
-      line-height: 1;
-      letter-spacing: -2px;
-    }
-    .online-label {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    /* ── DRINK MODAL specific ── */
-    #drinkModal .form-group select {
-      height: 44px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      padding: 0 14px;
-      font-size: 14px;
-      font-family: 'Inter', sans-serif;
-      color: var(--text);
-      outline: none;
-      background: var(--card);
-      transition: border-color 0.2s;
-    }
-    #drinkModal .form-group select:focus { border-color: var(--primary); }
-  </style>
+  <!-- ĐÃ CHUYỂN: toàn bộ <style> inline (~230 dòng: category-picker,
+       section-divider, color-row, online-widget, skip-link...) sang
+       đây — xem admin/dashboard-shared.css. dashboard.html giờ
+       KHÔNG còn <style> tag nào. -->
+  <link rel="stylesheet" href="./dashboard-shared.css">
 </head>
 <body>
 
-<!-- ══ SKIP LINK — MỚI ══ -->
+<!-- ══ SKIP LINK ══ -->
 <a href="#mainContent" class="skip-link">Chuyển tới nội dung chính</a>
 
 <button id="adminMenuToggle" aria-label="Mở menu điều hướng" aria-expanded="false" aria-controls="side-menu-admin">
@@ -301,24 +38,19 @@
       <div class="menu-group">
         <div class="menu-group-label">Hệ thống</div>
 
-        <!-- Dashboard -->
         <a class="menu-item active" id="dashboardMenuItem" onclick="showDashboard()">
           <span aria-hidden="true">📊</span> Dashboard
         </a>
 
-        <!-- Boardgames — vào thẳng trang, search + nút thêm đã có sẵn trên trang -->
         <a class="menu-item" id="bgParent" onclick="showBoardgames()">
           <span aria-hidden="true">🎲</span> Boardgames
         </a>
 
-        <!-- Đồ uống — vào thẳng trang, tab lọc theo loại đã có sẵn trên trang -->
         <a class="menu-item" id="drinkParent" onclick="showDrinks('all')">
           <span aria-hidden="true">☕</span> Đồ uống
         </a>
 
-        <!-- Cộng đồng — MỚI: chuyển từ nhóm "Quản trị" lên đây, ngay sau
-             "Đồ uống". Placeholder này được dashboard-chat.js tự nâng cấp
-             qua registerPage({ placeholderId: "chatMenuItemPlaceholder" }). -->
+        <!-- Nâng cấp bởi dashboard-chat.js qua registerPage({ placeholderId }) -->
         <a class="menu-item" id="chatMenuItemPlaceholder"><span aria-hidden="true">💬</span> Cộng đồng</a>
       </div>
 
@@ -348,7 +80,6 @@
         </div>
       </div>
 
-      <!-- Stats -->
       <div class="stats-grid" style="margin-bottom:28px;">
         <div class="stat-card">
           <div class="stat-icon" aria-hidden="true">🎲</div>
@@ -380,7 +111,6 @@
         </div>
       </div>
 
-      <!-- Online widget -->
       <div class="online-widget">
         <div class="online-widget-title">
           <div class="online-pulse" aria-hidden="true"></div>
@@ -394,7 +124,9 @@
 
     </div>
 
-    <!-- ── BOARDGAMES PAGE ── -->
+    <!-- ── BOARDGAMES PAGE ──
+         Modal #gameModal KHÔNG còn ở đây — được inject bởi
+         admin/modules/games/dashboard-games.js -->
     <div id="boardgamesPage" style="display:none;">
 
       <div class="page-header">
@@ -408,25 +140,19 @@
         </div>
       </div>
 
-      <!-- Search -->
       <div class="search-bar">
         <label for="searchInput" class="visually-hidden">Tìm boardgame</label>
         <input type="text" id="searchInput" placeholder="🔍 Tìm boardgame..." class="search-input">
       </div>
 
-      <!-- Table -->
       <div class="table-card">
         <div id="loadingMsg" class="loading-msg">⏳ Đang tải dữ liệu...</div>
         <div id="errorMsg" class="error-msg hidden" role="alert"></div>
         <table class="game-table hidden" id="gameTable">
           <thead>
             <tr>
-              <th>Game</th>
-              <th>Người chơi</th>
-              <th>Thời gian</th>
-              <th>Độ khó</th>
-              <th>Thể loại</th>
-              <th>Hành động</th>
+              <th>Game</th><th>Người chơi</th><th>Thời gian</th>
+              <th>Độ khó</th><th>Thể loại</th><th>Hành động</th>
             </tr>
           </thead>
           <tbody id="gameTableBody"></tbody>
@@ -435,7 +161,9 @@
 
     </div>
 
-    <!-- ── DRINKS PAGE ── -->
+    <!-- ── DRINKS PAGE ──
+         Modal #drinkModal KHÔNG còn ở đây — được inject bởi
+         admin/modules/drinks/dashboard-drinks.js -->
     <div id="drinksPage" style="display:none;">
 
       <div class="page-header">
@@ -445,11 +173,10 @@
         </div>
         <div class="header-actions">
           <button class="btn btn-secondary" onclick="loadDrinks()">🔄 Refresh</button>
-          <button class="btn btn-primary" id="addDrinkBtn" onclick="openAddDrink()">+ Thêm công thức</button>
+          <button class="btn btn-primary" id="addDrinkBtn">+ Thêm công thức</button>
         </div>
       </div>
 
-      <!-- Category filter tabs -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;" role="tablist" aria-label="Lọc theo loại đồ uống">
         <button class="btn btn-primary drink-tab active" data-cat="all"        onclick="filterDrinks('all',this)">🍹 Tất cả</button>
         <button class="btn btn-secondary drink-tab" data-cat="Cà phê"         onclick="filterDrinks('Cà phê',this)">☕ Cà phê</button>
@@ -458,7 +185,6 @@
         <button class="btn btn-secondary drink-tab" data-cat="Sữa chua"       onclick="filterDrinks('Sữa chua',this)">🥛 Sữa chua</button>
       </div>
 
-      <!-- Drink cards grid -->
       <div id="drinkGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;">
         <div style="text-align:center;color:var(--text-muted);padding:60px 0;grid-column:1/-1;">⏳ Đang tải...</div>
       </div>
@@ -468,244 +194,31 @@
   </main>
 </div>
 
-<!-- ═══════════ GAME MODAL ═══════════ -->
-<div class="modal-overlay hidden" id="gameModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-  <div class="modal-box">
-
-    <div class="modal-header">
-      <h2 id="modalTitle">Thêm Boardgame</h2>
-      <button class="close-btn" id="closeModalBtn" aria-label="Đóng cửa sổ">✕</button>
-    </div>
-
-    <input type="hidden" id="gameId">
-
-    <div class="form-grid">
-
-      <div class="section-divider"><span>📋 Thông tin cơ bản</span></div>
-
-      <div class="form-group">
-        <label for="nameInput">Tên game *</label>
-        <input type="text" id="nameInput" placeholder="Catan, Cluedo...">
-      </div>
-
-      <!-- EMOJI PICKER -->
-      <div class="form-group">
-        <label for="emojiInput">Emoji</label>
-        <div class="emoji-field">
-          <div class="emoji-preview" id="emojiPreview" aria-hidden="true">🎲</div>
-          <input type="text" id="emojiInput" placeholder="Chọn emoji..." autocomplete="off" readonly>
-          <button type="button" class="emoji-toggle-btn" id="emojiToggleBtn" title="Chọn emoji" aria-label="Mở bảng chọn emoji" aria-expanded="false">▼</button>
-        </div>
-        <div class="emoji-picker hidden" id="emojiPicker" role="dialog" aria-label="Chọn emoji cho game">
-          <div class="emoji-picker-search">
-            <label for="emojiSearch" class="visually-hidden">Tìm emoji</label>
-            <input type="text" id="emojiSearch" placeholder="🔍 Tìm emoji...">
-          </div>
-          <div class="emoji-categories" id="emojiCategories" role="tablist" aria-label="Danh mục emoji"></div>
-          <div class="emoji-grid"       id="emojiGrid"></div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="colorInput">Màu chủ đạo</label>
-        <div class="color-row">
-          <input type="color" id="colorPicker" value="#6c5ce7" aria-label="Chọn màu bằng bảng màu"
-                 oninput="document.getElementById('colorInput').value=this.value">
-          <input type="text"  id="colorInput"  placeholder="#6c5ce7"
-                 oninput="document.getElementById('colorPicker').value=this.value">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="sortInput">Thứ tự hiển thị</label>
-        <input type="number" id="sortInput" placeholder="1, 2, 3...">
-      </div>
-
-      <div class="form-group">
-        <label for="playersInput">Số người chơi</label>
-        <input type="text" id="playersInput" placeholder="2-4 người">
-      </div>
-
-      <div class="form-group">
-        <label for="timeInput">Thời gian</label>
-        <input type="text" id="timeInput" placeholder="30-60 phút">
-      </div>
-
-      <div class="form-group">
-        <label for="difficultyInput">Độ khó</label>
-        <select id="difficultyInput"></select>
-      </div>
-
-      <div class="form-group full-width">
-        <label id="categoryPickerLabel">Thể loại</label>
-        <div class="category-picker" id="categoryPicker" role="group" aria-labelledby="categoryPickerLabel"></div>
-        <div class="hint">Bấm để chọn/bỏ chọn — có thể chọn nhiều thể loại</div>
-      </div>
-
-      <div class="section-divider"><span>🎯 Nội dung game</span></div>
-
-      <div class="form-group full-width">
-        <label for="objectiveInput">Mục tiêu</label>
-        <textarea id="objectiveInput" placeholder="Mô tả mục tiêu của game..."></textarea>
-      </div>
-
-      <div class="form-group full-width">
-        <label for="winInput">Điều kiện thắng</label>
-        <textarea id="winInput" placeholder="Người đầu tiên gom đủ... / Người có điểm cao nhất..."></textarea>
-      </div>
-
-      <div class="form-group full-width">
-        <label for="setupInput">Các bước chuẩn bị</label>
-        <textarea id="setupInput" class="tall" placeholder="Đặt bảng chơi vào giữa bàn&#10;Mỗi người lấy 5 lá bài&#10;Xáo trộn bộ bài..."></textarea>
-        <div class="hint">Mỗi bước = 1 dòng</div>
-      </div>
-
-      <div class="form-group full-width">
-        <label for="turnInput">Các bước lượt chơi</label>
-        <textarea id="turnInput" class="tall" placeholder="Rút 2 lá bài&#10;Thực hiện 1 hành động&#10;Kết thúc lượt..."></textarea>
-        <div class="hint">Mỗi bước = 1 dòng</div>
-      </div>
-
-      <div class="form-group full-width">
-        <label for="tipsInput">Mẹo chơi</label>
-        <textarea id="tipsInput" placeholder="Ưu tiên tích điểm sớm&#10;Chú ý bài của đối thủ&#10;Không nên giữ bài quá nhiều..."></textarea>
-        <div class="hint">Mỗi mẹo = 1 dòng (có thể để trống)</div>
-      </div>
-
-      <div class="section-divider"><span>🖼️ Media</span></div>
-
-      <div class="form-group full-width">
-        <label for="imagesInput">Ảnh hướng dẫn</label>
-        <textarea id="imagesInput" placeholder="https://i.imgur.com/abc.jpg | Sắp xếp bảng cờ&#10;https://i.imgur.com/xyz.jpg | Bộ bài ban đầu"></textarea>
-        <div class="hint">Mỗi dòng: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">URL ảnh | Chú thích</code></div>
-      </div>
-
-      <div class="form-group full-width">
-        <label for="heroInput">Hero Background URL</label>
-        <input type="text" id="heroInput" placeholder="https://...">
-      </div>
-
-      <div class="form-group full-width">
-        <label for="youtubeInput">YouTube URL</label>
-        <input type="text" id="youtubeInput" placeholder="https://youtube.com/watch?v=...">
-      </div>
-
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn btn-danger"  id="deleteBtn" style="display:none;">🗑️ Xóa game</button>
-      <button class="btn btn-primary" id="saveBtn">💾 Lưu</button>
-    </div>
-
-  </div>
-</div>
-
-<!-- ═══════════ DRINK MODAL ═══════════ -->
-<div class="modal-overlay hidden" id="drinkModal" role="dialog" aria-modal="true" aria-labelledby="drinkModalTitle">
-  <div class="modal-box">
-
-    <div class="modal-header">
-      <h2 id="drinkModalTitle">Thêm công thức</h2>
-      <button class="close-btn" aria-label="Đóng cửa sổ" onclick="document.getElementById('drinkModal').classList.add('hidden')">✕</button>
-    </div>
-
-    <input type="hidden" id="drinkId">
-
-    <div class="form-grid">
-
-      <div class="section-divider"><span>📋 Thông tin cơ bản</span></div>
-
-      <div class="form-group">
-        <label for="drinkName">Tên đồ uống *</label>
-        <input type="text" id="drinkName" placeholder="Cà phê sữa đá, Trà đào...">
-      </div>
-
-      <div class="form-group">
-        <label for="drinkCategory">Loại *</label>
-        <select id="drinkCategory">
-          <option value="">-- Chọn loại --</option>
-          <option value="Cà phê">☕ Cà phê</option>
-          <option value="Trà hoa quả">🍓 Trà hoa quả</option>
-          <option value="Trà sữa">🧋 Trà sữa</option>
-          <option value="Sữa chua">🥛 Sữa chua</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="drinkEmoji">Emoji</label>
-        <input type="text" id="drinkEmoji" placeholder="☕" maxlength="4">
-      </div>
-
-      <div class="form-group">
-        <label for="drinkSort">Thứ tự hiển thị</label>
-        <input type="number" id="drinkSort" placeholder="1, 2, 3...">
-      </div>
-
-      <div class="form-group full-width">
-        <label for="drinkDesc">Mô tả ngắn</label>
-        <input type="text" id="drinkDesc" placeholder="Thức uống đặc trưng của quán...">
-      </div>
-
-      <div class="section-divider"><span>🧪 Công thức</span></div>
-
-      <div class="form-group full-width">
-        <label for="drinkIngredients">Nguyên liệu</label>
-        <textarea id="drinkIngredients" class="tall"
-          placeholder="20ml espresso&#10;150ml sữa tươi&#10;30ml sữa đặc&#10;Đá viên vừa đủ"></textarea>
-        <div class="hint">Mỗi nguyên liệu = 1 dòng</div>
-      </div>
-
-      <div class="form-group full-width">
-        <label for="drinkSteps">Các bước pha chế</label>
-        <textarea id="drinkSteps" class="tall"
-          placeholder="Pha espresso vào ly&#10;Thêm sữa đặc, khuấy đều&#10;Cho đá viên vào ly&#10;Rót sữa tươi từ từ&#10;Thưởng thức ngay"></textarea>
-        <div class="hint">Mỗi bước = 1 dòng</div>
-      </div>
-
-      <div class="form-group full-width">
-        <label for="drinkTips">Mẹo pha chế</label>
-        <textarea id="drinkTips"
-          placeholder="Nên dùng sữa ở nhiệt độ phòng&#10;Pha espresso đậm hơn bình thường 20%"></textarea>
-        <div class="hint">Mỗi mẹo = 1 dòng (có thể để trống)</div>
-      </div>
-
-      <div class="section-divider"><span>🖼️ Media</span></div>
-
-      <div class="form-group full-width">
-        <label for="drinkImage">URL ảnh minh hoạ</label>
-        <input type="text" id="drinkImage" placeholder="https://...">
-      </div>
-
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn btn-danger"  id="drinkDeleteBtn" style="display:none;" onclick="deleteDrink()">🗑️ Xóa</button>
-      <button class="btn btn-primary" id="drinkSaveBtn" onclick="saveDrink()">💾 Lưu</button>
-    </div>
-
-  </div>
-</div>
+<!-- ══════════════════════════════════════════════
+     KHÔNG CÒN modal HTML tĩnh (#gameModal / #drinkModal) ở đây.
+     Mỗi modal giờ được module JS tương ứng tự inject vào <body>
+     lúc load — cùng pattern với banners/media/accounts/customers.
+     ══════════════════════════════════════════════ -->
 
 <!-- ══════════════════════════════════════════════
      SCRIPTS — thứ tự quan trọng:
      1) shared-config / shared-emoji / shared-categories / shared-utils
-     2) core/dashboard-permissions.js → tạo window.AdminPermissions
-        (PHẢI load trước dashboard-auth.js vì auth.js dùng nó
-        để vẽ user bar, và trước mọi module dùng guard phân quyền)
-     3) Supabase SDK
-     4) core/dashboard-auth.js   → tạo `client` + `currentSession` global
-     5) core/dashboard-page-registry.js → tạo window.AdminDashboard
-     6) modules/dashboard-games.js + modules/dashboard-drinks.js
-        (script thường — cần onclick="" global hoạt động được)
-        → dashboard-games.js cần window.GAME_CATEGORIES/DIFFICULTY_LEVELS
-          (shared-categories.js) đã load sẵn để build category picker
-     7) core/dashboard-nav.js    → điều hướng, dùng loadGames/loadDrinks
-     8) các module ES module (type="module") — chat/analytics/banners/media/accounts
-        đều gọi AdminDashboard.registerPage() nên phải load SAU bước 5
-        → dashboard-chat.js sẽ tự nâng cấp placeholder
-          #chatMenuItemPlaceholder (giờ nằm trong nhóm "Hệ thống",
-          ngay sau "Đồ uống")
-     9) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
+     2) core/dashboard-permissions.js
+     3) Supabase SDK + QRCode CDN
+     4) core/dashboard-auth.js   → `client` + `currentSession` global
+     5) core/dashboard-page-registry.js → window.AdminDashboard
+     6) modules/games/dashboard-games.js + modules/drinks/dashboard-drinks.js
+        (script thường — cần onclick="" global của core/dashboard-nav.js
+        hoạt động được; mỗi file tự inject modal riêng của mình)
+     7) modules/games/dashboard-game-detail.js
+     8) modules/membership/membership-shared.js  → PHẢI load TRƯỚC
+        3 file domain Membership bên dưới
+     9) modules/membership/dashboard-customers.js  (đăng ký page — load trước 2 file dưới)
+        modules/membership/dashboard-quests.js     (chỉ render vào tab có sẵn)
+        modules/membership/dashboard-levels.js     (chỉ render vào tab có sẵn)
+     10) core/dashboard-nav.js   → điều hướng, dùng loadGames/loadDrinks
+     11) các module ES module (type="module") — chat/analytics/banners/media/accounts
+     12) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
      ══════════════════════════════════════════════ -->
 <script src="../js/shared-config.js"></script>
 <script src="../js/shared-emoji.js"></script>
@@ -716,16 +229,24 @@
 <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="./core/dashboard-auth.js"></script>
 <script src="./core/dashboard-page-registry.js"></script>
-<script src="./modules/dashboard-games.js"></script>
-<script src="./modules/dashboard-drinks.js"></script>
-<script src="./modules/dashboard-game-detail.js"></script>
-<script src="./modules/dashboard-customers.js"></script>
+
+<script src="./modules/games/dashboard-games.js"></script>
+<script src="./modules/drinks/dashboard-drinks.js"></script>
+<script src="./modules/games/dashboard-game-detail.js"></script>
+
+<script src="./modules/membership/membership-shared.js"></script>
+<script src="./modules/membership/dashboard-customers.js"></script>
+<script src="./modules/membership/dashboard-quests.js"></script>
+<script src="./modules/membership/dashboard-levels.js"></script>
+
 <script src="./core/dashboard-nav.js"></script>
-<script type="module" src="./modules/dashboard-chat.js"></script>
-<script type="module" src="./modules/dashboard-analytics.js"></script>
-<script type="module" src="./modules/dashboard-banners.js"></script>
-<script type="module" src="./modules/dashboard-media.js"></script>
-<script type="module" src="./modules/dashboard-accounts.js"></script>
+
+<script type="module" src="./modules/chat/dashboard-chat.js"></script>
+<script type="module" src="./modules/analytics/dashboard-analytics.js"></script>
+<script type="module" src="./modules/banners/dashboard-banners.js"></script>
+<script type="module" src="./modules/media/dashboard-media.js"></script>
+<script type="module" src="./modules/accounts/dashboard-accounts.js"></script>
+
 <script src="./dashboard-mobile-menu.js"></script>
 
 </body>
