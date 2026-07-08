@@ -76,6 +76,7 @@ window.AdminDashboard.registerPage({
   menuId: "mediaMenuItem",
   icon: "🗂️",
   label: "Thư viện Media",
+  group: 0,
   insertBeforeMenuId: "chatMenuItem",
   guard: () => canAccessMediaPage,   // ← dùng lại const, không gọi can() lần nữa
 });
