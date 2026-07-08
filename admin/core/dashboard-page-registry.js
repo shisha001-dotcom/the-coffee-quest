@@ -62,14 +62,17 @@ window.AdminDashboard = (function () {
         return;
       }
 
-      let item = placeholderId ? document.getElementById(placeholderId) : null;
+let item = placeholderId ? document.getElementById(placeholderId) : null;
       if (!item) {
         item = document.createElement('a');
         const beforeEl = insertBeforeMenuId
           ? document.getElementById(insertBeforeMenuId)
           : findSettingsItem(target);
-        if (beforeEl) target.insertBefore(item, beforeEl);
-        else target.appendChild(item);
+        if (beforeEl && beforeEl.parentElement === target) {
+          target.insertBefore(item, beforeEl);
+        } else {
+          target.appendChild(item);
+        }
       }
 
       item.id = menuId;
