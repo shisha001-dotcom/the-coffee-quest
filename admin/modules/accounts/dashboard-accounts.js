@@ -12,6 +12,13 @@
      trùng) giờ báo ngay tại field liên quan thay vì alert().
    - deleteAccount(): window.confirm() → window.showConfirm(); lỗi
      báo qua toast thay vì alert().
+
+   ⚠️ TỐI ƯU (bổ sung so với bản trước):
+   - bindSearch(): dùng window.debounce() dùng chung thay vì tự viết
+     clearTimeout/setTimeout.
+   - saveAccount()/deleteAccount(): PATCH trực tiếp mảng `accounts`
+     từ dữ liệu Supabase trả về, thay vì loadAccounts() gọi lại
+     toàn bảng mỗi lần lưu/xoá 1 tài khoản.
    ══════════════════════════════════════════════ */
 
 const isSuperAdmin = window.AdminPermissions.isSuperAdmin(currentSession.role);
@@ -220,19 +227,16 @@ function renderAccountsTable(list) {
   }).join('');
 }
 
-let _accSearchTimer;
+/* ⚠️ TỐI ƯU: dùng window.debounce() dùng chung thay vì tự viết timer */
 function bindSearch() {
   const input = document.getElementById('accountSearchInput');
-  input?.addEventListener('input', e => {
-    clearTimeout(_accSearchTimer);
-    _accSearchTimer = setTimeout(() => {
-      const v = e.target.value.toLowerCase();
-      renderAccountsTable(accounts.filter(a =>
-        (a.username || '').toLowerCase().includes(v) ||
-        (a.display_name || '').toLowerCase().includes(v)
-      ));
-    }, 200);
-  });
+  input?.addEventListener('input', window.debounce(e => {
+    const v = e.target.value.toLowerCase();
+    renderAccountsTable(accounts.filter(a =>
+      (a.username || '').toLowerCase().includes(v) ||
+      (a.display_name || '').toLowerCase().includes(v)
+    ));
+  }, 200));
 }
 
 function clearAccountForm() {
@@ -276,6 +280,11 @@ function openEditAccount(id) {
   document.getElementById('accountModal').classList.remove('hidden');
 }
 
+/* ══════════════════════════════════════════════
+   SAVE — ⚠️ TỐI ƯU: PATCH mảng `accounts` tại chỗ bằng dữ liệu
+   Supabase trả về (.select()), thay vì loadAccounts() refetch
+   toàn bảng.
+   ══════════════════════════════════════════════ */
 async function saveAccount() {
   const rawId       = document.getElementById('accountId').value;
   const id          = rawId ? Number(rawId) : null;
@@ -306,8 +315,11 @@ async function saveAccount() {
         password_hash: await sha256(password),
         role,
       };
-      const { error } = await client.from('admin_users').insert(payload).select();
+      const { data, error } = await client.from('admin_users').insert(payload).select();
       if (error) throw error;
+
+      /* ⚠️ TỐI ƯU: thêm trực tiếp vào mảng thay vì refetch toàn bảng */
+      if (data?.[0]) accounts.push(data[0]);
     } else {
       const payload = { display_name: displayName, role };
       if (password) payload.password_hash = await sha256(password);
@@ -315,10 +327,15 @@ async function saveAccount() {
       const { data, error } = await client.from('admin_users').update(payload).eq('id', id).select();
       if (error) throw error;
       if (!data?.length) throw new Error(`UPDATE không ảnh hưởng dòng nào (id=${id}).`);
+
+      /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadAccounts() refetch toàn bảng */
+      const idx = accounts.findIndex(a => a.id === id);
+      if (idx !== -1) accounts[idx] = data[0];
     }
+    accounts.sort((a, b) => (a.username || '').localeCompare(b.username || ''));
 
     document.getElementById('accountModal').classList.add('hidden');
-    await loadAccounts();
+    renderAccountsTable(accounts);
     window.showToast('✅ Đã lưu tài khoản thành công!');
   } catch (err) {
     /* ⚠️ SỬA: lỗi server báo qua toast thay vì alert(); lỗi đã xử lý
@@ -330,6 +347,10 @@ async function saveAccount() {
   }
 }
 
+/* ══════════════════════════════════════════════
+   DELETE — ⚠️ TỐI ƯU: xoá tại chỗ trong mảng `accounts` thay vì
+   loadAccounts() refetch toàn bảng.
+   ══════════════════════════════════════════════ */
 async function deleteAccount() {
   const id = document.getElementById('accountId').value;
   if (!id) return;
@@ -358,9 +379,13 @@ async function deleteAccount() {
   try {
     const { error } = await client.from('admin_users').delete().eq('id', id);
     if (error) throw error;
+
+    /* ⚠️ TỐI ƯU: xoá tại chỗ thay vì loadAccounts() refetch toàn bảng */
+    accounts = accounts.filter(a => String(a.id) !== String(id));
+
     document.getElementById('accountModal').classList.add('hidden');
     window.showToast('🗑️ Đã xóa tài khoản!', '#e17055');
-    await loadAccounts();
+    renderAccountsTable(accounts);
   } catch (err) {
     window.showToast('❌ Lỗi: ' + err.message, '#e17055');
   } finally {
