@@ -1,23 +1,13 @@
 /* ══════════════════════════════════════════════
    DASHBOARD GAMES MODULE — admin/modules/games/dashboard-games.js
    ─────────────────────────────────────────────
-   THAY ĐỔI SO VỚI BẢN CŨ (tái cấu trúc):
-   - Modal "#gameModal" KHÔNG còn nằm tĩnh trong dashboard.html —
-     giờ tự inject bằng injectGameModal() ngay trong file này, đúng
-     pattern mà dashboard-media.js/dashboard-accounts.js đã dùng.
-     dashboard.html chỉ còn giữ <div id="boardgamesPage"> (bảng +
-     nút), không còn HTML modal.
-   - Xoá oninput="" inline (color picker) trong modal → chuyển sang
-     addEventListener trong bindColorPickerSync(), nhất quán với các
-     module khác không dùng inline handler.
-   - Toàn bộ logic nghiệp vụ (CRUD, emoji picker, category picker,
-     validate, read-only mode) GIỮ NGUYÊN không đổi so với bản gốc.
-
-   Cần: `client` (dashboard-auth.js), `currentSession`,
-   window.AdminPermissions, window.GAME_CATEGORIES/DIFFICULTY_LEVELS +
-   picker helpers (shared-categories.js), window.showConfirm/showToast
-   (shared-utils.js), window.EMOJI_CATEGORIES/ALL_EMOJIS/UNIQUE_EMOJIS
-   (shared-emoji.js).
+   ⚠️ TỐI ƯU (bổ sung so với bản trước):
+   - Search dùng window.debounce() dùng chung (shared-utils.js)
+     thay vì tự viết lại clearTimeout/setTimeout.
+   - saveGame()/deleteGame(): PATCH trực tiếp vào mảng `games` từ
+     dữ liệu Supabase trả về (.select()), thay vì loadGames() gọi
+     lại toàn bảng — giảm 1 round-trip mạng không cần thiết mỗi
+     lần lưu/xoá 1 game.
    ══════════════════════════════════════════════ */
 
 const isGamesReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
@@ -410,16 +400,13 @@ function renderGames(data) {
 }
 
 /* ══════════════════════════════════════════════
-   SEARCH — debounce
+   SEARCH — ⚠️ TỐI ƯU: dùng window.debounce() dùng chung
+   (shared-utils.js) thay vì tự viết clearTimeout/setTimeout
    ══════════════════════════════════════════════ */
-let _searchTimer;
-searchInput?.addEventListener("input", e => {
-  clearTimeout(_searchTimer);
-  _searchTimer = setTimeout(() => {
-    const v = e.target.value.toLowerCase();
-    renderGames(games.filter(g => (g.name || "").toLowerCase().includes(v)));
-  }, 200);
-});
+searchInput?.addEventListener("input", window.debounce(e => {
+  const v = e.target.value.toLowerCase();
+  renderGames(games.filter(g => (g.name || "").toLowerCase().includes(v)));
+}, 200));
 
 /* ══════════════════════════════════════════════
    MODAL OPEN/CLOSE
@@ -439,7 +426,9 @@ modal?.addEventListener("click", e => { if (e.target === modal) modal.classList.
 modal?.addEventListener("keydown", e => { if (e.key === "Escape") modal.classList.add("hidden"); });
 
 /* ══════════════════════════════════════════════
-   SAVE
+   SAVE — ⚠️ TỐI ƯU: PATCH mảng `games` tại chỗ bằng dữ liệu
+   Supabase trả về (.select()), thay vì gọi lại loadGames() —
+   trước đây mỗi lần lưu 1 game là refetch TOÀN BỘ bảng.
    ══════════════════════════════════════════════ */
 async function saveGame() {
   if (isGamesReadOnly) return;
@@ -481,12 +470,24 @@ async function saveGame() {
       const { data, error } = await client.from("games").update(payload).eq("id", id).select();
       if (error) throw error;
       if (!data?.length) throw new Error(`UPDATE không ảnh hưởng dòng nào (id=${id}).`);
+
+      /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadGames() refetch toàn bảng */
+      const idx = games.findIndex(g => g.id === id);
+      if (idx !== -1) games[idx] = data[0];
+      else games.push(data[0]);
+      games.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     } else {
-      const { error } = await client.from("games").insert(payload).select();
+      const { data, error } = await client.from("games").insert(payload).select();
       if (error) throw error;
+
+      /* ⚠️ TỐI ƯU: thêm trực tiếp vào mảng thay vì refetch */
+      if (data?.[0]) games.push(data[0]);
+      games.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     }
+
     modal.classList.add("hidden");
-    await loadGames();
+    renderGames(games);
+    updateStats(games);
     window.showToast("✅ Đã lưu thành công!");
   } catch(err) {
     window.showToast("❌ Lỗi khi lưu: " + err.message, "#e17055");
@@ -498,7 +499,8 @@ async function saveGame() {
 saveBtn?.addEventListener("click", saveGame);
 
 /* ══════════════════════════════════════════════
-   DELETE
+   DELETE — ⚠️ TỐI ƯU: xoá tại chỗ trong mảng `games` thay vì
+   loadGames() refetch toàn bảng.
    ══════════════════════════════════════════════ */
 async function deleteGame() {
   if (isGamesReadOnly) return;
@@ -522,9 +524,14 @@ async function deleteGame() {
   try {
     const { error } = await client.from("games").delete().eq("id", id);
     if (error) throw error;
+
+    /* ⚠️ TỐI ƯU: xoá tại chỗ thay vì loadGames() refetch toàn bảng */
+    games = games.filter(g => String(g.id) !== String(id));
+
     modal.classList.add("hidden");
+    renderGames(games);
+    updateStats(games);
     window.showToast("🗑️ Đã xóa thành công!", "#e17055");
-    await loadGames();
   } catch(err) {
     window.showToast("❌ Lỗi: " + err.message, "#e17055");
   } finally {
