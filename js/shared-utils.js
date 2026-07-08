@@ -49,6 +49,18 @@ window.slugify = function (s) {
     .replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 };
 
+/* ── DEBOUNCE — MỚI: dùng chung cho mọi ô search/input cần trì hoãn
+   (trước đây mỗi module admin tự viết lại logic clearTimeout/setTimeout
+   giống hệt nhau — dashboard-games.js, dashboard-accounts.js,
+   dashboard-media.js, dashboard-customers.js...) ── */
+window.debounce = function (fn, delay = 200) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+};
+
 /* ── TOAST NOTIFICATION ── */
 window.showToast = function (msg, bg = '#00b894') {
   const existing = document.getElementById('_toast');
