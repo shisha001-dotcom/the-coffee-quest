@@ -16,6 +16,16 @@
    Cần: client, currentSession, window.AdminPermissions,
    window.Membership (membership-shared.js — PHẢI load trước file này),
    window.escHtml, window.showToast, window.showConfirm.
+
+   ⚠️ TỐI ƯU (bổ sung so với bản trước):
+   - Search dùng window.debounce() dùng chung thay vì tự viết timer.
+   - checkinCustomer()/addTransaction()/deleteCustomer()/
+     saveNewCustomer(): PATCH trực tiếp vào M.state.customers từ dữ
+     liệu Supabase trả về, thay vì loadCustomers() refetch toàn bảng
+     mỗi lần. markQuestProgress() cũng patch riêng field xp/level của
+     khách hàng thay vì refetch — phần transaction/quest-progress
+     trong modal chi tiết vẫn tự fetch riêng (đúng, vì đó là dữ liệu
+     phụ theo từng khách, không nằm trong M.state.customers).
    ══════════════════════════════════════════════ */
 
 const M = window.Membership;
@@ -129,13 +139,12 @@ function renderIfQuestsTabActive()  { if (custActiveTab === "quests" && window.r
   bindTabButtons();
   bindTopLevelEvents();
 
+  /* ⚠️ TỐI ƯU: dùng window.debounce() dùng chung thay vì tự viết timer */
   const searchInput = document.getElementById("custSearchInput");
-  let _t;
-  searchInput.addEventListener("input", e => {
-    clearTimeout(_t);
-    const val = e.target.value;
-    _t = setTimeout(() => { custSearchQ = val.toLowerCase(); renderCustomerTable(); }, 200);
-  });
+  searchInput.addEventListener("input", window.debounce(e => {
+    custSearchQ = e.target.value.toLowerCase();
+    renderCustomerTable();
+  }, 200));
 
   ["addCustomerModal", "customerDetailModal"].forEach(id => {
     const modal = document.getElementById(id);
@@ -178,6 +187,8 @@ function switchCustTab(tab) {
 
 /* ══════════════════════════════════════════════
    LOAD + RENDER BẢNG KHÁCH HÀNG
+   (giữ nguyên — cần cho lần tải đầu / bấm Refresh thủ công;
+   các thao tác đơn lẻ bên dưới không còn gọi lại hàm này nữa)
    ══════════════════════════════════════════════ */
 async function loadCustomers() {
   if (!isSuperAdminCust) return;
@@ -231,7 +242,8 @@ function renderCustomerTable() {
 }
 
 /* ══════════════════════════════════════════════
-   THÊM KHÁCH HÀNG MỚI
+   THÊM KHÁCH HÀNG MỚI — ⚠️ TỐI ƯU: patch M.state.customers trực
+   tiếp thay vì loadCustomers() refetch toàn bảng.
    ══════════════════════════════════════════════ */
 function openAddCustomer() {
   if (!isSuperAdminCust) return;
@@ -276,9 +288,13 @@ async function saveNewCustomer() {
       .insert({ name, phone, age, gender }).select().single();
     if (error) throw error;
 
+    /* ⚠️ TỐI ƯU: thêm trực tiếp vào M.state.customers thay vì
+       loadCustomers() refetch toàn bảng */
+    M.state.customers.unshift(data);
+
     document.getElementById("addCustomerModal").classList.add("hidden");
     window.showToast("✅ Đã tạo khách hàng mới!");
-    await loadCustomers();
+    renderCustomerTable();
     openCustomerDetail(data.id);
   } catch (err) {
     window.showToast("❌ Lỗi: " + err.message, "#e17055");
@@ -395,7 +411,8 @@ async function openCustomerDetail(id) {
 }
 
 /* ══════════════════════════════════════════════
-   CHECK-IN
+   CHECK-IN — ⚠️ TỐI ƯU: patch M.state.customers tại chỗ thay vì
+   loadCustomers() refetch toàn bảng.
    ══════════════════════════════════════════════ */
 async function checkinCustomer(id) {
   if (!isSuperAdminCust || _custActionBusy) return;
@@ -420,13 +437,19 @@ async function checkinCustomer(id) {
     const { error: ckErr } = await client.from("customer_checkins").insert({ customer_id: id, xp_earned: xpEarned });
     if (ckErr) throw ckErr;
 
-    const { error } = await client.from("customers")
+    const { data, error } = await client.from("customers")
       .update({ xp: newXp, level: newLevel, streak_days: newStreak, last_checkin: today })
-      .eq("id", id);
+      .eq("id", id)
+      .select()
+      .single();
     if (error) throw error;
 
+    /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadCustomers() refetch toàn bảng */
+    const idx = M.state.customers.findIndex(c => c.id === id);
+    if (idx !== -1) M.state.customers[idx] = data;
+
     window.showToast(`✅ Check-in! +${xpEarned} XP (streak ${newStreak} ngày)` + (bonus ? ` 🔥 +${bonus} XP thưởng chuỗi 7 ngày!` : ""));
-    await loadCustomers();
+    renderCustomerTable();
     openCustomerDetail(id);
   } catch (err) {
     window.showToast("❌ Lỗi: " + err.message, "#e17055");
@@ -436,7 +459,8 @@ async function checkinCustomer(id) {
 }
 
 /* ══════════════════════════════════════════════
-   GHI NHẬN GIAO DỊCH
+   GHI NHẬN GIAO DỊCH — ⚠️ TỐI ƯU: patch M.state.customers tại chỗ
+   thay vì loadCustomers() refetch toàn bảng.
    ══════════════════════════════════════════════ */
 async function addTransaction(id) {
   if (!isSuperAdminCust || _custActionBusy) return;
@@ -460,12 +484,17 @@ async function addTransaction(id) {
     });
     if (txErr) throw txErr;
 
-    const { error } = await client.from("customers")
-      .update({ total_spent: (cust.total_spent || 0) + amount }).eq("id", id);
+    const newTotal = (cust.total_spent || 0) + amount;
+    const { data, error } = await client.from("customers")
+      .update({ total_spent: newTotal }).eq("id", id).select().single();
     if (error) throw error;
 
+    /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadCustomers() refetch toàn bảng */
+    const idx = M.state.customers.findIndex(c => c.id === id);
+    if (idx !== -1) M.state.customers[idx] = data;
+
     window.showToast("💰 Đã ghi nhận giao dịch!");
-    await loadCustomers();
+    renderCustomerTable();
     openCustomerDetail(id);
   } catch (err) {
     window.showToast("❌ Lỗi: " + err.message, "#e17055");
@@ -476,6 +505,10 @@ async function addTransaction(id) {
 
 /* ══════════════════════════════════════════════
    NHIỆM VỤ — CẬP NHẬT TIẾN ĐỘ (gọi từ modal chi tiết khách)
+   ⚠️ TỐI ƯU: chỉ patch field xp/level của khách trong
+   M.state.customers khi nhiệm vụ hoàn thành, thay vì loadCustomers()
+   refetch toàn bảng. Dữ liệu customer_quests vẫn tự fetch lại trong
+   openCustomerDetail() (đúng, vì đó là bảng phụ theo từng khách).
    ══════════════════════════════════════════════ */
 async function markQuestProgress(customerId, questId) {
   if (!isSuperAdminCust || _custActionBusy) return;
@@ -511,14 +544,20 @@ async function markQuestProgress(customerId, questId) {
     if (isDone) {
       const newXp    = cust.xp + quest.xp_reward;
       const newLevel = M.getLevelForXp(newXp);
-      const { error: xpErr } = await client.from("customers").update({ xp: newXp, level: newLevel }).eq("id", customerId);
+      const { data, error: xpErr } = await client.from("customers")
+        .update({ xp: newXp, level: newLevel }).eq("id", customerId).select().single();
       if (xpErr) throw xpErr;
+
+      /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadCustomers() refetch toàn bảng */
+      const idx = M.state.customers.findIndex(c => c.id === customerId);
+      if (idx !== -1) M.state.customers[idx] = data;
+
       window.showToast(`🎉 Hoàn thành "${quest.title}"! +${quest.xp_reward} XP`);
     } else {
       window.showToast(`Tiến độ: ${newProgress}/${quest.target_count}`);
     }
 
-    await loadCustomers();
+    renderCustomerTable();
     openCustomerDetail(customerId);
   } catch (err) {
     window.showToast("❌ Lỗi: " + err.message, "#e17055");
@@ -528,7 +567,8 @@ async function markQuestProgress(customerId, questId) {
 }
 
 /* ══════════════════════════════════════════════
-   XOÁ KHÁCH HÀNG
+   XOÁ KHÁCH HÀNG — ⚠️ TỐI ƯU: xoá tại chỗ trong M.state.customers
+   thay vì loadCustomers() refetch toàn bảng.
    ══════════════════════════════════════════════ */
 async function deleteCustomer(id) {
   if (!isSuperAdminCust) return;
@@ -546,9 +586,13 @@ async function deleteCustomer(id) {
   try {
     const { error } = await client.from("customers").delete().eq("id", id);
     if (error) throw error;
+
+    /* ⚠️ TỐI ƯU: xoá tại chỗ thay vì loadCustomers() refetch toàn bảng */
+    M.state.customers = M.state.customers.filter(c => c.id !== id);
+
     document.getElementById("customerDetailModal").classList.add("hidden");
     window.showToast("🗑️ Đã xoá khách hàng", "#e17055");
-    await loadCustomers();
+    renderCustomerTable();
   } catch (err) {
     window.showToast("❌ Lỗi: " + err.message, "#e17055");
   }
