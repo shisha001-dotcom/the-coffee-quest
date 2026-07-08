@@ -1,13 +1,10 @@
 /* ══════════════════════════════════════════════
    DASHBOARD DRINKS MODULE — admin/modules/drinks/dashboard-drinks.js
    ─────────────────────────────────────────────
-   THAY ĐỔI SO VỚI BẢN CŨ (tái cấu trúc):
-   - Modal "#drinkModal" KHÔNG còn nằm tĩnh trong dashboard.html —
-     giờ tự inject bằng injectDrinkModal() ngay trong file này.
-   - Nút "+ Thêm công thức" trong dashboard.html giờ chỉ còn
-     <button id="addDrinkBtn">, gắn sự kiện bằng addEventListener
-     ở file này thay vì onclick="openAddDrink()" inline.
-   - Toàn bộ logic CRUD/validate/read-only GIỮ NGUYÊN không đổi.
+   ⚠️ TỐI ƯU (bổ sung so với bản trước):
+   - saveDrink()/deleteDrink(): PATCH trực tiếp mảng `allDrinks` từ
+     dữ liệu Supabase trả về (.select()), thay vì loadDrinks() gọi
+     lại toàn bảng mỗi lần lưu/xoá 1 công thức.
 
    Cần: `client`, `currentSession`, window.AdminPermissions,
    window.showConfirm/showToast (shared-utils.js).
@@ -284,6 +281,10 @@ function parseDrinkLines(id) {
   return (document.getElementById(id)?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
 }
 
+/* ══════════════════════════════════════════════
+   SAVE — ⚠️ TỐI ƯU: PATCH mảng `allDrinks` tại chỗ bằng dữ liệu
+   Supabase trả về (.select()), thay vì loadDrinks() refetch toàn bảng.
+   ══════════════════════════════════════════════ */
 async function saveDrink() {
   if (isDrinksReadOnly) return;
 
@@ -313,15 +314,26 @@ async function saveDrink() {
 
   try {
     if (id) {
-      const { error } = await client.from('drinks').update(payload).eq('id', id);
+      const { data, error } = await client.from('drinks').update(payload).eq('id', id).select();
       if (error) throw error;
+
+      /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadDrinks() refetch toàn bảng */
+      const idx = allDrinks.findIndex(d => d.id === id);
+      if (idx !== -1 && data?.[0]) allDrinks[idx] = data[0];
     } else {
-      const { error } = await client.from('drinks').insert(payload);
+      const { data, error } = await client.from('drinks').insert(payload).select();
       if (error) throw error;
+
+      /* ⚠️ TỐI ƯU: thêm trực tiếp vào mảng thay vì refetch */
+      if (data?.[0]) allDrinks.push(data[0]);
     }
+    allDrinks.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
     document.getElementById('drinkModal').classList.add('hidden');
+    renderDrinkGrid();
+    const totalEl = document.getElementById('totalDrinks');
+    if (totalEl) totalEl.textContent = allDrinks.length;
     window.showToast('✅ Đã lưu công thức!');
-    loadDrinks();
   } catch (err) {
     window.showToast('❌ Lỗi: ' + err.message, '#e17055');
   } finally {
@@ -330,6 +342,10 @@ async function saveDrink() {
   }
 }
 
+/* ══════════════════════════════════════════════
+   DELETE — ⚠️ TỐI ƯU: xoá tại chỗ trong mảng `allDrinks` thay vì
+   loadDrinks() refetch toàn bảng.
+   ══════════════════════════════════════════════ */
 async function deleteDrink() {
   if (isDrinksReadOnly) return;
 
@@ -350,9 +366,15 @@ async function deleteDrink() {
   try {
     const { error } = await client.from('drinks').delete().eq('id', id);
     if (error) throw error;
+
+    /* ⚠️ TỐI ƯU: xoá tại chỗ thay vì loadDrinks() refetch toàn bảng */
+    allDrinks = allDrinks.filter(d => String(d.id) !== String(id));
+
     document.getElementById('drinkModal').classList.add('hidden');
+    renderDrinkGrid();
+    const totalEl = document.getElementById('totalDrinks');
+    if (totalEl) totalEl.textContent = allDrinks.length;
     window.showToast('🗑️ Đã xóa công thức', '#e17055');
-    loadDrinks();
   } catch (err) {
     window.showToast('❌ Lỗi: ' + err.message, '#e17055');
   }
