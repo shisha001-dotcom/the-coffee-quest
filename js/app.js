@@ -6,10 +6,19 @@
 //  File này giờ CHỈ còn lo: router hash-based, render list/detail
 //  boardgame, lightbox, daily pick, settings — đúng với vai trò
 //  "Router + render UI" mà tài liệu vốn mô tả.
+//
+//  ⚠️ TỐI ƯU: thêm gameIndexById (Map id → index) để tránh gọi
+//  GAMES.indexOf(g) bên trong .map() ở renderGrid/renderDetail/
+//  renderDailyPick — trước đây là O(n²) vì mỗi lần indexOf() là
+//  O(n), chạy lặp lại O(n) lần trong vòng lặp render. Với danh
+//  sách game càng lớn, chi phí render càng tăng bậc hai không cần
+//  thiết. Giờ tra cứu O(1) qua Map, build lại 1 lần mỗi khi GAMES
+//  thay đổi (ngay sau GAMES_READY).
 // ═══════════════════════════════════════════════════════════════
 
 let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
 let gameSlugs = { slugById: {}, idBySlug: {} };
+let gameIndexById = new Map(); // ⚠️ MỚI
 
 const esc = window.escHtml;
 function diffClass(d){ return d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium' }
@@ -25,6 +34,15 @@ function getCategories(g){
   return Array.isArray(g.categories) && g.categories.length
     ? g.categories
     : (g.category ? [g.category] : []);
+}
+
+/* ── Helper: chỉ số của game trong GAMES — O(1) thay vì GAMES.indexOf() O(n) ── */
+function rebuildGameIndex(){
+  gameIndexById = new Map(GAMES.map((g, i) => [g.id, i]));
+}
+function gameIndex(g){
+  const idx = gameIndexById.get(g.id);
+  return idx === undefined ? GAMES.indexOf(g) : idx; // fallback an toàn nếu index chưa build kịp
 }
 
 /* ═══ MENU ═══ */
@@ -174,7 +192,7 @@ function renderGrid(){
   if(empty) empty.style.display = 'none';
 
   grid.innerHTML = games.map((g, i) => {
-    const ri   = GAMES.indexOf(g);
+    const ri   = gameIndex(g); // ⚠️ TỐI ƯU: O(1) thay vì GAMES.indexOf(g) O(n)
     const cats = getCategories(g);
     return `<div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i*0.04}s">
       <div class="card-stripe" style="background:${g.color}"></div>
@@ -267,7 +285,7 @@ function renderDetail(idx){
   if(relEl){
     relEl.innerHTML = related.length
       ? related.map(r => {
-          const ri = GAMES.indexOf(r);
+          const ri = gameIndex(r); // ⚠️ TỐI ƯU: O(1) thay vì GAMES.indexOf(r) O(n)
           return `<div class="rel-card" onclick="goDetail(${ri})">
             <div class="rel-stripe" style="background:${r.color}"></div>
             <div class="rel-body"><span class="rel-emoji">${r.emoji}</span>
@@ -289,7 +307,9 @@ function initBoardgame(){
   const si = document.getElementById('searchInput');
   if(si){
     si.value = searchQ;
-    si.addEventListener('input', e=>{ searchQ = e.target.value; renderGrid(); });
+    /* ⚠️ TỐI ƯU: dùng window.debounce dùng chung thay vì gọi renderGrid()
+       trên MỖI keystroke — giảm số lần re-render khi gõ nhanh */
+    si.addEventListener('input', window.debounce(e=>{ searchQ = e.target.value; renderGrid(); }, 150));
   }
   document.querySelectorAll('.chip').forEach(c=>{
     if(c.getAttribute('data-filter') === activeFilter) c.classList.add('active');
@@ -377,6 +397,7 @@ window.addEventListener('hashchange', routeFromHash);
 
 window.GAMES_READY.then(() => {
   gameSlugs = window.buildGameSlugMap(GAMES);
+  rebuildGameIndex(); // ⚠️ MỚI: build 1 lần ngay khi GAMES sẵn sàng
   routeFromHash();
 });
 
@@ -417,7 +438,7 @@ function renderDailyPick(){
     const picks = pickRandom(GAMES, 3);
 
     const cards = picks.map(pick => {
-      const idx  = GAMES.indexOf(pick);
+      const idx  = gameIndex(pick); // ⚠️ TỐI ƯU: O(1) thay vì GAMES.indexOf(pick) O(n)
       const cats = getCategories(pick);
       return `
         <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
