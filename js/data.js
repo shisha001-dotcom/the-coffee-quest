@@ -47,6 +47,7 @@ window.GAMES_READY = (async () => {
         images:     Array.isArray(g.images) ? g.images : [],
         youtubeUrl: g.youtube_url || '',
         heroBg:     g.hero_bg     || '',
+        rulesPdfUrl: g.rules_pdf_url || '',
       }));
 
       /* Gán vào window.GAMES giữ nguyên reference (app.js dùng var GAMES = window.GAMES) */
