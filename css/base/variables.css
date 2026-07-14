@@ -80,6 +80,12 @@
   --z-modal:    9500; /* username modal, admin modal */
   --z-lightbox: 9800; /* lightbox ảnh */
   --z-toast:    9900; /* toast notification */
+
+   /* --- Font — MỚI ---
+     ► Bebas Neue KHÔNG hỗ trợ dấu tiếng Việt → đổi sang Oswald
+       (condensed/bold, hỗ trợ đủ dấu tiếng Việt). */
+  --font-display: 'Oswald', 'Nunito', sans-serif;
+  --font-body:    'Nunito', sans-serif;
 }
 
 /* ══════════════════════════════════════════════════════════════════
