@@ -257,6 +257,23 @@ function renderDetail(idx){
   setH('d-setup', (g.setup||[]).map((s,i)=>`<li class="step-item"><div class="step-num">${i+1}</div><div>${esc(s)}</div></li>`).join(''));
   setH('d-turn',  (g.turn||[]).map(t=>`<div class="turn-item"><div class="turn-icon">▸</div><div>${esc(t)}</div></div>`).join(''));
 
+  const pw = document.getElementById('d-pdf-wrap');
+const pd = document.getElementById('d-pdf');
+if(pw && pd){
+  const previewUrl = g.rulesPdfUrl ? window.gdrivePreviewUrl(g.rulesPdfUrl) : null;
+  if(previewUrl){
+    pw.style.display = 'block';
+    pd.innerHTML = `
+      <div class="pdf-frame">
+        <iframe src="${previewUrl}" title="Luật chơi ${esc(g.name)} (PDF)" allow="autoplay" loading="lazy"></iframe>
+      </div>
+      <a class="pdf-open-link" href="${g.rulesPdfUrl}" target="_blank" rel="noopener">↗️ Mở file gốc trên Google Drive</a>`;
+  } else {
+    pw.style.display = 'none';
+    pd.innerHTML = '';
+  }
+}
+
   const tw = document.getElementById('d-tips-wrap');
   if(tw){
     if(g.tips && g.tips.length){
