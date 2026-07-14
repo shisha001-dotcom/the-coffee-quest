@@ -343,6 +343,30 @@ function initBoardgame(){
 function initSettings(){
   const input = document.getElementById('settings-username');
   if(input) input.value = localStorage.getItem('tcq_username') || '';
+  renderThemePicker();
+}
+
+/* ⚠️ MỚI: render + bind bộ chọn theme trong trang Cài đặt */
+function renderThemePicker(){
+  const wrap = document.getElementById('theme-picker');
+  if(!wrap || !window.TCQ_THEMES) return;
+
+  const current = window.getCurrentTheme();
+
+  wrap.innerHTML = window.TCQ_THEMES.map(t => `
+    <button type="button" class="theme-chip${t.id === current ? ' active' : ''}" data-theme-id="${t.id}">
+      <span class="theme-chip-icon">${t.icon}</span>
+      <span>${esc(t.label)}</span>
+    </button>
+  `).join('');
+
+  wrap.querySelectorAll('.theme-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.applyTheme(btn.dataset.themeId);
+      wrap.querySelectorAll('.theme-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
 }
 
 function saveUsernameSettings(){
