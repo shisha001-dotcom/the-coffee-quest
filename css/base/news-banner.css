@@ -70,7 +70,7 @@
 }
 .banner-content h1 {
   font-size: clamp(3rem, 8vw, 7rem);
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   letter-spacing: 4px;
   margin-bottom: 16px;
 }
@@ -94,7 +94,7 @@
 
 /* Tiêu đề section */
 .daily-pick-heading {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 2rem;
   letter-spacing: 2px;
   color: var(--ink);
@@ -171,7 +171,7 @@
 }
 
 .daily-pick-name {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.85rem;
   letter-spacing: 1.5px;
   line-height: 1.1;
