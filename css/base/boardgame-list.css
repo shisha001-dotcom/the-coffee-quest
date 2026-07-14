@@ -70,7 +70,7 @@
   display: block;
 }
 #empty h3 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   color: var(--muted);
 }
@@ -143,7 +143,7 @@
 .game-card:hover .card-emoji { transform: rotate(-5deg) scale(1.1); }  /* ► Xóa nếu không muốn emoji xoay */
 
 .card-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.35rem;
   letter-spacing: 1px;
   line-height: 1.1;
