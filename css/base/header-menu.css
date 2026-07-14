@@ -22,7 +22,7 @@
 
 /* Logo */
 .logo {
-  font-family: var(--font-body);
+  font-family: var(--font-display);
   font-size: 1.75rem;
   letter-spacing: 2px;
   color: var(--accent);
