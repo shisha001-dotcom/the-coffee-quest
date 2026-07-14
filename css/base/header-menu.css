@@ -22,7 +22,7 @@
 
 /* Logo */
 .logo {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.75rem;
   letter-spacing: 2px;
   color: var(--accent);
