@@ -105,6 +105,42 @@
   transform: translateY(-1px);
 }
 
+/* ── THEME PICKER — MỚI ── */
+.theme-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.theme-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  border: 2px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: 'Nunito', sans-serif;
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--t), background var(--t), transform var(--t);
+}
+.theme-chip:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.theme-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+.theme-chip-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 /* ══════════════════════════════════════════════════════════════════
    13. MEMBERSHIP PAGE — Thẻ thành viên Coffee Quest
    ══════════════════════════════════════════════════════════════════ */
