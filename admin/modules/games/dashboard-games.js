@@ -142,6 +142,12 @@ const isGamesReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
         </div>
       </div>
 
+      <div class="form-group full-width">
+  <label for="rulesPdfInput">Link luật chơi PDF (Google Drive)</label>
+  <input type="text" id="rulesPdfInput" placeholder="https://drive.google.com/file/d/.../view">
+  <div class="hint">Dán link chia sẻ Drive — nhớ để chế độ "Anyone with the link". Hệ thống tự chuyển sang link xem trước, không cần link trực tiếp.</div>
+</div>
+
       <div class="modal-actions">
         <button class="btn btn-danger"  id="deleteBtn" style="display:none;">🗑️ Xóa game</button>
         <button class="btn btn-primary" id="saveBtn">💾 Lưu</button>
@@ -453,6 +459,7 @@ async function saveGame() {
     objective:   document.getElementById("objectiveInput").value.trim(),
     win:         document.getElementById("winInput")?.value.trim() || "",
     hero_bg:     document.getElementById("heroInput").value.trim(),
+    rules_pdf_url: document.getElementById("rulesPdfInput").value.trim(),
     youtube_url: document.getElementById("youtubeInput").value.trim(),
     categories,
     setup:       parseLines("setupInput"),
@@ -586,6 +593,7 @@ document.addEventListener("click", e => {
     gameId: game.id, nameInput: game.name, playersInput: game.players,
     timeInput: game.time, objectiveInput: game.objective,
     heroInput: game.hero_bg, youtubeInput: game.youtube_url,
+    rulesPdfInput: game.rules_pdf_url,
     sortInput: game.sort_order ?? "", winInput: game.win || "",
   };
   Object.entries(fields).forEach(([id, val]) => {
