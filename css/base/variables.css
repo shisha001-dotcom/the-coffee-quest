@@ -81,3 +81,78 @@
   --z-lightbox: 9800; /* lightbox ảnh */
   --z-toast:    9900; /* toast notification */
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   THEME OVERRIDES — MỚI
+   ─────────────────────────────────────────────────────────────────
+   Chọn theme ở trang Cài đặt → js/theme.js gán data-theme lên <html>.
+   Mỗi theme chỉ override token màu, KHÔNG đổi layout/spacing.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 🎄 GIÁNG SINH */
+html[data-theme="christmas"] {
+  --bg:          #f4f8f2;
+  --card:        #ffffff;
+  --surface-2:   #eef6ec;
+  --tag-bg:      #e6f2e2;
+  --ink:         #14261a;
+  --muted:       #5c6b60;
+  --border:      #d8e6d2;
+  --accent:      #c8102e;
+  --accent-glow: rgba(200,16,46,.18);
+  --green:       #146b3a;
+  --yellow:      #e8b923;
+  --header-bg:   #0b3d24;
+  --menu-bg:     #0b3d24;
+}
+
+/* 🎃 HALLOWEEN */
+html[data-theme="halloween"] {
+  --bg:          #1b1224;
+  --card:        #241a30;
+  --surface-2:   #201729;
+  --tag-bg:      #2e2138;
+  --ink:         #f3ecff;
+  --muted:       #b6a8c9;
+  --border:      #3c2c4a;
+  --accent:      #ff7518;
+  --accent-glow: rgba(255,117,24,.25);
+  --green:       #7ac74f;
+  --yellow:      #ffcc33;
+  --header-bg:   #0d0712;
+  --menu-bg:     #0d0712;
+}
+
+/* 💘 VALENTINE */
+html[data-theme="valentine"] {
+  --bg:          #fff3f6;
+  --card:        #ffffff;
+  --surface-2:   #ffe9f0;
+  --tag-bg:      #ffdce6;
+  --ink:         #3d0f22;
+  --muted:       #8a6270;
+  --border:      #f6c9d6;
+  --accent:      #e0316b;
+  --accent-glow: rgba(224,49,107,.2);
+  --green:       #2a9d8f;
+  --yellow:      #f4a6c1;
+  --header-bg:   #4a1327;
+  --menu-bg:     #4a1327;
+}
+
+/* 🇻🇳 TÔI YÊU VIỆT NAM */
+html[data-theme="vietnam"] {
+  --bg:          #fffaf0;
+  --card:        #ffffff;
+  --surface-2:   #fff3d6;
+  --tag-bg:      #ffe9b8;
+  --ink:         #1a1a1a;
+  --muted:       #6b5b3a;
+  --border:      #ffe0a0;
+  --accent:      #da251d;
+  --accent-glow: rgba(218,37,29,.2);
+  --green:       #146b3a;
+  --yellow:      #ffcd00;
+  --header-bg:   #da251d;
+  --menu-bg:     #da251d;
+}
