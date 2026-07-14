@@ -230,6 +230,21 @@ window.showToast = function (msg, bg = '#00b894') {
   };
 })();
 
+/* ── GOOGLE DRIVE PDF PREVIEW ──
+   Nhận nhiều dạng link Drive (file/d/ID/view, open?id=ID, uc?id=ID...)
+   → trả về link dạng .../preview để nhúng <iframe> xem trước,
+   không ép tải về như link gốc. */
+window.gdrivePreviewUrl = function (url) {
+  if (!url) return null;
+  url = url.trim();
+  let fileId = null, m;
+  m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) fileId = m[1];
+  if (!fileId) { m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/); if (m) fileId = m[1]; }
+  if (!fileId) return url; // không nhận diện được → dùng nguyên link (fallback)
+  return `https://drive.google.com/file/d/${fileId}/preview`;
+};
+
 /* ── SLUG CHO GAME (dùng cho link chia sẻ #game-{slug} + mã QR) ──
    Trả về { slugById, idBySlug }. Tự xử lý trùng tên bằng hậu tố -2, -3...
    Admin và frontend cùng fetch bảng `games` order theo sort_order,
