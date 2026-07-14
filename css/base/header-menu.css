@@ -69,7 +69,7 @@
   border: 2px solid #333;
   border-radius: var(--r-md);
   color: #fff;
-  font-family: 'Nunito', sans-serif;
+  font-family: var(--font-body);
   font-size: .92rem;
   font-weight: 600;
   padding: 9px 42px 9px 15px;
@@ -178,7 +178,7 @@
   box-shadow: 0 4px 14px var(--accent-glow);
 }
 .menu-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.1rem;
   letter-spacing: 1.5px;
   color: #fff;
