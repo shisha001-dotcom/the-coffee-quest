@@ -174,17 +174,20 @@ async function loadOrderDrinksCache() {
       </div>
     </div>
 
-    <!-- Modal huỷ đơn -->
+    <!-- Modal huỷ (dùng chung cho huỷ CẢ ĐƠN và huỷ TỪNG DÒNG sản phẩm —
+         phân biệt qua #voidTargetType: "order" | "item") -->
     <div class="modal-overlay hidden" id="voidOrderModal" role="dialog" aria-modal="true" aria-labelledby="voidOrderModalTitle">
       <div class="modal-box" style="max-width:420px;">
         <div class="modal-header">
           <h2 id="voidOrderModalTitle">Huỷ đơn hàng</h2>
           <button class="close-btn" id="closeVoidOrderModalBtn" aria-label="Đóng cửa sổ">✕</button>
         </div>
+        <input type="hidden" id="voidTargetType">
         <input type="hidden" id="voidOrderId">
+        <div id="voidTargetSummary" style="font-size:13px;color:var(--text-muted);margin-bottom:12px;"></div>
         <div class="form-group"><label for="voidReasonInput">Lý do huỷ *</label><input type="text" id="voidReasonInput" placeholder="VD: khách đặt nhầm, lên món sai..."></div>
         <div class="modal-actions" style="justify-content:flex-end;">
-          <button class="btn btn-danger" id="confirmVoidOrderBtn">🗑️ Xác nhận huỷ đơn</button>
+          <button class="btn btn-danger" id="confirmVoidOrderBtn">🗑️ Xác nhận huỷ</button>
         </div>
       </div>
     </div>
@@ -427,24 +430,35 @@ function renderCustomerDetailBox(cust, orders, cqRows) {
       </div>`;
   }).join("");
 
-  /* Đơn hàng gần đây */
+  /* Đơn hàng gần đây — MỚI: liệt kê TỪNG DÒNG sản phẩm, mỗi dòng có
+     nút "Huỷ dòng" riêng (is_void ở customer_order_items) — không
+     cần huỷ nguyên cả đơn nếu chỉ 1 món bị lên nhầm. Tổng theo đơn
+     tự loại trừ các dòng đã void. */
   const orderRows = orders.length ? orders.map(o => {
     const items = o.customer_order_items || [];
-    const totalPaid   = items.reduce((s, it) => s + Number(it.customer_paid), 0);
-    const totalProfit = items.reduce((s, it) => s + Number(it.profit), 0);
-    const itemsSummary = items.map(it => `${window.escHtml(it.product_name)} ×${it.quantity}`).join(", ");
-    const isVoided = o.status === "voided";
+    const activeItems = items.filter(it => !it.is_void);
+    const totalPaid   = activeItems.reduce((s, it) => s + Number(it.customer_paid), 0);
+    const totalProfit = activeItems.reduce((s, it) => s + Number(it.profit), 0);
+    const isVoided = o.status === "voided"; // huỷ CẢ đơn (khác với huỷ từng dòng)
+
+    const itemsHtml = items.map(it => `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 0;${it.is_void ? 'opacity:.5;text-decoration:line-through;' : ''}">
+        <span>${window.escHtml(it.product_name)} ×${it.quantity}</span>
+        ${(!isVoided && !it.is_void) ? `<button class="btn btn-secondary" style="font-size:10px;padding:2px 8px;flex-shrink:0;" data-void-item="${it.id}">Huỷ dòng</button>` : ''}
+        ${it.is_void ? `<span style="font-size:10px;color:var(--danger);flex-shrink:0;white-space:nowrap;">Đã huỷ${it.void_reason ? ': ' + window.escHtml(it.void_reason) : ''}</span>` : ''}
+      </div>`).join('');
+
     return `
-      <tr style="${isVoided ? 'opacity:.55;text-decoration:line-through;' : ''}">
+      <tr style="${isVoided ? 'opacity:.55;' : ''}">
         <td>
-          <div style="font-weight:700;">${window.escHtml(o.order_number)}</div>
+          <div style="font-weight:700;${isVoided ? 'text-decoration:line-through;' : ''}">${window.escHtml(o.order_number)}</div>
           <div style="font-size:11px;color:var(--text-muted);">${new Date(o.created_at).toLocaleString('vi-VN')}</div>
         </td>
-        <td style="font-size:12px;max-width:220px;">${window.escHtml(itemsSummary || '—')}</td>
+        <td style="font-size:12px;max-width:260px;">${itemsHtml || '—'}</td>
         <td style="font-weight:700;">${M.formatVND(totalPaid)}</td>
         <td style="color:${totalProfit >= 0 ? '#00b894' : 'var(--danger)'};">${M.formatVND(totalProfit)}</td>
-        <td>${isVoided ? `<span class="badge" style="background:#fdecea;color:var(--danger);">Đã huỷ</span>` : `<span class="badge">Hoàn tất</span>`}</td>
-        <td>${!isVoided ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 10px;" data-void-order="${o.id}">🗑️ Huỷ</button>` : (o.void_reason ? `<span style="font-size:11px;color:var(--text-muted);">${window.escHtml(o.void_reason)}</span>` : '')}</td>
+        <td>${isVoided ? `<span class="badge" style="background:#fdecea;color:var(--danger);">Đã huỷ cả đơn</span>` : `<span class="badge">Hoàn tất</span>`}</td>
+        <td>${!isVoided ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 10px;" data-void-order="${o.id}">🗑️ Huỷ cả đơn</button>` : (o.void_reason ? `<span style="font-size:11px;color:var(--text-muted);">${window.escHtml(o.void_reason)}</span>` : '')}</td>
       </tr>`;
   }).join("") : `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:14px;">Chưa có đơn hàng nào</td></tr>`;
 
@@ -532,7 +546,10 @@ function renderCustomerDetailBox(cust, orders, cqRows) {
     });
   });
   document.querySelectorAll("[data-void-order]").forEach(btn => {
-    btn.addEventListener("click", () => openVoidOrderModal(Number(btn.dataset.voidOrder), cust.id));
+    btn.addEventListener("click", () => openVoidModal('order', Number(btn.dataset.voidOrder), cust.id));
+  });
+  document.querySelectorAll("[data-void-item]").forEach(btn => {
+    btn.addEventListener("click", () => openVoidModal('item', Number(btn.dataset.voidItem), cust.id));
   });
 
   document.getElementById("addOrderRowBtn")?.addEventListener("click", () => addOrderDraftRow());
@@ -755,65 +772,113 @@ async function maybeAutoCheckin(customerId, orderId, staff) {
 }
 
 /* ══════════════════════════════════════════════
-   HUỶ ĐƠN HÀNG
-   ⚠️ LƯU Ý: trigger reverse_stock_on_void (DB) tự đảo ngược kho khi
-   status chuyển completed→voided. NHƯNG trigger tính lại total_spent/
-   total_profit (sync_customer_totals_on_order) CHỈ gắn trên
-   customer_order_items — huỷ đơn KHÔNG đụng bảng đó nên KHÔNG tự
-   trigger lại. Vì vậy phải tự tính lại tổng ở đây sau khi huỷ.
+   HUỶ ĐƠN HÀNG / HUỶ TỪNG DÒNG SẢN PHẨM
+   ─────────────────────────────────────────────
+   ⚠️ Migration V2: KHÔNG xoá dữ liệu khi huỷ — mọi thao tác "xoá"
+   giao dịch đều chuyển thành VOID (giữ nguyên dòng, chỉ đánh dấu
+   is_void/status='voided' + void_reason). Tổng total_spent/
+   total_profit của khách sẽ TỰ ĐỘNG loại trừ các dòng đã void nhờ
+   trigger DB `sync_customer_totals_on_order` (đã cập nhật ở migration
+   V2 để lọc thêm `oi.is_void = FALSE`).
+
+   Có 2 loại void độc lập:
+   - "order" — huỷ NGUYÊN CẢ ĐƠN (customer_orders.status='voided').
+     Trigger reverse_stock_on_void (V1) tự đảo ngược kho CẢ đơn.
+     ⚠️ Riêng total_spent/total_profit KHÔNG tự trigger lại khi chỉ
+     đổi status của customer_orders (trigger chỉ gắn trên
+     customer_order_items) → phải tự tính lại tổng ở JS sau khi huỷ.
+   - "item" — huỷ 1 DÒNG sản phẩm (customer_order_items.is_void=true).
+     Trigger reverse_stock_on_item_void (V2, MỚI) tự đảo ngược kho
+     ĐÚNG dòng đó. Việc UPDATE is_void trên customer_order_items vẫn
+     là 1 lượt UPDATE trên đúng bảng đó nên trigger
+     sync_customer_totals_on_order (V1) TỰ CHẠY LẠI bình thường —
+     không cần tự tính tổng tay như trường hợp "order".
    ══════════════════════════════════════════════ */
-function openVoidOrderModal(orderId, customerId) {
-  document.getElementById("voidOrderId").value = orderId;
+function openVoidModal(type, targetId, customerId) {
+  document.getElementById("voidTargetType").value = type;
+  document.getElementById("voidOrderId").value = targetId;
   document.getElementById("voidOrderId").dataset.customerId = customerId;
   document.getElementById("voidReasonInput").value = "";
+  document.getElementById("voidOrderModalTitle").textContent =
+    type === "order" ? "Huỷ cả đơn hàng" : "Huỷ dòng sản phẩm";
+  document.getElementById("voidTargetSummary").textContent =
+    type === "order"
+      ? "Toàn bộ đơn hàng này sẽ được đánh dấu là đã huỷ — kho sẽ được hoàn lại tự động."
+      : "Chỉ dòng sản phẩm này bị huỷ — các dòng khác trong đơn vẫn giữ nguyên, kho của riêng dòng này sẽ được hoàn lại tự động.";
+  document.getElementById("confirmVoidOrderBtn").textContent =
+    type === "order" ? "🗑️ Xác nhận huỷ cả đơn" : "🗑️ Xác nhận huỷ dòng";
   document.getElementById("voidOrderModal").classList.remove("hidden");
   document.getElementById("voidReasonInput").focus();
 }
 
 async function confirmVoidOrder() {
-  const orderId = Number(document.getElementById("voidOrderId").value);
+  const type = document.getElementById("voidTargetType").value;
+  const targetId = Number(document.getElementById("voidOrderId").value);
   const customerId = Number(document.getElementById("voidOrderId").dataset.customerId);
   const reason = document.getElementById("voidReasonInput").value.trim();
-  if (!reason) { window.showToast("⚠️ Vui lòng nhập lý do huỷ đơn.", "#e17055"); return; }
+  if (!reason) { window.showToast("⚠️ Vui lòng nhập lý do huỷ.", "#e17055"); return; }
 
   const btn = document.getElementById("confirmVoidOrderBtn");
   btn.disabled = true; btn.textContent = "Đang huỷ...";
+  const staff = currentSession.displayName || currentSession.username;
 
   try {
-    const staff = currentSession.displayName || currentSession.username;
-    const { error: voidErr } = await client.from("customer_orders").update({
-      status: "voided", voided_by: staff, voided_at: new Date().toISOString(), void_reason: reason,
-    }).eq("id", orderId);
-    if (voidErr) throw voidErr;
+    if (type === "item") {
+      /* ── HUỶ 1 DÒNG SẢN PHẨM ── */
+      const { error } = await client.from("customer_order_items").update({
+        is_void: true, void_reason: reason, voided_by: staff, voided_at: new Date().toISOString(),
+      }).eq("id", targetId);
+      if (error) throw error;
 
-    /* Tự tính lại total_spent/total_profit vì trigger DB không tự
-       chạy lại khi chỉ đổi status của customer_orders */
-    const { data: completedItems, error: sumErr } = await client
-      .from("customer_order_items")
-      .select("customer_paid, profit, customer_orders!inner(customer_id, status)")
-      .eq("customer_orders.customer_id", customerId)
-      .eq("customer_orders.status", "completed");
-    if (sumErr) throw sumErr;
+      /* Trigger DB đã tự tính lại total_spent/total_profit — chỉ
+         cần refetch khách hàng để đồng bộ lại state phía client */
+      const { data: freshCust, error: custErr } = await client
+        .from("customers").select("*").eq("id", customerId).single();
+      if (custErr) throw custErr;
+      const idx = M.state.customers.findIndex(c => c.id === customerId);
+      if (idx !== -1) M.state.customers[idx] = freshCust;
 
-    const totalSpent  = (completedItems || []).reduce((s, it) => s + Number(it.customer_paid), 0);
-    const totalProfit = (completedItems || []).reduce((s, it) => s + Number(it.profit), 0);
+      window.showToast("🗑️ Đã huỷ dòng sản phẩm — kho đã được hoàn lại tự động.", "#e17055");
+    } else {
+      /* ── HUỶ CẢ ĐƠN ── */
+      const { error: voidErr } = await client.from("customer_orders").update({
+        status: "voided", voided_by: staff, voided_at: new Date().toISOString(), void_reason: reason,
+      }).eq("id", targetId);
+      if (voidErr) throw voidErr;
 
-    const { data: freshCust, error: updErr } = await client
-      .from("customers").update({ total_spent: totalSpent, total_profit: totalProfit })
-      .eq("id", customerId).select().single();
-    if (updErr) throw updErr;
+      /* Tự tính lại total_spent/total_profit vì trigger DB không tự
+         chạy lại khi chỉ đổi status của customer_orders (không đụng
+         customer_order_items) — loại trừ cả đơn 'voided' LẪN các dòng
+         is_void=true còn sót trong các đơn 'completed' khác. */
+      const { data: completedItems, error: sumErr } = await client
+        .from("customer_order_items")
+        .select("customer_paid, profit, customer_orders!inner(customer_id, status)")
+        .eq("customer_orders.customer_id", customerId)
+        .eq("customer_orders.status", "completed")
+        .eq("is_void", false);
+      if (sumErr) throw sumErr;
 
-    const idx = M.state.customers.findIndex(c => c.id === customerId);
-    if (idx !== -1) M.state.customers[idx] = freshCust;
+      const totalSpent  = (completedItems || []).reduce((s, it) => s + Number(it.customer_paid), 0);
+      const totalProfit = (completedItems || []).reduce((s, it) => s + Number(it.profit), 0);
+
+      const { data: freshCust, error: updErr } = await client
+        .from("customers").update({ total_spent: totalSpent, total_profit: totalProfit })
+        .eq("id", customerId).select().single();
+      if (updErr) throw updErr;
+
+      const idx = M.state.customers.findIndex(c => c.id === customerId);
+      if (idx !== -1) M.state.customers[idx] = freshCust;
+
+      window.showToast("🗑️ Đã huỷ đơn hàng — kho đã được hoàn lại tự động.", "#e17055");
+    }
 
     document.getElementById("voidOrderModal").classList.add("hidden");
-    window.showToast("🗑️ Đã huỷ đơn hàng — kho đã được hoàn lại tự động.", "#e17055");
     renderCustomerTable();
     openCustomerDetail(customerId);
   } catch (err) {
     window.showToast("❌ Lỗi: " + err.message, "#e17055");
   } finally {
-    btn.disabled = false; btn.textContent = "🗑️ Xác nhận huỷ đơn";
+    btn.disabled = false;
   }
 }
 
