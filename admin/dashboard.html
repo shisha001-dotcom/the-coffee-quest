@@ -8,10 +8,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./dashboard.css">
-  <!-- ĐÃ CHUYỂN: toàn bộ <style> inline (~230 dòng: category-picker,
-       section-divider, color-row, online-widget, skip-link...) sang
-       đây — xem admin/dashboard-shared.css. dashboard.html giờ
-       KHÔNG còn <style> tag nào. -->
   <link rel="stylesheet" href="./dashboard-shared.css">
 </head>
 <body>
@@ -163,13 +159,19 @@
 
     <!-- ── DRINKS PAGE ──
          Modal #drinkModal KHÔNG còn ở đây — được inject bởi
-         admin/modules/drinks/dashboard-drinks.js -->
+         admin/modules/drinks/dashboard-drinks.js.
+
+         ⚠️ CẬP NHẬT (schema SQL v1): tab lọc theo loại đồ uống KHÔNG
+         còn hard-code trong HTML nữa — loại đồ uống giờ đến từ bảng
+         `drink_categories` (có thể thêm/xoá loại trong DB mà không
+         cần sửa file này). dashboard-drinks.js::renderDrinkTabs() sẽ
+         tự render nút bấm vào #drinkTabsWrap khi loadDrinks() chạy. -->
     <div id="drinksPage" style="display:none;">
 
       <div class="page-header">
         <div>
           <h1 class="page-title">☕ Đồ uống</h1>
-          <p class="page-subtitle" id="drinkPageSubtitle">Công thức & hướng dẫn pha chế</p>
+          <p class="page-subtitle" id="drinkPageSubtitle">Công thức, giá bán &amp; giá thành pha chế</p>
         </div>
         <div class="header-actions">
           <button class="btn btn-secondary" onclick="loadDrinks()">🔄 Refresh</button>
@@ -177,13 +179,7 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;" role="tablist" aria-label="Lọc theo loại đồ uống">
-        <button class="btn btn-primary drink-tab active" data-cat="all"        onclick="filterDrinks('all',this)">🍹 Tất cả</button>
-        <button class="btn btn-secondary drink-tab" data-cat="Cà phê"         onclick="filterDrinks('Cà phê',this)">☕ Cà phê</button>
-        <button class="btn btn-secondary drink-tab" data-cat="Trà hoa quả"    onclick="filterDrinks('Trà hoa quả',this)">🍓 Trà hoa quả</button>
-        <button class="btn btn-secondary drink-tab" data-cat="Trà sữa"        onclick="filterDrinks('Trà sữa',this)">🧋 Trà sữa</button>
-        <button class="btn btn-secondary drink-tab" data-cat="Sữa chua"       onclick="filterDrinks('Sữa chua',this)">🥛 Sữa chua</button>
-      </div>
+      <div id="drinkTabsWrap" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;" role="tablist" aria-label="Lọc theo loại đồ uống"></div>
 
       <div id="drinkGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;">
         <div style="text-align:center;color:var(--text-muted);padding:60px 0;grid-column:1/-1;">⏳ Đang tải...</div>
@@ -197,7 +193,8 @@
 <!-- ══════════════════════════════════════════════
      KHÔNG CÒN modal HTML tĩnh (#gameModal / #drinkModal) ở đây.
      Mỗi modal giờ được module JS tương ứng tự inject vào <body>
-     lúc load — cùng pattern với banners/media/accounts/customers.
+     lúc load — cùng pattern với banners/media/accounts/customers/
+     ingredients (MỚI).
      ══════════════════════════════════════════════ -->
 
 <!-- ══════════════════════════════════════════════
@@ -207,18 +204,24 @@
      3) Supabase SDK + QRCode CDN
      4) core/dashboard-auth.js   → `client` + `currentSession` global
      5) core/dashboard-page-registry.js → window.AdminDashboard
-     6) modules/games/dashboard-games.js + modules/drinks/dashboard-drinks.js
+     6) modules/inventory/inventory-shared.js → window.Inventory (MỚI)
+        PHẢI load TRƯỚC modules/drinks/dashboard-drinks.js (cần
+        state.categories/state.ingredients để render dropdown/recipe)
+     7) modules/games/dashboard-games.js + modules/drinks/dashboard-drinks.js
         (script thường — cần onclick="" global của core/dashboard-nav.js
         hoạt động được; mỗi file tự inject modal riêng của mình)
-     7) modules/games/dashboard-game-detail.js
-     8) modules/membership/membership-shared.js  → PHẢI load TRƯỚC
+     8) modules/games/dashboard-game-detail.js
+     9) modules/membership/membership-shared.js  → PHẢI load TRƯỚC
         3 file domain Membership bên dưới
-     9) modules/membership/dashboard-customers.js  (đăng ký page — load trước 2 file dưới)
-        modules/membership/dashboard-quests.js     (chỉ render vào tab có sẵn)
-        modules/membership/dashboard-levels.js     (chỉ render vào tab có sẵn)
-     10) core/dashboard-nav.js   → điều hướng, dùng loadGames/loadDrinks
-     11) các module ES module (type="module") — chat/analytics/banners/media/accounts
-     12) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
+     10) modules/membership/dashboard-customers.js  (đăng ký page — cần
+         window.Inventory để cache đồ uống/giá thành lúc tạo đơn hàng)
+         modules/membership/dashboard-quests.js
+         modules/membership/dashboard-levels.js
+     11) modules/inventory/dashboard-ingredients.js (MỚI — đăng ký page
+         riêng "Kho nguyên liệu", độc lập với Membership)
+     12) core/dashboard-nav.js   → điều hướng, dùng loadGames/loadDrinks
+     13) các module ES module (type="module") — chat/analytics/banners/media/accounts
+     14) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
      ══════════════════════════════════════════════ -->
 <script src="../js/shared-config.js"></script>
 <script src="../js/shared-emoji.js"></script>
@@ -230,6 +233,8 @@
 <script src="./core/dashboard-auth.js"></script>
 <script src="./core/dashboard-page-registry.js"></script>
 
+<script src="./modules/inventory/inventory-shared.js"></script>
+
 <script src="./modules/games/dashboard-games.js"></script>
 <script src="./modules/drinks/dashboard-drinks.js"></script>
 <script src="./modules/games/dashboard-game-detail.js"></script>
@@ -238,6 +243,8 @@
 <script src="./modules/membership/dashboard-customers.js"></script>
 <script src="./modules/membership/dashboard-quests.js"></script>
 <script src="./modules/membership/dashboard-levels.js"></script>
+
+<script src="./modules/inventory/dashboard-ingredients.js"></script>
 
 <script src="./core/dashboard-nav.js"></script>
 
