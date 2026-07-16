@@ -1,19 +1,36 @@
 /* ══════════════════════════════════════════════
    DASHBOARD DRINKS MODULE — admin/modules/drinks/dashboard-drinks.js
    ─────────────────────────────────────────────
-   ⚠️ TỐI ƯU (bổ sung so với bản trước):
-   - saveDrink()/deleteDrink(): PATCH trực tiếp mảng `allDrinks` từ
-     dữ liệu Supabase trả về (.select()), thay vì loadDrinks() gọi
-     lại toàn bảng mỗi lần lưu/xoá 1 công thức.
+   ⚠️ VIẾT LẠI THEO SCHEMA SQL V1 (2026-07-16):
+   - `category` (text tự do) → `category_id` (FK → drink_categories).
+     Filter tab + dropdown trong modal giờ render động từ
+     window.Inventory.state.categories thay vì hard-code.
+   - Thêm `price` (giá bán) — bắt buộc, dùng snapshot khi tạo đơn hàng.
+   - Thêm `is_active` — đồ uống ngừng bán không hiện ở tab lọc bán hàng
+     nhưng vẫn giữ trong danh sách quản trị (để soft delete không mất
+     lịch sử).
+   - `ingredients` (textarea tự do) → ĐÃ ĐỔI TÊN CỘT DB thành
+     `ingredients_legacy` (không dùng nữa). Công thức THẬT giờ nằm ở
+     bảng `drink_ingredients` (N-N với bảng `ingredients` — có giá/đơn
+     vị) → modal giờ có "Recipe builder": chọn nguyên liệu có sẵn
+     trong kho + số lượng/ly, thay vì gõ text tự do. Giá thành 1 ly
+     được preview trực tiếp trong modal (INV.computeRecipeCost).
+   - Xoá đồ uống = SOFT DELETE (`deleted_at` + `is_active=false`) vì
+     `customer_order_items.drink_id` và `drink_ingredients.drink_id`
+     có ràng buộc khoá ngoại — xoá cứng sẽ lỗi nếu đồ uống đã từng
+     được bán hoặc đã có công thức.
 
    Cần: `client`, `currentSession`, window.AdminPermissions,
+   window.Inventory (inventory-shared.js — PHẢI load TRƯỚC file này),
    window.showConfirm/showToast (shared-utils.js).
    ══════════════════════════════════════════════ */
 
 window.activeDrinkFilter = 'all';
 let allDrinks = [];
+let recipeRowSeq = 0; // id tạm cho mỗi dòng recipe trong modal (chưa lưu DB)
 
 const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
+const INVD = window.Inventory;
 
 /* ══════════════════════════════════════════════
    INJECT MODAL HTML — 1 lần duy nhất lúc file load
@@ -46,13 +63,7 @@ const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role)
 
         <div class="form-group">
           <label for="drinkCategory">Loại *</label>
-          <select id="drinkCategory">
-            <option value="">-- Chọn loại --</option>
-            <option value="Cà phê">☕ Cà phê</option>
-            <option value="Trà hoa quả">🍓 Trà hoa quả</option>
-            <option value="Trà sữa">🧋 Trà sữa</option>
-            <option value="Sữa chua">🥛 Sữa chua</option>
-          </select>
+          <select id="drinkCategory"><option value="">-- Chọn loại --</option></select>
         </div>
 
         <div class="form-group">
@@ -61,8 +72,18 @@ const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role)
         </div>
 
         <div class="form-group">
+          <label for="drinkPrice">Giá bán (đ) *</label>
+          <input type="number" id="drinkPrice" min="0" step="1000" placeholder="35000">
+        </div>
+
+        <div class="form-group">
           <label for="drinkSort">Thứ tự hiển thị</label>
           <input type="number" id="drinkSort" placeholder="1, 2, 3...">
+        </div>
+
+        <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;">
+          <input type="checkbox" id="drinkIsActive" style="width:18px;height:18px;" checked>
+          <label for="drinkIsActive" style="margin:0;">Đang bán</label>
         </div>
 
         <div class="form-group full-width">
@@ -70,14 +91,20 @@ const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role)
           <input type="text" id="drinkDesc" placeholder="Thức uống đặc trưng của quán...">
         </div>
 
-        <div class="section-divider"><span>🧪 Công thức</span></div>
+        <div class="section-divider"><span>🧪 Công thức pha chế (tính giá thành)</span></div>
 
         <div class="form-group full-width">
-          <label for="drinkIngredients">Nguyên liệu</label>
-          <textarea id="drinkIngredients" class="tall"
-            placeholder="20ml espresso&#10;150ml sữa tươi&#10;30ml sữa đặc&#10;Đá viên vừa đủ"></textarea>
-          <div class="hint">Mỗi nguyên liệu = 1 dòng</div>
+          <div id="drinkRecipeRows" style="display:flex;flex-direction:column;gap:8px;"></div>
+          <button type="button" class="btn btn-secondary" id="addRecipeRowBtn" style="margin-top:10px;width:fit-content;">+ Thêm nguyên liệu</button>
+          <div style="margin-top:12px;padding:12px 16px;background:var(--bg);border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;font-weight:700;">💰 Giá thành ước tính / ly</span>
+            <span id="drinkCostPreview" style="font-size:16px;font-weight:700;color:var(--primary);">0 đ</span>
+          </div>
+          <div id="drinkProfitPreview" style="margin-top:6px;font-size:12px;color:var(--text-muted);"></div>
+          <div class="hint">Chưa có nguyên liệu nào trong kho? Vào trang <b>📦 Kho nguyên liệu</b> để thêm trước.</div>
         </div>
+
+        <div class="section-divider"><span>📝 Hướng dẫn pha chế</span></div>
 
         <div class="form-group full-width">
           <label for="drinkSteps">Các bước pha chế</label>
@@ -102,7 +129,7 @@ const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role)
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-danger"  id="drinkDeleteBtn" style="display:none;">🗑️ Xóa</button>
+        <button class="btn btn-danger"  id="drinkDeleteBtn" style="display:none;">🗑️ Ngừng bán</button>
         <button class="btn btn-primary" id="drinkSaveBtn">💾 Lưu</button>
       </div>
     </div>
@@ -114,9 +141,10 @@ const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role)
   document.getElementById("closeDrinkModalBtn").addEventListener("click", () => modal.classList.add("hidden"));
   document.getElementById("drinkSaveBtn").addEventListener("click", saveDrink);
   document.getElementById("drinkDeleteBtn").addEventListener("click", deleteDrink);
+  document.getElementById("addRecipeRowBtn").addEventListener("click", () => addRecipeRow());
 })();
 
-/* ── Ẩn nút "+ Thêm công thức" nếu chỉ được xem + gắn sự kiện thay onclick inline ── */
+/* ── Ẩn nút "+ Thêm công thức" nếu chỉ được xem ── */
 (function bindAddDrinkBtn() {
   const btn = document.getElementById('addDrinkBtn');
   if (!btn) return;
@@ -124,13 +152,25 @@ const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role)
   btn.addEventListener('click', openAddDrink);
 })();
 
+/* ══════════════════════════════════════════════
+   LOAD — đồ uống + (đảm bảo) danh mục/nguyên liệu đã có sẵn
+   ══════════════════════════════════════════════ */
 async function loadDrinks() {
   const grid = document.getElementById('drinkGrid');
   grid.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 0;grid-column:1/-1;">⏳ Đang tải...</div>';
 
+  try {
+    await Promise.all([INVD.loadCategories(), INVD.loadIngredients()]);
+  } catch (err) {
+    console.warn('loadDrinks (inventory):', err.message);
+  }
+  renderDrinkTabs();
+  populateDrinkCategorySelect();
+
   const { data, error } = await client
     .from('drinks')
     .select('*')
+    .is('deleted_at', null)
     .order('sort_order', { ascending: true });
 
   if (error) {
@@ -145,43 +185,78 @@ async function loadDrinks() {
   if (el) el.textContent = allDrinks.length;
 }
 
+/* ══════════════════════════════════════════════
+   TAB LỌC — render động từ drink_categories (thay hard-code cũ)
+   ══════════════════════════════════════════════ */
+function renderDrinkTabs() {
+  const wrap = document.getElementById('drinkTabsWrap');
+  if (!wrap) return; // an toàn nếu dashboard.html chưa cập nhật vùng chứa
+
+  const cats = INVD.state.categories;
+  wrap.innerHTML = `
+    <button class="btn ${window.activeDrinkFilter === 'all' ? 'btn-primary' : 'btn-secondary'} drink-tab" data-cat="all">🍹 Tất cả</button>
+    ${cats.map(c => `
+      <button class="btn ${window.activeDrinkFilter === c.name ? 'btn-primary' : 'btn-secondary'} drink-tab" data-cat="${window.escHtml(c.name)}">${c.icon || ''} ${window.escHtml(c.name)}</button>
+    `).join('')}
+  `;
+  wrap.querySelectorAll('.drink-tab').forEach(btn => {
+    btn.addEventListener('click', () => window.filterDrinks(btn.dataset.cat, btn));
+  });
+}
+
+/* Tương thích: dashboard-nav.js gọi showDrinks(cat) → filterDrinks giữ API cũ */
+window.filterDrinks = function (cat, btnEl) {
+  window.activeDrinkFilter = cat;
+  document.querySelectorAll('.drink-tab').forEach(b => {
+    const active = btnEl ? b === btnEl : b.dataset.cat === cat;
+    b.classList.toggle('btn-primary', active);
+    b.classList.toggle('btn-secondary', !active);
+  });
+  renderDrinkGrid();
+};
+
+function populateDrinkCategorySelect() {
+  const sel = document.getElementById('drinkCategory');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">-- Chọn loại --</option>' +
+    INVD.state.categories.map(c => `<option value="${c.id}">${c.icon || ''} ${window.escHtml(c.name)}</option>`).join('');
+  if (current) sel.value = current;
+}
+
+/* ══════════════════════════════════════════════
+   RENDER GRID
+   ══════════════════════════════════════════════ */
 function renderDrinkGrid() {
   const grid = document.getElementById('drinkGrid');
   const list = window.activeDrinkFilter === 'all'
     ? allDrinks
-    : allDrinks.filter(d => d.category === window.activeDrinkFilter);
+    : allDrinks.filter(d => INVD.getCategoryById(d.category_id)?.name === window.activeDrinkFilter);
 
   if (!list.length) {
     grid.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 0;grid-column:1/-1;">Chưa có công thức nào.</div>';
     return;
   }
 
-  const catColor = {
-    'Cà phê':      '#6f4e37',
-    'Trà hoa quả': '#e17055',
-    'Trà sữa':     '#6c5ce7',
-    'Sữa chua':    '#00b894',
-  };
-
   const actionLabel = isDrinksReadOnly ? '👁️ Xem' : '✏️ Sửa';
 
   grid.innerHTML = list.map(d => {
-    const color = catColor[d.category] || '#888';
-    const ing   = Array.isArray(d.ingredients) ? d.ingredients : [];
+    const cat = INVD.getCategoryById(d.category_id);
+    const color = cat?.color || '#888';
     return `
-      <div style="background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;">
+      <div style="background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;${!d.is_active ? 'opacity:.6;' : ''}">
         <div style="height:5px;background:${color};"></div>
         ${d.image_url ? `<img src="${window.escHtml(d.image_url)}" alt="Ảnh minh hoạ ${window.escHtml(d.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.style.display='none'">` : ''}
         <div style="padding:16px 18px;flex:1;display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;align-items:center;gap:10px;">
             <span style="font-size:24px;" aria-hidden="true">${d.emoji || '☕'}</span>
             <div>
-              <div style="font-weight:700;font-size:15px;color:var(--text);">${window.escHtml(d.name)}</div>
-              <div style="font-size:11px;font-weight:600;color:${color};margin-top:2px;">${window.escHtml(d.category)}</div>
+              <div style="font-weight:700;font-size:15px;color:var(--text);">${window.escHtml(d.name)} ${!d.is_active ? '<span class="badge" style="background:#f1f5f9;color:#888;">Ngừng bán</span>' : ''}</div>
+              <div style="font-size:11px;font-weight:600;color:${color};margin-top:2px;">${window.escHtml(cat?.name || '—')}</div>
             </div>
           </div>
           ${d.description ? `<div style="font-size:13px;color:var(--text-muted);line-height:1.5;">${window.escHtml(d.description)}</div>` : ''}
-          ${ing.length ? `<div style="font-size:12px;color:var(--text-muted);">🧪 ${ing.length} nguyên liệu</div>` : ''}
+          <div style="font-size:14px;font-weight:700;color:var(--primary);">${Number(d.price || 0).toLocaleString('vi-VN')} đ</div>
         </div>
         <div style="padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:8px;">
           <button class="btn btn-primary" style="font-size:12px;padding:6px 14px;" data-drink-edit="${d.id}">${actionLabel} ${window.escHtml(d.name)}</button>
@@ -202,7 +277,11 @@ function setDrinkModalReadOnly(readonly) {
   const modal     = document.getElementById('drinkModal');
   const saveBtn   = document.getElementById('drinkSaveBtn');
   const deleteBtn = document.getElementById('drinkDeleteBtn');
-  window.AdminPermissions.applyReadOnlyForm(modal, { readonly, saveBtn, deleteBtn });
+  window.AdminPermissions.applyReadOnlyForm(modal, {
+    readonly, saveBtn, deleteBtn,
+    extraDisable: [document.getElementById('addRecipeRowBtn')],
+  });
+  modal.querySelectorAll('.recipe-row-remove').forEach(b => b.disabled = readonly);
 }
 
 function clearDrinkFieldError(id) {
@@ -228,6 +307,81 @@ function showDrinkFieldError(id, msg) {
   el.addEventListener('input', () => clearDrinkFieldError(id), { once: true });
 }
 
+/* ══════════════════════════════════════════════
+   RECIPE BUILDER — dòng công thức (drink_ingredients)
+   ══════════════════════════════════════════════ */
+function ingredientOptionsHtml(selectedId) {
+  const active = INVD.state.ingredients.filter(i => i.is_active);
+  return '<option value="">-- Chọn nguyên liệu --</option>' + active.map(i =>
+    `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>${window.escHtml(i.name)} (${window.escHtml(i.unit)} — ${Number(i.unit_cost).toLocaleString('vi-VN')}đ)</option>`
+  ).join('');
+}
+
+function addRecipeRow(row = {}) {
+  const wrap = document.getElementById('drinkRecipeRows');
+  const rowId = 'rr' + (++recipeRowSeq);
+  const div = document.createElement('div');
+  div.className = 'recipe-row';
+  div.dataset.rowId = rowId;
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 0.8fr auto;gap:8px;align-items:center;';
+  div.innerHTML = `
+    <select class="recipe-ingredient" style="height:40px;border:1px solid var(--border);border-radius:8px;padding:0 8px;font-size:13px;">
+      ${ingredientOptionsHtml(row.ingredient_id)}
+    </select>
+    <input type="number" class="recipe-qty" placeholder="Số lượng/ly" min="0" step="0.01" value="${row.qty_per_serving ?? ''}" style="height:40px;border:1px solid var(--border);border-radius:8px;padding:0 8px;font-size:13px;">
+    <input type="text" class="recipe-unit" placeholder="Đơn vị" value="${window.escHtml(row.unit || '')}" style="height:40px;border:1px solid var(--border);border-radius:8px;padding:0 8px;font-size:13px;">
+    <input type="number" class="recipe-rate" placeholder="Hệ số" min="0" step="0.000001" value="${row.conversion_rate ?? 1}" title="Hệ số quy đổi về đơn vị kho (VD: công thức dùng ml, kho lưu lít → 0.001)" style="height:40px;border:1px solid var(--border);border-radius:8px;padding:0 8px;font-size:13px;">
+    <button type="button" class="close-btn recipe-row-remove" title="Xoá dòng" style="width:36px;height:36px;">✕</button>
+  `;
+  wrap.appendChild(div);
+
+  const ingSelect = div.querySelector('.recipe-ingredient');
+  const unitInput = div.querySelector('.recipe-unit');
+  ingSelect.addEventListener('change', () => {
+    const ing = INVD.getIngredientById(Number(ingSelect.value));
+    if (ing && !unitInput.value) unitInput.value = ing.unit;
+    updateDrinkCostPreview();
+  });
+  div.querySelectorAll('.recipe-qty, .recipe-rate').forEach(inp => inp.addEventListener('input', updateDrinkCostPreview));
+  div.querySelector('.recipe-row-remove').addEventListener('click', () => { div.remove(); updateDrinkCostPreview(); });
+
+  updateDrinkCostPreview();
+}
+
+function readRecipeRows() {
+  return [...document.querySelectorAll('#drinkRecipeRows .recipe-row')].map(div => ({
+    ingredient_id: Number(div.querySelector('.recipe-ingredient').value) || null,
+    qty_per_serving: Number(div.querySelector('.recipe-qty').value) || 0,
+    unit: div.querySelector('.recipe-unit').value.trim(),
+    conversion_rate: Number(div.querySelector('.recipe-rate').value) || 1,
+  })).filter(r => r.ingredient_id && r.qty_per_serving > 0);
+}
+
+function updateDrinkCostPreview() {
+  const rows = readRecipeRows();
+  const cost = INVD.computeRecipeCost(rows);
+  document.getElementById('drinkCostPreview').textContent = Math.round(cost).toLocaleString('vi-VN') + ' đ';
+
+  const price = Number(document.getElementById('drinkPrice').value) || 0;
+  const profitEl = document.getElementById('drinkProfitPreview');
+  if (price > 0) {
+    const profit = price - cost;
+    const marginPct = price ? Math.round((profit / price) * 100) : 0;
+    profitEl.textContent = `Lợi nhuận gộp ước tính: ${Math.round(profit).toLocaleString('vi-VN')} đ / ly (~${marginPct}%)`;
+    profitEl.style.color = profit < 0 ? 'var(--danger)' : 'var(--text-muted)';
+  } else {
+    profitEl.textContent = '';
+  }
+}
+
+function clearRecipeRows() {
+  document.getElementById('drinkRecipeRows').innerHTML = '';
+  recipeRowSeq = 0;
+}
+
+/* ══════════════════════════════════════════════
+   OPEN ADD / EDIT
+   ══════════════════════════════════════════════ */
 function openAddDrink() {
   if (isDrinksReadOnly) return;
 
@@ -235,13 +389,18 @@ function openAddDrink() {
   document.getElementById('drinkName').value = '';
   document.getElementById('drinkCategory').value = '';
   document.getElementById('drinkEmoji').value = '';
+  document.getElementById('drinkPrice').value = '';
   document.getElementById('drinkSort').value  = '';
+  document.getElementById('drinkIsActive').checked = true;
   document.getElementById('drinkDesc').value  = '';
-  document.getElementById('drinkIngredients').value = '';
   document.getElementById('drinkSteps').value = '';
   document.getElementById('drinkTips').value  = '';
   document.getElementById('drinkImage').value = '';
   clearDrinkFieldError('drinkName');
+  clearRecipeRows();
+  addRecipeRow();
+  updateDrinkCostPreview();
+
   document.getElementById('drinkModalTitle').textContent = 'Thêm công thức';
   document.getElementById('drinkDeleteBtn').style.display = 'none';
   document.getElementById('drinkDeleteBtn').dataset.wasVisible = '0';
@@ -250,20 +409,34 @@ function openAddDrink() {
   document.getElementById('drinkName').focus();
 }
 
-function editDrink(id) {
+async function editDrink(id) {
   const d = allDrinks.find(x => x.id === id);
   if (!d) return;
   document.getElementById('drinkId').value        = d.id;
   document.getElementById('drinkName').value      = d.name || '';
-  document.getElementById('drinkCategory').value  = d.category || '';
+  document.getElementById('drinkCategory').value  = d.category_id || '';
   document.getElementById('drinkEmoji').value     = d.emoji || '';
+  document.getElementById('drinkPrice').value     = d.price ?? '';
   document.getElementById('drinkSort').value      = d.sort_order ?? '';
+  document.getElementById('drinkIsActive').checked = d.is_active !== false;
   document.getElementById('drinkDesc').value      = d.description || '';
-  document.getElementById('drinkIngredients').value = Array.isArray(d.ingredients) ? d.ingredients.join('\n') : '';
   document.getElementById('drinkSteps').value     = Array.isArray(d.steps) ? d.steps.join('\n') : '';
   document.getElementById('drinkTips').value      = Array.isArray(d.tips) ? d.tips.join('\n') : '';
   document.getElementById('drinkImage').value     = d.image_url || '';
   clearDrinkFieldError('drinkName');
+
+  clearRecipeRows();
+  try {
+    const { data: rows, error } = await client
+      .from('drink_ingredients').select('*').eq('drink_id', id);
+    if (error) throw error;
+    (rows || []).forEach(r => addRecipeRow(r));
+    if (!rows?.length) addRecipeRow();
+  } catch (err) {
+    console.warn('editDrink (recipe):', err.message);
+    addRecipeRow();
+  }
+  updateDrinkCostPreview();
 
   document.getElementById('drinkModalTitle').textContent = isDrinksReadOnly
     ? '👁️ Xem chi tiết công thức'
@@ -282,8 +455,9 @@ function parseDrinkLines(id) {
 }
 
 /* ══════════════════════════════════════════════
-   SAVE — ⚠️ TỐI ƯU: PATCH mảng `allDrinks` tại chỗ bằng dữ liệu
-   Supabase trả về (.select()), thay vì loadDrinks() refetch toàn bảng.
+   SAVE — upsert `drinks` rồi đồng bộ lại toàn bộ `drink_ingredients`
+   (xoá hết dòng cũ của drink_id này rồi insert lại dòng mới — đơn
+   giản và đủ dùng vì tần suất sửa công thức của admin thấp).
    ══════════════════════════════════════════════ */
 async function saveDrink() {
   if (isDrinksReadOnly) return;
@@ -291,20 +465,30 @@ async function saveDrink() {
   const rawId = document.getElementById('drinkId').value;
   const id    = rawId ? Number(rawId) : null;
   const name  = document.getElementById('drinkName').value.trim();
+  const categoryId = Number(document.getElementById('drinkCategory').value) || null;
+  const price = Number(document.getElementById('drinkPrice').value);
 
   if (!name) { showDrinkFieldError('drinkName', 'Vui lòng nhập tên đồ uống.'); return; }
   clearDrinkFieldError('drinkName');
+  if (!categoryId) { showDrinkFieldError('drinkCategory', 'Vui lòng chọn loại đồ uống.'); return; }
+  clearDrinkFieldError('drinkCategory');
+  if (!price || price <= 0) { showDrinkFieldError('drinkPrice', 'Vui lòng nhập giá bán hợp lệ.'); return; }
+  clearDrinkFieldError('drinkPrice');
+
+  const recipeRows = readRecipeRows();
 
   const payload = {
     name,
-    category:    document.getElementById('drinkCategory').value,
+    category_id: categoryId,
     emoji:       document.getElementById('drinkEmoji').value.trim() || '☕',
+    price,
+    is_active:   document.getElementById('drinkIsActive').checked,
     description: document.getElementById('drinkDesc').value.trim(),
-    ingredients: parseDrinkLines('drinkIngredients'),
     steps:       parseDrinkLines('drinkSteps'),
     tips:        parseDrinkLines('drinkTips'),
     image_url:   document.getElementById('drinkImage').value.trim(),
     sort_order:  Number(document.getElementById('drinkSort').value) || null,
+    updated_by:  currentSession.displayName || currentSession.username,
   };
 
   const saveBtn = document.getElementById('drinkSaveBtn');
@@ -313,21 +497,32 @@ async function saveDrink() {
   saveBtn.textContent = 'Đang lưu...';
 
   try {
+    let drinkId = id;
     if (id) {
       const { data, error } = await client.from('drinks').update(payload).eq('id', id).select();
       if (error) throw error;
-
-      /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadDrinks() refetch toàn bảng */
-      const idx = allDrinks.findIndex(d => d.id === id);
-      if (idx !== -1 && data?.[0]) allDrinks[idx] = data[0];
+      if (data?.[0]) { const idx = allDrinks.findIndex(d => d.id === id); if (idx !== -1) allDrinks[idx] = data[0]; }
     } else {
-      const { data, error } = await client.from('drinks').insert(payload).select();
+      const { data, error } = await client.from('drinks')
+        .insert({ ...payload, created_by: currentSession.displayName || currentSession.username })
+        .select();
       if (error) throw error;
-
-      /* ⚠️ TỐI ƯU: thêm trực tiếp vào mảng thay vì refetch */
+      drinkId = data?.[0]?.id;
       if (data?.[0]) allDrinks.push(data[0]);
     }
     allDrinks.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+    /* ── Đồng bộ công thức: xoá hết dòng cũ rồi insert lại dòng mới ── */
+    if (drinkId) {
+      const { error: delErr } = await client.from('drink_ingredients').delete().eq('drink_id', drinkId);
+      if (delErr) throw delErr;
+      if (recipeRows.length) {
+        const { error: insErr } = await client.from('drink_ingredients').insert(
+          recipeRows.map(r => ({ ...r, drink_id: drinkId }))
+        );
+        if (insErr) throw insErr;
+      }
+    }
 
     document.getElementById('drinkModal').classList.add('hidden');
     renderDrinkGrid();
@@ -343,8 +538,8 @@ async function saveDrink() {
 }
 
 /* ══════════════════════════════════════════════
-   DELETE — ⚠️ TỐI ƯU: xoá tại chỗ trong mảng `allDrinks` thay vì
-   loadDrinks() refetch toàn bảng.
+   DELETE — SOFT DELETE (customer_order_items.drink_id +
+   drink_ingredients.drink_id có ràng buộc khoá ngoại)
    ══════════════════════════════════════════════ */
 async function deleteDrink() {
   if (isDrinksReadOnly) return;
@@ -355,32 +550,32 @@ async function deleteDrink() {
   const name = document.getElementById('drinkName').value || 'công thức này';
 
   const ok = await window.showConfirm({
-    title: `Xóa "${name}"?`,
-    message: 'Hành động này không thể hoàn tác.',
-    confirmText: '🗑️ Xóa',
+    title: `Ngừng bán "${name}"?`,
+    message: 'Đồ uống sẽ bị ẩn khỏi danh sách bán nhưng vẫn giữ lại lịch sử đơn hàng đã bán trước đó.',
+    confirmText: '🗑️ Ngừng bán',
     cancelText: 'Hủy',
     danger: true,
   });
   if (!ok) return;
 
   try {
-    const { error } = await client.from('drinks').delete().eq('id', id);
+    const { error } = await client.from('drinks')
+      .update({ deleted_at: new Date().toISOString(), is_active: false }).eq('id', id);
     if (error) throw error;
 
-    /* ⚠️ TỐI ƯU: xoá tại chỗ thay vì loadDrinks() refetch toàn bảng */
     allDrinks = allDrinks.filter(d => String(d.id) !== String(id));
 
     document.getElementById('drinkModal').classList.add('hidden');
     renderDrinkGrid();
     const totalEl = document.getElementById('totalDrinks');
     if (totalEl) totalEl.textContent = allDrinks.length;
-    window.showToast('🗑️ Đã xóa công thức', '#e17055');
+    window.showToast('🗑️ Đã ngừng bán công thức', '#e17055');
   } catch (err) {
     window.showToast('❌ Lỗi: ' + err.message, '#e17055');
   }
 }
 
-/* Expose cho nav.js */
+/* Expose cho nav.js / dashboard-customers.js (chọn đồ uống khi tạo đơn) */
 window.loadDrinks      = loadDrinks;
 window.renderDrinkGrid = renderDrinkGrid;
 window.openAddDrink    = openAddDrink;
