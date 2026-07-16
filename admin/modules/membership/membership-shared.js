@@ -1,35 +1,45 @@
 /* ══════════════════════════════════════════════
    MEMBERSHIP SHARED — admin/modules/membership/membership-shared.js
    ─────────────────────────────────────────────
+   ⚠️ CẬP NHẬT THEO SCHEMA SQL V1 (2026-07-16):
+   - customers: bỏ `age`/`last_checkin` → dùng `date_of_birth`/
+     `last_checkin_date`; thêm `total_profit`; lọc `deleted_at IS NULL`
+     (soft delete) ở loadCustomers().
+   - quests: thêm `code`, `is_checkin`, `deleted_at` → loadQuests()
+     lọc deleted_at IS NULL. Thêm helper getCheckinQuest() để các
+     module khác (dashboard-customers.js) biết quest nào là quest
+     check-in hệ thống (không cho sửa/xoá/tick tay).
+   - customer_quests: đã đổi field `completed`→`is_completed`,
+     thêm `xp_awarded`, `related_order_id`. KHÔNG còn state riêng ở
+     đây vì dữ liệu này gắn theo từng khách hàng (đã fetch riêng
+     trong dashboard-customers.js::openCustomerDetail() — không đổi
+     vị trí, chỉ đổi tên field khi dùng).
+   - Bỏ hoàn toàn: customer_checkins, customer_transactions (2 bảng
+     đã bị DROP) — không còn helper nào tham chiếu chúng.
+
    Hàm THUẦN (không đụng DOM) dùng chung giữa 3 file con của domain
    Membership: dashboard-customers.js / dashboard-quests.js /
-   dashboard-levels.js. Tách ra để tránh copy-paste khi 3 file trước
-   đây từng nằm chung trong 1 file dashboard-customers.js ~700 dòng.
+   dashboard-levels.js.
 
-   ⚠️ Load file này TRƯỚC 3 file kia (dashboard-customers.js,
-      dashboard-quests.js, dashboard-levels.js), NGAY SAU
+   ⚠️ Load file này TRƯỚC 3 file kia, NGAY SAU
       core/dashboard-auth.js + core/dashboard-page-registry.js.
 
    Exports (window.Membership.*):
-     state           — kho dữ liệu dùng chung (allCustomers/allLevels/allQuests)
-     isSuperAdmin    — boolean, tính 1 lần khi module load
-     getLevelForXp(xp)
-     getLevelInfo(level)
-     getNextLevelInfo(level)
+     state           — kho dữ liệu dùng chung (customers/levels/quests)
+     isSuperAdmin
+     getLevelForXp(xp) / getLevelInfo(level) / getNextLevelInfo(level)
+     getCheckinQuest()    — MỚI: trả về quest hệ thống is_checkin=true
      formatVND(n)
-     getISOWeek(d)
-     periodKeyFor(type)
+     getISOWeek(d) / periodKeyFor(type)
      normalizePhone(raw)
-     clearFieldError(id) / showFieldError(id, msg)   — validate UI dùng chung
-     loadCustomers() / loadLevels() / loadQuests()   — fetch Supabase, cập nhật state
+     clearFieldError(id) / showFieldError(id, msg)
+     loadCustomers() / loadLevels() / loadQuests()
    ══════════════════════════════════════════════ */
 
 window.Membership = (function () {
 
   const isSuperAdmin = window.AdminPermissions.isSuperAdmin(currentSession.role);
 
-  /* ── STATE DÙNG CHUNG — 3 module con đọc/ghi qua đây thay vì
-     mỗi file tự giữ 1 bản riêng (tránh lệch dữ liệu giữa các tab) ── */
   const state = {
     customers: [],
     levels: [],
@@ -48,6 +58,14 @@ window.Membership = (function () {
   }
   function getNextLevelInfo(level) {
     return state.levels.find(l => l.level === level + 1) || null;
+  }
+  /* MỚI: quest hệ thống check-in — chỉ có đúng 1 dòng is_checkin=true
+     (đảm bảo bởi unique index ở DB). Dùng để: (1) ẩn nút tick tay
+     "+1 tiến độ" cho quest này trong modal chi tiết khách (check-in
+     giờ HOÀN TOÀN tự động theo đơn hàng đầu ngày), (2) chặn sửa/xoá
+     trong tab Nhiệm vụ. */
+  function getCheckinQuest() {
+    return state.quests.find(q => q.is_checkin) || null;
   }
   function formatVND(n) {
     return Number(n || 0).toLocaleString("vi-VN") + " đ";
@@ -73,7 +91,7 @@ window.Membership = (function () {
     return p;
   }
 
-  /* ── VALIDATE FIELD ERROR — style dùng chung (giống các module khác) ── */
+  /* ── VALIDATE FIELD ERROR ── */
   function clearFieldError(id) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -100,7 +118,11 @@ window.Membership = (function () {
   /* ── FETCH — cập nhật state, các module con tự render sau khi await ── */
   async function loadCustomers() {
     if (!isSuperAdmin) return state.customers;
-    const { data, error } = await client.from("customers").select("*").order("xp", { ascending: false });
+    const { data, error } = await client
+      .from("customers")
+      .select("*")
+      .is("deleted_at", null)             // ⚠️ MỚI: soft-delete filter
+      .order("xp", { ascending: false });
     if (error) { console.error(error); throw error; }
     state.customers = data || [];
     return state.customers;
@@ -114,7 +136,11 @@ window.Membership = (function () {
   }
   async function loadQuests() {
     if (!isSuperAdmin) return state.quests;
-    const { data, error } = await client.from("quests").select("*").order("id", { ascending: true });
+    const { data, error } = await client
+      .from("quests")
+      .select("*")
+      .is("deleted_at", null)             // ⚠️ MỚI: soft-delete filter
+      .order("id", { ascending: true });
     if (error) { console.error(error); throw error; }
     state.quests = data || [];
     return state.quests;
@@ -122,7 +148,7 @@ window.Membership = (function () {
 
   return {
     isSuperAdmin, state,
-    getLevelForXp, getLevelInfo, getNextLevelInfo,
+    getLevelForXp, getLevelInfo, getNextLevelInfo, getCheckinQuest,
     formatVND, getISOWeek, periodKeyFor, normalizePhone,
     clearFieldError, showFieldError,
     loadCustomers, loadLevels, loadQuests,
