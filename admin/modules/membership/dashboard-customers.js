@@ -956,18 +956,23 @@ async function deleteCustomer(id) {
   if (!isSuperAdminCust) return;
   const cust = M.state.customers.find(c => c.id === id);
 
-  const ok = await window.showConfirm({
+  const reason = await window.showReasonPrompt({
     title: `Xoá khách hàng "${cust?.name || ''}"?`,
     message: "Khách hàng sẽ bị ẩn khỏi danh sách nhưng lịch sử đơn hàng/EXP vẫn được giữ lại để tra soát khi cần.",
+    reasonLabel: "Lý do xoá *",
+    reasonPlaceholder: "VD: trùng số điện thoại, khách yêu cầu xoá dữ liệu...",
     confirmText: "🗑️ Xoá",
     cancelText: "Huỷ",
-    danger: true,
   });
-  if (!ok) return;
+  if (reason === null) return;
 
   try {
     const { error } = await client.from("customers")
-      .update({ deleted_at: new Date().toISOString() }).eq("id", id);
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_reason: reason,
+        deleted_by: currentSession.displayName || currentSession.username,
+      }).eq("id", id);
     if (error) throw error;
 
     M.state.customers = M.state.customers.filter(c => c.id !== id);
