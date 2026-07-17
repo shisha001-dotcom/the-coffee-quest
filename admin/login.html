@@ -339,7 +339,7 @@
   </div>
 
 </div>
-  
+
 <script src="../js/shared-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -442,10 +442,12 @@ async function doLogin() {
     /* Hash mật khẩu phía client */
     const hash = await sha256(password);
 
-    /* Tìm user theo username */
+    /* Tìm user theo username
+       ⚠️ MỚI (migration V3): select thêm is_active để chặn đăng
+       nhập tài khoản đã bị vô hiệu hoá (thay cho xoá cứng trước đây) */
     const { data, error } = await client
       .from("admin_users")
-      .select("id, username, display_name, role, password_hash")
+      .select("id, username, display_name, role, password_hash, is_active")
       .eq("username", username)
       .single();
 
@@ -457,6 +459,12 @@ async function doLogin() {
     /* So sánh hash */
     if (data.password_hash !== hash) {
       showError("Mật khẩu không đúng.");
+      return;
+    }
+
+    /* ⚠️ MỚI: chặn đăng nhập nếu tài khoản đã bị vô hiệu hoá */
+    if (data.is_active === false) {
+      showError("Tài khoản này đã bị vô hiệu hoá. Vui lòng liên hệ Super Admin.");
       return;
     }
 
