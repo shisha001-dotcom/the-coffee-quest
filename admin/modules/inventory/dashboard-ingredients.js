@@ -310,21 +310,25 @@ async function deleteIngredient() {
   if (!id) return;
   const ing = INV.getIngredientById(id);
 
-  const ok = await window.showConfirm({
+  const reason = await window.showReasonPrompt({
     title: `Ngừng dùng "${ing?.name || ''}"?`,
     message: "Nguyên liệu sẽ bị ẩn khỏi danh sách chọn công thức nhưng vẫn giữ lịch sử đã dùng trong các công thức/đơn hàng cũ.",
+    reasonLabel: "Lý do ngừng dùng *",
+    reasonPlaceholder: "VD: đổi nhà cung cấp, không còn dùng nguyên liệu này...",
     confirmText: "🗑️ Ngừng dùng",
     cancelText: "Huỷ",
-    danger: true,
   });
-  if (!ok) return;
+  if (reason === null) return;
 
   try {
     /* ⚠️ SOFT DELETE — drink_ingredients.ingredient_id là ON DELETE
        RESTRICT, xoá cứng sẽ lỗi FK nếu nguyên liệu đã gắn vào công
        thức nào. */
     const { error } = await client.from("ingredients")
-      .update({ deleted_at: new Date().toISOString(), is_active: false }).eq("id", id);
+      .update({
+        deleted_at: new Date().toISOString(), is_active: false,
+        deleted_reason: reason, deleted_by: currentSession.displayName || currentSession.username,
+      }).eq("id", id);
     if (error) throw error;
     document.getElementById("ingredientModal").classList.add("hidden");
     window.showToast("🗑️ Đã ngừng dùng nguyên liệu", "#e17055");
