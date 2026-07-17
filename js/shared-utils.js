@@ -15,7 +15,13 @@
      window.showToast(msg, bg)
      window.slugify(s)
      window.buildGameSlugMap(games)
-     window.showConfirm(opts)   ← MỚI (UI/UX audit — ưu tiên cao)
+     window.showConfirm(opts)        — modal xác nhận (Đồng ý/Huỷ)
+     window.showReasonPrompt(opts)   — MỚI (migration V3): modal xác
+                                        nhận CÓ Ô NHẬP LÝ DO bắt buộc,
+                                        dùng cho mọi thao tác "xoá"
+                                        (soft-delete/vô hiệu hoá) cần
+                                        lưu lại vì sao — thay vì mất
+                                        hẳn dữ liệu như xoá cứng.
    ══════════════════════════════════════════════ */
 
 /* ── ESCAPE HTML ── */
@@ -49,10 +55,7 @@ window.slugify = function (s) {
     .replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 };
 
-/* ── DEBOUNCE — MỚI: dùng chung cho mọi ô search/input cần trì hoãn
-   (trước đây mỗi module admin tự viết lại logic clearTimeout/setTimeout
-   giống hệt nhau — dashboard-games.js, dashboard-accounts.js,
-   dashboard-media.js, dashboard-customers.js...) ── */
+/* ── DEBOUNCE ── */
 window.debounce = function (fn, delay = 200) {
   let timer;
   return (...args) => {
@@ -85,32 +88,7 @@ window.showToast = function (msg, bg = '#00b894') {
 };
 
 /* ══════════════════════════════════════════════
-   SHOW CONFIRM — MỚI (thay window.confirm() native)
-   ─────────────────────────────────────────────
-   window.confirm()/alert() chặn UI thread, không style được, và
-   không nhất quán với phần giao diện còn lại (vốn đã đẹp và có
-   showToast()). showConfirm() thay thế bằng modal tùy chỉnh, trả
-   về Promise<boolean> nên vẫn dùng được với await y hệt confirm().
-
-   Tự inject <style> + <div> 1 lần duy nhất (lazy, chỉ khi gọi lần
-   đầu), dùng namespace "tcq-confirm-*" với màu hard-code riêng
-   (không phụ thuộc --accent/--primary của từng trang) để hoạt động
-   nhất quán trên CẢ trang khách (css/base/variables.css) LẪN admin
-   (admin/dashboard.css) mà không cần sửa 2 bộ CSS khác nhau.
-
-   Dùng:
-     const ok = await window.showConfirm({
-       title: "Xóa game này?",
-       message: "Hành động này không thể hoàn tác.",
-       confirmText: "🗑️ Xóa",
-       cancelText: "Hủy",
-       danger: true,        // true → nút xác nhận màu đỏ
-     });
-     if (!ok) return;
-     // ... tiến hành xóa
-
-   Có thể gọi showConfirm(message) với 1 chuỗi đơn giản, tương thích
-   ngược gần giống confirm(message).
+   SHOW CONFIRM — thay window.confirm() native
    ══════════════════════════════════════════════ */
 (function setupConfirmDialog() {
   let resolvePromise = null;
@@ -230,10 +208,189 @@ window.showToast = function (msg, bg = '#00b894') {
   };
 })();
 
-/* ── GOOGLE DRIVE PDF PREVIEW ──
-   Nhận nhiều dạng link Drive (file/d/ID/view, open?id=ID, uc?id=ID...)
-   → trả về link dạng .../preview để nhúng <iframe> xem trước,
-   không ép tải về như link gốc. */
+/* ══════════════════════════════════════════════
+   SHOW REASON PROMPT — MỚI (migration V3)
+   ─────────────────────────────────────────────
+   Giống showConfirm() nhưng có THÊM Ô NHẬP LÝ DO bắt buộc. Dùng
+   cho mọi thao tác "xoá" giờ là soft-delete/vô hiệu hoá (không mất
+   dữ liệu) và cần ghi lại vì sao — khách hàng, nhiệm vụ, đồ uống,
+   nguyên liệu, tài khoản nhân viên...
+
+   Dùng:
+     const reason = await window.showReasonPrompt({
+       title: "Xoá khách hàng này?",
+       message: "Khách hàng sẽ bị ẩn khỏi danh sách nhưng vẫn giữ lịch sử.",
+       reasonLabel: "Lý do xoá *",
+       reasonPlaceholder: "VD: trùng số điện thoại...",
+       confirmText: "🗑️ Xoá",
+       cancelText: "Hủy",
+     });
+     if (reason === null) return; // người dùng bấm Huỷ / Escape
+     // reason là chuỗi lý do đã nhập (không rỗng) — dùng để lưu vào
+     // deleted_reason / void_reason / deactivated_reason...
+   ══════════════════════════════════════════════ */
+(function setupReasonPromptDialog() {
+  let resolvePromise = null;
+
+  function ensureDom() {
+    if (document.getElementById('tcq-reason-overlay')) return;
+
+    const style = document.createElement('style');
+    style.id = 'tcq-reason-styles';
+    style.textContent = `
+      #tcq-reason-overlay {
+        position: fixed; inset: 0; z-index: 999999;
+        background: rgba(20,20,25,.55);
+        display: none; align-items: center; justify-content: center;
+        padding: 20px; backdrop-filter: blur(2px);
+        font-family: 'Nunito', 'Inter', sans-serif;
+      }
+      #tcq-reason-overlay.show { display: flex; }
+      #tcq-reason-box {
+        width: 100%; max-width: 420px;
+        background: #fff; border-radius: 18px;
+        padding: 28px 26px 22px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.28);
+        animation: tcqReasonPop .18s cubic-bezier(.34,1.56,.64,1) both;
+      }
+      @keyframes tcqReasonPop {
+        from { opacity: 0; transform: translateY(18px) scale(.96); }
+        to   { opacity: 1; transform: none; }
+      }
+      #tcq-reason-title {
+        font-size: 17px; font-weight: 800; color: #1a1a1a;
+        margin-bottom: 8px; line-height: 1.4;
+      }
+      #tcq-reason-msg {
+        font-size: 14px; color: #666; line-height: 1.6;
+        margin-bottom: 16px; white-space: pre-line;
+      }
+      #tcq-reason-label {
+        font-size: 12px; font-weight: 700; color: #1a1a1a;
+        display: block; margin-bottom: 6px;
+      }
+      #tcq-reason-input {
+        width: 100%; min-height: 60px; resize: vertical;
+        border: 1.5px solid #e0d8cc; border-radius: 10px;
+        padding: 10px 12px; font-size: 14px; font-family: inherit;
+        outline: none; margin-bottom: 6px;
+      }
+      #tcq-reason-input:focus { border-color: #e63946; }
+      #tcq-reason-input.error { border-color: #e63946; box-shadow: 0 0 0 3px rgba(230,57,70,.12); }
+      #tcq-reason-error {
+        display: none; font-size: 12px; color: #e63946;
+        font-weight: 600; margin-bottom: 12px;
+      }
+      #tcq-reason-error.show { display: block; }
+      #tcq-reason-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; }
+      #tcq-reason-actions button {
+        border: none; border-radius: 12px; padding: 0 20px;
+        min-height: 44px; font-size: 14px; font-weight: 700;
+        font-family: inherit; cursor: pointer;
+        transition: opacity .15s ease, transform .1s ease;
+      }
+      #tcq-reason-actions button:hover { opacity: .88; }
+      #tcq-reason-actions button:active { transform: scale(.97); }
+      #tcq-reason-cancel  { background: #f0ebe0; color: #1a1a1a; }
+      #tcq-reason-ok      { background: #e63946; color: #fff; }
+      #tcq-reason-ok.is-neutral { background: #6c5ce7; }
+      #tcq-reason-overlay :focus-visible {
+        outline: 3px solid #e63946; outline-offset: 2px;
+      }
+    `;
+    document.head.appendChild(style);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'tcq-reason-overlay';
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'tcq-reason-title');
+    overlay.innerHTML = `
+      <div id="tcq-reason-box">
+        <div id="tcq-reason-title"></div>
+        <div id="tcq-reason-msg"></div>
+        <label id="tcq-reason-label" for="tcq-reason-input"></label>
+        <textarea id="tcq-reason-input"></textarea>
+        <div id="tcq-reason-error" role="alert">Vui lòng nhập lý do.</div>
+        <div id="tcq-reason-actions">
+          <button type="button" id="tcq-reason-cancel"></button>
+          <button type="button" id="tcq-reason-ok"></button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const input = document.getElementById('tcq-reason-input');
+    const errEl = document.getElementById('tcq-reason-error');
+
+    const close = (result) => {
+      overlay.classList.remove('show');
+      document.removeEventListener('keydown', onKeydown);
+      if (resolvePromise) { resolvePromise(result); resolvePromise = null; }
+    };
+    function trySubmit() {
+      const val = input.value.trim();
+      if (!val) {
+        input.classList.add('error');
+        errEl.classList.add('show');
+        input.focus();
+        return;
+      }
+      close(val);
+    }
+    function onKeydown(e) {
+      if (e.key === 'Escape') close(null);
+    }
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
+    document.getElementById('tcq-reason-cancel').addEventListener('click', () => close(null));
+    document.getElementById('tcq-reason-ok').addEventListener('click', trySubmit);
+    input.addEventListener('input', () => {
+      input.classList.remove('error');
+      errEl.classList.remove('show');
+    });
+    overlay._tcqClose = close;
+    overlay._tcqOnKeydown = onKeydown;
+  }
+
+  window.showReasonPrompt = function (opts) {
+    ensureDom();
+    const {
+      title = 'Xác nhận',
+      message = '',
+      reasonLabel = 'Lý do *',
+      reasonPlaceholder = '',
+      confirmText = 'Xác nhận',
+      cancelText = 'Hủy',
+      danger = true,
+    } = opts || {};
+
+    const overlay = document.getElementById('tcq-reason-overlay');
+    document.getElementById('tcq-reason-title').textContent = title;
+    document.getElementById('tcq-reason-msg').textContent = message;
+    document.getElementById('tcq-reason-label').textContent = reasonLabel;
+
+    const input = document.getElementById('tcq-reason-input');
+    input.value = '';
+    input.placeholder = reasonPlaceholder;
+    input.classList.remove('error');
+    document.getElementById('tcq-reason-error').classList.remove('show');
+
+    const okBtn = document.getElementById('tcq-reason-ok');
+    okBtn.textContent = confirmText;
+    okBtn.classList.toggle('is-neutral', !danger);
+    document.getElementById('tcq-reason-cancel').textContent = cancelText;
+
+    return new Promise((resolve) => {
+      resolvePromise = resolve;
+      overlay.classList.add('show');
+      document.addEventListener('keydown', overlay._tcqOnKeydown);
+      requestAnimationFrame(() => input.focus());
+    });
+  };
+})();
+
+/* ── GOOGLE DRIVE PDF PREVIEW ── */
 window.gdrivePreviewUrl = function (url) {
   if (!url) return null;
   url = url.trim();
@@ -241,14 +398,11 @@ window.gdrivePreviewUrl = function (url) {
   m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (m) fileId = m[1];
   if (!fileId) { m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/); if (m) fileId = m[1]; }
-  if (!fileId) return url; // không nhận diện được → dùng nguyên link (fallback)
+  if (!fileId) return url;
   return `https://drive.google.com/file/d/${fileId}/preview`;
 };
 
-/* ── SLUG CHO GAME (dùng cho link chia sẻ #game-{slug} + mã QR) ──
-   Trả về { slugById, idBySlug }. Tự xử lý trùng tên bằng hậu tố -2, -3...
-   Admin và frontend cùng fetch bảng `games` order theo sort_order,
-   nên slug sinh ra ở 2 nơi luôn khớp nhau. */
+/* ── SLUG CHO GAME ── */
 window.buildGameSlugMap = function (games) {
   const slugById = {};
   const idBySlug = {};
