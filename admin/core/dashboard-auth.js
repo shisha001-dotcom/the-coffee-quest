@@ -8,6 +8,14 @@
    BÂY GIỜ: file này CHỈ lo 1 việc — xác thực phiên đăng
    nhập + tạo Supabase client dùng chung + user bar.
 
+   ⚠️ MỚI (migration V3): thêm verifyStillActive() — session lưu
+   trong sessionStorage vẫn còn hiệu lực cho tới khi đóng tab/đăng
+   xuất, kể cả khi Super Admin vừa vô hiệu hoá tài khoản đó ở tab
+   khác. Hàm này kiểm tra lại is_active ngay sau khi Dashboard tải
+   xong và TỰ ĐỘNG đăng xuất nếu tài khoản đã bị vô hiệu hoá —
+   tránh trường hợp nhân viên đã nghỉ việc vẫn thao tác được tiếp
+   cho tới khi tự đóng trình duyệt.
+
    Khai báo `client` và `currentSession` bằng const ở top-level
    của 1 <script> thường (không phải type="module") để các
    script/module admin khác load SAU đều đọc được qua global
@@ -48,6 +56,26 @@ const client = supabase.createClient(
   window.APP_CONFIG.supabaseUrl,
   window.APP_CONFIG.supabaseKey
 );
+
+/* ══════════════════════════════════════════════
+   ⚠️ MỚI (migration V3): TỰ ĐĂNG XUẤT NẾU TÀI KHOẢN VỪA BỊ
+   VÔ HIỆU HOÁ TRONG LÚC PHIÊN ĐANG MỞ
+   ══════════════════════════════════════════════ */
+(async function verifyStillActive() {
+  try {
+    const { data, error } = await client
+      .from("admin_users")
+      .select("is_active")
+      .eq("id", currentSession.id)
+      .single();
+    if (!error && data && data.is_active === false) {
+      window.showToast?.("🚫 Tài khoản của bạn đã bị vô hiệu hoá — đang đăng xuất...", "#e17055");
+      setTimeout(logout, 1200);
+    }
+  } catch (err) {
+    console.warn("[dashboard-auth] verifyStillActive:", err.message);
+  }
+})();
 
 /* ══════════════════════════════════════════════
    USER BAR — chèn vào cuối sidebar
