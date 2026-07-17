@@ -549,18 +549,22 @@ async function deleteDrink() {
 
   const name = document.getElementById('drinkName').value || 'công thức này';
 
-  const ok = await window.showConfirm({
+  const reason = await window.showReasonPrompt({
     title: `Ngừng bán "${name}"?`,
     message: 'Đồ uống sẽ bị ẩn khỏi danh sách bán nhưng vẫn giữ lại lịch sử đơn hàng đã bán trước đó.',
+    reasonLabel: 'Lý do ngừng bán *',
+    reasonPlaceholder: 'VD: hết nguyên liệu lâu dài, không còn bán món này...',
     confirmText: '🗑️ Ngừng bán',
     cancelText: 'Hủy',
-    danger: true,
   });
-  if (!ok) return;
+  if (reason === null) return;
 
   try {
     const { error } = await client.from('drinks')
-      .update({ deleted_at: new Date().toISOString(), is_active: false }).eq('id', id);
+      .update({
+        deleted_at: new Date().toISOString(), is_active: false,
+        deleted_reason: reason, deleted_by: currentSession.displayName || currentSession.username,
+      }).eq('id', id);
     if (error) throw error;
 
     allDrinks = allDrinks.filter(d => String(d.id) !== String(id));
