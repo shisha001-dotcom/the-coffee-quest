@@ -144,21 +144,26 @@ async function deleteQuest(id) {
   const q = M_Q.state.quests.find(x => x.id === id);
   if (!q || q.is_checkin) return; // ⚠️ chặn quest hệ thống
 
-  const ok = await window.showConfirm({
-    title: "Ngừng nhiệm vụ này?",
+  const reason = await window.showReasonPrompt({
+    title: "Xoá nhiệm vụ này?",
     message: "Nhiệm vụ sẽ bị ẩn khỏi danh sách nhưng vẫn giữ lại lịch sử EXP của khách hàng đã hoàn thành trước đó.",
-    confirmText: "🗑️ Ngừng nhiệm vụ",
+    reasonLabel: "Lý do xoá *",
+    reasonPlaceholder: "VD: không còn phù hợp, đổi sang nhiệm vụ khác...",
+    confirmText: "🗑️ Xoá nhiệm vụ",
     cancelText: "Huỷ",
-    danger: true,
   });
-  if (!ok) return;
+  if (reason === null) return;
+
   try {
     /* ⚠️ SOFT DELETE — customer_quests.quest_id là ON DELETE RESTRICT,
        xoá cứng sẽ lỗi FK nếu đã có khách hoàn thành nhiệm vụ này. */
     const { error } = await client.from("quests")
-      .update({ deleted_at: new Date().toISOString(), active: false }).eq("id", id);
+      .update({
+        deleted_at: new Date().toISOString(), active: false,
+        deleted_reason: reason, deleted_by: currentSession.displayName || currentSession.username,
+      }).eq("id", id);
     if (error) throw error;
-    window.showToast("🗑️ Đã ngừng nhiệm vụ", "#e17055");
+    window.showToast("🗑️ Đã xoá nhiệm vụ", "#e17055");
     await M_Q.loadQuests();
     renderQuestsTab();
   } catch (err) {
