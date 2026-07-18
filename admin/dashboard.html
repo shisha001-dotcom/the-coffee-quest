@@ -198,37 +198,26 @@
      ══════════════════════════════════════════════ -->
 
 <!-- ══════════════════════════════════════════════
-     SCRIPTS — thứ tự quan trọng:
-     1) shared-config / shared-emoji / shared-categories / shared-utils
-     2) core/dashboard-permissions.js
-     3) Supabase SDK + QRCode CDN
-     3.5) ⚠️ MỚI (2026-07-18): AUTH GATE — lấy session Supabase Auth
-        + hồ sơ admin_users, gán window.__authSession TRƯỚC khi
-        core/dashboard-auth.js chạy. Dùng type="module" để có thể
-        "await" ở top-level — trình duyệt tự chờ script này chạy
-        xong (bao gồm các await bên trong) trước khi thực thi các
-        <script> thường phía sau trong luồng parse HTML.
-     4) core/dashboard-auth.js   → `client` + `currentSession` global
-        (đọc từ window.__authSession do bước 3.5 để lại)
-     5) core/dashboard-page-registry.js → window.AdminDashboard
-     6) modules/inventory/inventory-shared.js → window.Inventory (MỚI)
-        PHẢI load TRƯỚC modules/drinks/dashboard-drinks.js (cần
-        state.categories/state.ingredients để render dropdown/recipe)
-     7) modules/games/dashboard-games.js + modules/drinks/dashboard-drinks.js
-        (script thường — cần onclick="" global của core/dashboard-nav.js
-        hoạt động được; mỗi file tự inject modal riêng của mình)
-     8) modules/games/dashboard-game-detail.js
-     9) modules/membership/membership-shared.js  → PHẢI load TRƯỚC
-        3 file domain Membership bên dưới
-     10) modules/membership/dashboard-customers.js  (đăng ký page — cần
-         window.Inventory để cache đồ uống/giá thành lúc tạo đơn hàng)
-         modules/membership/dashboard-quests.js
-         modules/membership/dashboard-levels.js
-     11) modules/inventory/dashboard-ingredients.js (MỚI — đăng ký page
-         riêng "Kho nguyên liệu", độc lập với Membership)
-     12) core/dashboard-nav.js   → điều hướng, dùng loadGames/loadDrinks
-     13) các module ES module (type="module") — chat/analytics/banners/media/accounts
-     14) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
+     SCRIPTS
+     ─────────────────────────────────────────────
+     ⚠️ SỬA LẦN 2 (2026-07-18): HTML giờ CHỈ còn các script "hạ
+     tầng" (không cần đăng nhập) + DUY NHẤT 1 dòng gọi
+     core/dashboard-auth.js. TOÀN BỘ phần còn lại của Dashboard
+     (page-registry, inventory, games, drinks, membership, nav,
+     chat, analytics, banners, media, accounts, mobile-menu) được
+     CHÍNH dashboard-auth.js tự tải bằng JavaScript (đúng thứ tự
+     tuần tự như cũ) — nhưng CHỈ SAU KHI xác thực Supabase Auth +
+     admin_users thành công. Xem chi tiết lý do trong comment đầu
+     file core/dashboard-auth.js — tránh được lỗi thứ tự thực thi
+     giữa script module (deferred) và script thường (immediate)
+     từng gây vòng lặp nhấp nháy login ⇄ dashboard.
+
+     Không tự thêm bất kỳ <script src="./modules/...">/<script
+     src="./core/...")> nào khác vào đây nữa — mọi thứ đã được
+     liệt kê trong SCRIPT_SEQUENCE / MODULE_SEQUENCE của
+     core/dashboard-auth.js. Muốn thêm module admin mới → thêm
+     đường dẫn vào đúng 2 mảng đó, KHÔNG thêm <script> vào file
+     HTML này.
      ══════════════════════════════════════════════ -->
 <script src="../js/shared-config.js"></script>
 <script src="../js/shared-emoji.js"></script>
@@ -238,71 +227,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 
-<!-- ══════════════════════════════════════════════
-     ⚠️ AUTH GATE — MỚI (2026-07-18)
-     Lấy session Supabase Auth (auth.users) + hồ sơ quyền hạn
-     tương ứng trong admin_users (qua cột auth_user_id), rồi
-     gán vào window.__authSession để core/dashboard-auth.js
-     (script thường, chạy ngay sau) đọc lại.
-
-     - Không có session hợp lệ → về thẳng login.html.
-     - Có session nhưng KHÔNG có hồ sơ admin_users tương ứng
-       (auth_user_id chưa được link) hoặc is_active=false →
-       signOut rồi về login.html.
-     - Hợp lệ → set window.__authSession, để script phía dưới
-       tự đọc và dựng currentSession/client như cũ.
-     ══════════════════════════════════════════════ -->
-<script type="module">
-  const _client = window.supabase.createClient(
-    window.APP_CONFIG.supabaseUrl,
-    window.APP_CONFIG.supabaseKey
-  );
-
-  const { data: { session } } = await _client.auth.getSession();
-
-  if (!session) {
-    location.replace("login.html");
-  } else {
-    const { data: profile, error } = await _client
-      .from("admin_users")
-      .select("id, username, display_name, role, is_active")
-      .eq("auth_user_id", session.user.id)
-      .maybeSingle();
-
-    if (error || !profile || profile.is_active === false) {
-      await _client.auth.signOut();
-      location.replace("login.html");
-    } else {
-      window.__authSession = { user: session.user, profile };
-    }
-  }
-</script>
-
 <script src="./core/dashboard-auth.js"></script>
-<script src="./core/dashboard-page-registry.js"></script>
-
-<script src="./modules/inventory/inventory-shared.js"></script>
-
-<script src="./modules/games/dashboard-games.js"></script>
-<script src="./modules/drinks/dashboard-drinks.js"></script>
-<script src="./modules/games/dashboard-game-detail.js"></script>
-
-<script src="./modules/membership/membership-shared.js"></script>
-<script src="./modules/membership/dashboard-customers.js"></script>
-<script src="./modules/membership/dashboard-quests.js"></script>
-<script src="./modules/membership/dashboard-levels.js"></script>
-
-<script src="./modules/inventory/dashboard-ingredients.js"></script>
-
-<script src="./core/dashboard-nav.js"></script>
-
-<script type="module" src="./modules/chat/dashboard-chat.js"></script>
-<script type="module" src="./modules/analytics/dashboard-analytics.js"></script>
-<script type="module" src="./modules/banners/dashboard-banners.js"></script>
-<script type="module" src="./modules/media/dashboard-media.js"></script>
-<script type="module" src="./modules/accounts/dashboard-accounts.js"></script>
-
-<script src="./dashboard-mobile-menu.js"></script>
 
 </body>
 </html>
