@@ -294,20 +294,20 @@
   <!-- BODY -->
   <div class="login-body" id="loginBody">
     <div class="login-title">Đăng nhập</div>
-    <div class="login-sub">Nhập thông tin tài khoản quản trị để tiếp tục</div>
+    <div class="login-sub">Nhập email và mật khẩu tài khoản quản trị để tiếp tục</div>
 
     <!-- ERROR -->
     <div class="error-box" id="errorBox">
       <span>⚠️</span>
-      <span id="errorText">Tên đăng nhập hoặc mật khẩu không đúng.</span>
+      <span id="errorText">Email hoặc mật khẩu không đúng.</span>
     </div>
 
     <!-- FORM -->
     <div class="form-group">
-      <label for="usernameInput">Tên đăng nhập</label>
+      <label for="usernameInput">Email</label>
       <div class="input-wrap">
         <span class="icon">👤</span>
-        <input type="text" id="usernameInput" placeholder="admin" autocomplete="username" autocapitalize="none">
+        <input type="email" id="usernameInput" placeholder="ten@thecoffeequest.com" autocomplete="username" autocapitalize="none">
       </div>
     </div>
 
@@ -345,31 +345,36 @@
 <script>
 /* ══════════════════════════════════════════════
    CONFIG
+   ─────────────────────────────────────────────
+   ⚠️ ĐÃ ĐỔI (2026-07-18): dùng Supabase Auth thật
+   (auth.users) thay cho tự hash SHA-256 + so sánh tay
+   với bảng admin_users.password_hash.
+
+   Session giờ do Supabase tự quản lý (lưu trong
+   localStorage dưới key riêng của supabase-js) —
+   KHÔNG dùng sessionStorage["bg_admin_session"] nữa.
+   core/dashboard-auth.js đã được cập nhật tương ứng
+   để đọc session qua client.auth.getSession().
    ══════════════════════════════════════════════ */
 const SUPABASE_URL = window.APP_CONFIG.supabaseUrl;
 const SUPABASE_KEY = window.APP_CONFIG.supabaseKey;
-const SESSION_KEY  = "bg_admin_session";
 const DASHBOARD    = "dashboard.html";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ── NẾU ĐÃ LOGIN → REDIRECT NGAY ── */
-if (sessionStorage.getItem(SESSION_KEY)) {
-  location.replace(DASHBOARD);
-}
-
 /* ══════════════════════════════════════════════
-   SHA-256 HASH (Web Crypto API)
+   NẾU ĐÃ ĐĂNG NHẬP (session Supabase còn hiệu lực)
+   → REDIRECT NGAY
    ══════════════════════════════════════════════ */
-async function sha256(text) {
-  const buf  = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
-}
+(async function checkExistingSession() {
+  const { data: { session } } = await client.auth.getSession();
+  if (session) location.replace(DASHBOARD);
+})();
 
 /* ══════════════════════════════════════════════
    DOM REFS
    ══════════════════════════════════════════════ */
-const usernameInput = document.getElementById("usernameInput");
+const usernameInput = document.getElementById("usernameInput"); // giờ là email
 const passwordInput = document.getElementById("passwordInput");
 const loginBtn      = document.getElementById("loginBtn");
 const btnText       = document.getElementById("btnText");
@@ -406,7 +411,7 @@ usernameInput.addEventListener("keydown", e => {
    LOGIN LOGIC
    ══════════════════════════════════════════════ */
 function showError(msg) {
-  errorText.textContent = msg || "Tên đăng nhập hoặc mật khẩu không đúng.";
+  errorText.textContent = msg || "Email hoặc mật khẩu không đúng.";
   errorBox.classList.remove("show");      // reset animation
   void errorBox.offsetWidth;              // reflow để trigger lại
   errorBox.classList.add("show");
@@ -430,66 +435,70 @@ function setLoading(on) {
 }
 
 async function doLogin() {
-  const username = usernameInput.value.trim();
+  const email    = usernameInput.value.trim();
   const password = passwordInput.value;
 
-  if (!username) { usernameInput.focus(); return; }
+  if (!email)    { usernameInput.focus(); return; }
   if (!password) { passwordInput.focus(); return; }
 
   setLoading(true);
 
   try {
-    /* Hash mật khẩu phía client */
-    const hash = await sha256(password);
+    /* 1) Đăng nhập bằng Supabase Auth thật (auth.users) */
+    const { data: authData, error: authError } = await client.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    /* Tìm user theo username
-       ⚠️ MỚI (migration V3): select thêm is_active để chặn đăng
-       nhập tài khoản đã bị vô hiệu hoá (thay cho xoá cứng trước đây) */
-    const { data, error } = await client
+    if (authError) {
+      showError(
+        authError.message?.includes("Invalid login credentials")
+          ? "Email hoặc mật khẩu không đúng."
+          : "Lỗi đăng nhập: " + authError.message
+      );
+      return;
+    }
+
+    /* 2) Lấy hồ sơ quản trị tương ứng trong admin_users (role,
+       display_name, is_active) qua cột liên kết auth_user_id.
+       ⚠️ Bảng admin_users PHẢI có cột auth_user_id (uuid) trỏ tới
+       auth.users(id), và mỗi tài khoản admin phải có đúng 1 dòng
+       tương ứng — xem hướng dẫn migration đã trao đổi. */
+    const { data: profile, error: profileError } = await client
       .from("admin_users")
-      .select("id, username, display_name, role, password_hash, is_active")
-      .eq("username", username)
-      .single();
+      .select("id, username, display_name, role, is_active")
+      .eq("auth_user_id", authData.user.id)
+      .maybeSingle();
 
-    if (error || !data) {
-      showError("Tài khoản không tồn tại.");
+    if (profileError) {
+      showError("Lỗi tải hồ sơ quản trị: " + profileError.message);
+      await client.auth.signOut();
       return;
     }
 
-    /* So sánh hash */
-    if (data.password_hash !== hash) {
-      showError("Mật khẩu không đúng.");
+    if (!profile) {
+      showError("Tài khoản này chưa được cấp quyền quản trị. Liên hệ Super Admin.");
+      await client.auth.signOut();
       return;
     }
 
-    /* ⚠️ MỚI: chặn đăng nhập nếu tài khoản đã bị vô hiệu hoá */
-    if (data.is_active === false) {
+    if (profile.is_active === false) {
       showError("Tài khoản này đã bị vô hiệu hoá. Vui lòng liên hệ Super Admin.");
+      await client.auth.signOut();
       return;
     }
 
-    /* ── THÀNH CÔNG ── */
-    const session = {
-      id:          data.id,
-      username:    data.username,
-      displayName: data.display_name || data.username,
-      role:        data.role,
-      loginAt:     Date.now()
-    };
-
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-
-    /* Cập nhật last_login (fire-and-forget) */
+    /* 3) Cập nhật last_login (fire-and-forget) */
     client.from("admin_users")
       .update({ last_login: new Date().toISOString() })
-      .eq("id", data.id)
+      .eq("id", profile.id)
       .then(() => {});
 
-    /* Hiện success */
+    /* Hiện success — session đã được supabase-js tự lưu, không cần
+       tự ghi sessionStorage nữa */
     loginBody.style.display = "none";
     successFlash.classList.add("show");
 
-    /* Redirect sau 1.7s (đợi progress bar) */
     setTimeout(() => location.replace(DASHBOARD), 1700);
 
   } catch (err) {
