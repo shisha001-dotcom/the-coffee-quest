@@ -202,7 +202,14 @@
      1) shared-config / shared-emoji / shared-categories / shared-utils
      2) core/dashboard-permissions.js
      3) Supabase SDK + QRCode CDN
+     3.5) ⚠️ MỚI (2026-07-18): AUTH GATE — lấy session Supabase Auth
+        + hồ sơ admin_users, gán window.__authSession TRƯỚC khi
+        core/dashboard-auth.js chạy. Dùng type="module" để có thể
+        "await" ở top-level — trình duyệt tự chờ script này chạy
+        xong (bao gồm các await bên trong) trước khi thực thi các
+        <script> thường phía sau trong luồng parse HTML.
      4) core/dashboard-auth.js   → `client` + `currentSession` global
+        (đọc từ window.__authSession do bước 3.5 để lại)
      5) core/dashboard-page-registry.js → window.AdminDashboard
      6) modules/inventory/inventory-shared.js → window.Inventory (MỚI)
         PHẢI load TRƯỚC modules/drinks/dashboard-drinks.js (cần
@@ -230,6 +237,47 @@
 <script src="./core/dashboard-permissions.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+<!-- ══════════════════════════════════════════════
+     ⚠️ AUTH GATE — MỚI (2026-07-18)
+     Lấy session Supabase Auth (auth.users) + hồ sơ quyền hạn
+     tương ứng trong admin_users (qua cột auth_user_id), rồi
+     gán vào window.__authSession để core/dashboard-auth.js
+     (script thường, chạy ngay sau) đọc lại.
+
+     - Không có session hợp lệ → về thẳng login.html.
+     - Có session nhưng KHÔNG có hồ sơ admin_users tương ứng
+       (auth_user_id chưa được link) hoặc is_active=false →
+       signOut rồi về login.html.
+     - Hợp lệ → set window.__authSession, để script phía dưới
+       tự đọc và dựng currentSession/client như cũ.
+     ══════════════════════════════════════════════ -->
+<script type="module">
+  const _client = window.supabase.createClient(
+    window.APP_CONFIG.supabaseUrl,
+    window.APP_CONFIG.supabaseKey
+  );
+
+  const { data: { session } } = await _client.auth.getSession();
+
+  if (!session) {
+    location.replace("login.html");
+  } else {
+    const { data: profile, error } = await _client
+      .from("admin_users")
+      .select("id, username, display_name, role, is_active")
+      .eq("auth_user_id", session.user.id)
+      .maybeSingle();
+
+    if (error || !profile || profile.is_active === false) {
+      await _client.auth.signOut();
+      location.replace("login.html");
+    } else {
+      window.__authSession = { user: session.user, profile };
+    }
+  }
+</script>
+
 <script src="./core/dashboard-auth.js"></script>
 <script src="./core/dashboard-page-registry.js"></script>
 
