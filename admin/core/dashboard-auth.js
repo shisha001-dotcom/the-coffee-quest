@@ -1,119 +1,119 @@
 /* ══════════════════════════════════════════════
    ADMIN AUTH — admin/core/dashboard-auth.js
    ─────────────────────────────────────────────
-   ⚠️ ĐÃ ĐỔI (2026-07-18): chuyển từ tự quản lý session bằng
-   sessionStorage + so sánh password_hash thủ công sang dùng
-   THẲNG Supabase Auth (client.auth.*).
+   ⚠️ SỬA LẦN 2 (2026-07-18): bỏ hẳn cách dùng 1 script riêng
+   type="module" để "gác cổng" (auth gate) đặt TRƯỚC file này.
 
-   Khác biệt so với bản trước:
-   - Không còn getSession()/requireAuth() đọc sessionStorage
-     "bg_admin_session" — giờ đọc qua client.auth.getSession().
-   - `currentSession` giờ được build từ (a) auth.users (email,
-     id) + (b) bảng admin_users (role, display_name, is_active) —
-     query 1 lần lúc khởi tạo trang, y hệt logic đã làm ở
-     login.html.
-   - File này giờ PHẢI dùng IIFE async để "await" được việc lấy
-     session TRƯỚC khi các script khác (đọc `currentSession` ở
-     top-level) chạy. Vì các module admin khác (dashboard-page-
-     registry.js, dashboard-games.js...) là <script> thường (không
-     phải type="module") và đọc `currentSession`/`client` ngay khi
-     load, ta phải chặn (block) bằng cách... KHÔNG dùng async ở
-     top-level nữa mà tự vẽ 1 "màn hình chờ" rồi reload lại toàn
-     bộ dashboard sau khi xác thực xong (xem giải thích bên dưới).
+   LÝ DO: <script type="module"> được trình duyệt xử lý như
+   "deferred" — nó chỉ thực thi SAU KHI toàn bộ HTML đã parse
+   xong. Trong khi đó <script src="..."> THƯỜNG (không có
+   defer/async) lại thực thi NGAY LẬP TỨC khi trình duyệt gặp
+   nó trong lúc parse. Vì vậy dù đặt script module TRƯỚC
+   dashboard-auth.js trong file HTML, dashboard-auth.js (script
+   thường) vẫn chạy TRƯỚC khi module kịp gán window.__authSession
+   → luôn thấy "chưa xác thực" → redirect login.html ngay lập
+   tức → gây vòng lặp nhấp nháy login ⇄ dashboard.
 
-   ⚠️ QUAN TRỌNG — ĐỌC KỸ TRƯỚC KHI DÙNG:
-   Vì toàn bộ kiến trúc admin/dashboard.html hiện tại dựa trên việc
-   `client` và `currentSession` là 2 hằng số CÓ SẴN NGAY LẬP TỨC ở
-   top-level (không phải Promise), mà việc lấy session Supabase Auth
-   lại là bất đồng bộ (async), file này dùng chiến lược:
+   CÁCH SỬA: gộp toàn bộ việc (1) tạo client, (2) kiểm tra
+   session Supabase Auth, (3) lấy hồ sơ admin_users, và (4) TỰ
+   TẢI các <script> còn lại của Dashboard bằng JavaScript
+   (createElement + appendChild theo đúng thứ tự tuần tự) — chỉ
+   sau khi xác thực xong. Nhờ vậy không còn phụ thuộc vào việc
+   trình duyệt tự sắp thứ tự thực thi giữa module và script
+   thường nữa; toàn bộ nằm trong 1 luồng JS do chính ta điều
+   khiển.
 
-     1. Chạy đồng bộ: tạo `client` ngay (không cần async).
-     2. Gọi `client.auth.getSession()` (bất đồng bộ) NGAY LẬP TỨC,
-        nhưng chặn toàn bộ trang bằng 1 overlay "Đang xác thực..."
-        cho tới khi có kết quả.
-     3. Nếu có session hợp lệ → gán currentSession rồi GỠ overlay,
-        cho phép các script phía sau (đã nằm chờ nhờ overlay che)
-        chạy bình thường.
-     4. Nếu không có session → redirect login.html ngay.
-
-   Cách làm sạch nhất với kiến trúc nhiều <script> thường (không
-   module) là dùng `document.write`-block bằng cách: kiểm tra
-   session bằng XHR đồng bộ giả lập là không khả thi với Supabase
-   SDK (chỉ có async), nên ta chuyển toàn bộ phần "gate" này thành
-   một bước kiểm tra CHẶN TRÌNH DUYỆT bằng cách tạm dừng parser:
-   dùng `await` trong 1 <script type="module"> RIÊNG đặt TRƯỚC file
-   này trong dashboard.html để lấy session, lưu tạm vào
-   `window.__authSession`, rồi file dashboard-auth.js (script
-   thường) đọc lại biến đó — xem HƯỚNG DẪN SỬA dashboard.html bên
-   dưới cùng file này.
+   ⚠️ QUAN TRỌNG: vì vậy, `admin/dashboard.html` giờ CHỈ còn cần
+   các <script> "hạ tầng" (shared-config, shared-emoji, shared-
+   categories, shared-utils, dashboard-permissions, Supabase SDK,
+   QRCode SDK) và DUY NHẤT 1 dòng
+   <script src="./core/dashboard-auth.js"></script> — KHÔNG còn
+   bất kỳ <script> nào khác phía sau nó trong HTML nữa. Toàn bộ
+   phần còn lại (page-registry, inventory, games, drinks,
+   membership, nav, chat, analytics, banners, media, accounts,
+   mobile-menu) được chính file này tải bằng JS theo đúng thứ
+   tự cũ (xem SCRIPT_SEQUENCE / MODULE_SEQUENCE bên dưới).
    ══════════════════════════════════════════════ */
 
-const client = supabase.createClient(
-  window.APP_CONFIG.supabaseUrl,
-  window.APP_CONFIG.supabaseKey
-);
+/* Khai báo ở scope ngoài cùng (không bọc trong function) để các
+   <script> thường load SAU (được tự động chèn bên dưới) vẫn đọc
+   được `client` / `currentSession` như 1 biến toàn cục — giữ
+   đúng "hợp đồng" (contract) cũ mà mọi module admin đang dựa vào. */
+let client;
+let currentSession;
 
-/* `window.__authSession` phải được set TRƯỚC khi file này chạy —
-   xem <script type="module"> cần thêm vào dashboard.html (mục
-   HƯỚNG DẪN SỬA dashboard.html ở cuối file). Nếu vì lý do gì đó
-   biến này chưa có (thiếu script "auth-gate"), coi như chưa đăng
-   nhập và đá về login.html để an toàn. */
-if (!window.__authSession || !window.__authSession.profile) {
-  sessionStorage.clear();
-  location.replace("login.html");
-  throw new Error("Unauthenticated");
+/* ══════════════════════════════════════════════
+   DANH SÁCH SCRIPT CẦN TẢI TIẾP — ĐÚNG THỨ TỰ CŨ
+   ══════════════════════════════════════════════ */
+const SCRIPT_SEQUENCE = [
+  "./core/dashboard-page-registry.js",
+
+  "./modules/inventory/inventory-shared.js",
+
+  "./modules/games/dashboard-games.js",
+  "./modules/drinks/dashboard-drinks.js",
+  "./modules/games/dashboard-game-detail.js",
+
+  "./modules/membership/membership-shared.js",
+  "./modules/membership/dashboard-customers.js",
+  "./modules/membership/dashboard-quests.js",
+  "./modules/membership/dashboard-levels.js",
+
+  "./modules/inventory/dashboard-ingredients.js",
+
+  "./core/dashboard-nav.js",
+];
+
+/* Các module ES (type="module") — không bắt buộc thứ tự nghiêm
+   ngặt với nhau, nhưng phải load SAU toàn bộ SCRIPT_SEQUENCE ở
+   trên (vì chúng cần window.AdminDashboard, currentSession...) */
+const MODULE_SEQUENCE = [
+  "./modules/chat/dashboard-chat.js",
+  "./modules/analytics/dashboard-analytics.js",
+  "./modules/banners/dashboard-banners.js",
+  "./modules/media/dashboard-media.js",
+  "./modules/accounts/dashboard-accounts.js",
+];
+
+const FINAL_SCRIPT = "./dashboard-mobile-menu.js";
+
+function loadScriptsSequentially(paths, index, onDone) {
+  if (index >= paths.length) { onDone(); return; }
+  const s = document.createElement("script");
+  s.src = paths[index];
+  s.onload = () => loadScriptsSequentially(paths, index + 1, onDone);
+  s.onerror = () => {
+    console.error("[dashboard-auth] Không tải được script:", paths[index]);
+    loadScriptsSequentially(paths, index + 1, onDone); // vẫn cố tải tiếp phần còn lại
+  };
+  document.body.appendChild(s);
 }
 
-/* Toàn cục — mọi module admin (kể cả type="module") đọc qua
-   global scope, giữ đúng contract cũ (`client`, `currentSession`). */
-const currentSession = {
-  id:          window.__authSession.profile.id,
-  username:    window.__authSession.profile.username || window.__authSession.user.email,
-  displayName: window.__authSession.profile.display_name || window.__authSession.user.email,
-  role:        window.__authSession.profile.role,
-  authUserId:  window.__authSession.user.id,
-  email:       window.__authSession.user.email,
-};
+function loadRemainingDashboardScripts() {
+  loadScriptsSequentially(SCRIPT_SEQUENCE, 0, () => {
+    // Module scripts — thứ tự giữa chúng không quan trọng, chèn cùng lúc
+    MODULE_SEQUENCE.forEach(src => {
+      const s = document.createElement("script");
+      s.type = "module";
+      s.src = src;
+      document.body.appendChild(s);
+    });
+
+    // Cuối cùng: dashboard-mobile-menu.js (chỉ cần .sidebar đã có sẵn trong DOM — luôn đúng)
+    const s = document.createElement("script");
+    s.src = FINAL_SCRIPT;
+    document.body.appendChild(s);
+  });
+}
 
 function logout() {
   client.auth.signOut().finally(() => location.replace("login.html"));
 }
 
 /* ══════════════════════════════════════════════
-   ⚠️ TỰ ĐĂNG XUẤT NẾU TÀI KHOẢN VỪA BỊ VÔ HIỆU HOÁ TRONG LÚC
-   PHIÊN ĐANG MỞ (giữ nguyên hành vi cũ, chỉ đổi nguồn session)
+   USER BAR — chèn vào cuối sidebar (giữ nguyên như cũ)
    ══════════════════════════════════════════════ */
-(async function verifyStillActive() {
-  try {
-    const { data, error } = await client
-      .from("admin_users")
-      .select("is_active")
-      .eq("id", currentSession.id)
-      .single();
-    if (!error && data && data.is_active === false) {
-      window.showToast?.("🚫 Tài khoản của bạn đã bị vô hiệu hoá — đang đăng xuất...", "#e17055");
-      setTimeout(logout, 1200);
-    }
-  } catch (err) {
-    console.warn("[dashboard-auth] verifyStillActive:", err.message);
-  }
-})();
-
-/* ══════════════════════════════════════════════
-   AUTO SIGN-OUT KHI SESSION SUPABASE HẾT HẠN / BỊ THU HỒI
-   (vd token hết hạn, bị revoke ở tab khác) — Supabase tự bắn
-   sự kiện SIGNED_OUT / TOKEN_REFRESHED qua onAuthStateChange.
-   ══════════════════════════════════════════════ */
-client.auth.onAuthStateChange((event) => {
-  if (event === "SIGNED_OUT") {
-    location.replace("login.html");
-  }
-});
-
-/* ══════════════════════════════════════════════
-   USER BAR — chèn vào cuối sidebar
-   ══════════════════════════════════════════════ */
-(function injectUserBar() {
+function injectUserBar() {
   const sidebar = document.querySelector(".sidebar");
   if (!sidebar) return;
 
@@ -138,50 +138,72 @@ client.auth.onAuthStateChange((event) => {
   document.getElementById("logoutBtn")?.addEventListener("click", () => {
     if (confirm("Bạn muốn đăng xuất?")) logout();
   });
+}
+
+/* ══════════════════════════════════════════════
+   MAIN — chạy ngay khi file load (IIFE async).
+   `client`/`currentSession` được gán vào 2 biến khai báo ở
+   scope ngoài cùng phía trên (không phải bên trong IIFE này),
+   nên vẫn là "toàn cục" theo đúng nghĩa các script thường load
+   sau có thể đọc được.
+   ══════════════════════════════════════════════ */
+(async function initAuth() {
+  client = supabase.createClient(
+    window.APP_CONFIG.supabaseUrl,
+    window.APP_CONFIG.supabaseKey
+  );
+
+  const { data: { session } } = await client.auth.getSession();
+
+  if (!session) {
+    location.replace("login.html");
+    return;
+  }
+
+  const { data: profile, error } = await client
+    .from("admin_users")
+    .select("id, username, display_name, role, is_active")
+    .eq("auth_user_id", session.user.id)
+    .maybeSingle();
+
+  if (error || !profile || profile.is_active === false) {
+    await client.auth.signOut();
+    location.replace("login.html");
+    return;
+  }
+
+  currentSession = {
+    id:          profile.id,
+    username:    profile.username || session.user.email,
+    displayName: profile.display_name || session.user.email,
+    role:        profile.role,
+    authUserId:  session.user.id,
+    email:       session.user.email,
+  };
+
+  /* Tự đăng xuất nếu tài khoản vừa bị vô hiệu hoá trong lúc phiên đang mở */
+  client.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_OUT") location.replace("login.html");
+  });
+
+  injectUserBar();
+
+  /* Xác thực xong — giờ mới tải phần còn lại của Dashboard */
+  loadRemainingDashboardScripts();
+
+  /* Kiểm tra định kỳ is_active — giữ hành vi cũ, chạy sau khi
+     mọi thứ đã tải xong, không chặn luồng tải script */
+  try {
+    const { data, error: checkErr } = await client
+      .from("admin_users")
+      .select("is_active")
+      .eq("id", currentSession.id)
+      .single();
+    if (!checkErr && data && data.is_active === false) {
+      window.showToast?.("🚫 Tài khoản của bạn đã bị vô hiệu hoá — đang đăng xuất...", "#e17055");
+      setTimeout(logout, 1200);
+    }
+  } catch (err) {
+    console.warn("[dashboard-auth] verifyStillActive:", err.message);
+  }
 })();
-
-/* ══════════════════════════════════════════════════════════════════
-   HƯỚNG DẪN SỬA admin/dashboard.html — BẮT BUỘC, KHÔNG THÌ FILE
-   NÀY SẼ LUÔN ĐÁ VỀ LOGIN.HTML (vì window.__authSession không tồn tại)
-   ─────────────────────────────────────────────────────────────────
-   Thêm ĐOẠN SCRIPT SAU vào dashboard.html, đặt TRƯỚC dòng
-   <script src="./core/dashboard-auth.js"></script> (nhưng SAU
-   shared-config.js và sau <script src=".../supabase-js@2">):
-
-   <script type="module">
-     const { createClient } = supabase; // dùng lại global `supabase` từ CDN UMD build
-     // Lưu ý: bản CDN @supabase/supabase-js@2 expose global `supabase`,
-     // nên KHÔNG cần import lại — chỉ cần tạo client 1 lần dùng chung.
-     const _client = window.supabase.createClient(
-       window.APP_CONFIG.supabaseUrl,
-       window.APP_CONFIG.supabaseKey
-     );
-
-     const { data: { session } } = await _client.auth.getSession();
-
-     if (!session) {
-       location.replace("login.html");
-     } else {
-       const { data: profile, error } = await _client
-         .from("admin_users")
-         .select("id, username, display_name, role, is_active")
-         .eq("auth_user_id", session.user.id)
-         .maybeSingle();
-
-       if (error || !profile || profile.is_active === false) {
-         await _client.auth.signOut();
-         location.replace("login.html");
-       } else {
-         window.__authSession = { user: session.user, profile };
-       }
-     }
-   </script>
-
-   Script này PHẢI dùng type="module" để được phép "await" ở
-   top-level (top-level await chỉ hợp lệ trong module) — điều đó
-   khiến trình duyệt tự động CHỜ nó chạy xong (bao gồm cả await
-   bên trong) trước khi thực thi các <script> thường phía sau
-   trong cùng luồng parse HTML, nên `dashboard-auth.js` phía sau
-   luôn thấy `window.__authSession` đã sẵn sàng (hoặc trang đã bị
-   redirect trước đó rồi).
-   ══════════════════════════════════════════════════════════════════ */
