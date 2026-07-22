@@ -428,7 +428,6 @@ addGameBtn?.addEventListener("click", () => {
   document.getElementById("nameInput")?.focus();
 });
 closeModalBtn?.addEventListener("click", () => modal.classList.add("hidden"));
-modal?.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
 modal?.addEventListener("keydown", e => { if (e.key === "Escape") modal.classList.add("hidden"); });
 
 /* ══════════════════════════════════════════════
