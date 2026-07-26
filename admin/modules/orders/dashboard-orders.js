@@ -28,6 +28,7 @@ function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 window.AdminDashboard.registerPage({
   pageId: "ordersPage",
   menuId: "ordersMenuItem",
+  placeholderId: "ordersMenuItemPlaceholder", // ⚠️ MỚI — đã có sẵn trong dashboard.html
   icon: "🧾",
   label: "Đơn hàng",
   insertBeforeMenuId: "chatMenuItem",
