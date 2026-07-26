@@ -11,9 +11,15 @@
        Bước 1: chọn "🎫 Thành viên" hay "🚶 Khách vãng lai"
        Bước 2 (chỉ Thành viên): nhập SĐT → tra cứu
        Bước 3: chọn sản phẩm + giảm giá + preview + submit
-     (Khách vãng lai bỏ qua Bước 2, vào thẳng Bước 3.)
+     (Khách vãng lai bỏ qua Bước 2, vào thẳng Bước 3, giảm giá mặc
+     định luôn là 0% — không áp theo cấp độ vì không phải thành viên.)
    - Tra cứu theo SĐT/tên khách giờ nằm ở khối "📅 Lịch sử đơn hàng"
      (lọc client-side trên danh sách đơn đã tải theo khoảng ngày).
+   - ⚠️ MỚI: Khách vãng lai KHÔNG được tích XP / streak / check-in tự
+     động (maybeAutoCheckin() bị bỏ qua hoàn toàn cho đơn của khách
+     vãng lai) — vì hàng "Khách vãng lai" là 1 customer dùng CHUNG
+     cho mọi lượt khách không đăng ký, tích XP/streak vào đó sẽ vô
+     nghĩa và gây lệch số liệu.
 
    Cần: client, currentSession, window.Membership (M),
    window.Inventory (INV), window.AdminPermissions.
@@ -73,7 +79,7 @@ function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 window.AdminDashboard.registerPage({
   pageId: "ordersPage",
   menuId: "ordersMenuItem",
-  placeholderId: "ordersMenuItemPlaceholder",
+  placeholderId: "ordersMenuItemPlaceholder", // ⚠️ đã có sẵn trong dashboard.html
   icon: "🧾",
   label: "Đơn hàng",
   insertBeforeMenuId: "chatMenuItem",
@@ -149,7 +155,7 @@ window.AdminDashboard.registerPage({
             <button type="button" class="ord-type-btn" data-type="guest">
               <span class="ord-type-icon" aria-hidden="true">🚶</span>
               <span class="ord-type-name">Khách vãng lai</span>
-              <span class="ord-type-desc">Không cần SĐT / đăng ký — vào thẳng chọn món</span>
+              <span class="ord-type-desc">Không cần SĐT / đăng ký — không tích điểm, vào thẳng chọn món</span>
             </button>
           </div>
         </div>
@@ -173,7 +179,7 @@ window.AdminDashboard.registerPage({
 
           <div id="orderDraftRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
           <button type="button" class="btn btn-secondary" id="ordAddRowBtn" style="margin-bottom:12px;">+ Thêm sản phẩm</button>
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+          <div id="ordDiscountRow" style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
             <label style="font-size:12px;color:var(--text-muted);">Giảm giá áp dụng (%)</label>
             <input type="number" id="ordDiscountPct" min="0" max="100" value="0" style="width:80px;height:36px;border:1px solid var(--border);border-radius:8px;padding:0 8px;">
           </div>
@@ -287,6 +293,7 @@ function resetOrderCreateState() {
   document.getElementById("ordLookupPhone").value = "";
   document.getElementById("ordCustomerNotFound").classList.add("hidden");
   document.getElementById("ordDiscountPct").value = 0;
+  document.getElementById("ordDiscountPct").disabled = false;
   document.getElementById("ordSelectedCustomerBar").innerHTML = "";
 
   document.getElementById("ordStepType").classList.remove("hidden");
@@ -331,7 +338,7 @@ function renderSelectedCustomerBar() {
   const isWalkIn = ordFoundCustomer.phone === WALKIN_PHONE;
   let infoHtml;
   if (isWalkIn) {
-    infoHtml = `🚶 <b>Khách vãng lai</b>`;
+    infoHtml = `🚶 <b>Khách vãng lai</b> <span style="color:var(--text-muted);font-weight:500;">— không tích điểm/ưu đãi thành viên</span>`;
   } else {
     const info = M_O.getLevelInfo(ordFoundCustomer.level);
     infoHtml = `${info.rank_icon} <b>${window.escHtml(ordFoundCustomer.name)}</b> — ${window.escHtml(info.rank_name)} · ${ordFoundCustomer.xp} XP`;
@@ -345,7 +352,8 @@ function renderSelectedCustomerBar() {
 }
 
 /* ══════════════════════════════════════════════
-   KHÁCH VÃNG LAI — dùng chung 1 hàng customers cố định
+   KHÁCH VÃNG LAI — dùng chung 1 hàng customers cố định.
+   ⚠️ KHÔNG tích XP/streak/check-in (xem submitOrder()).
    ══════════════════════════════════════════════ */
 async function useWalkInCustomer() {
   try {
@@ -363,6 +371,9 @@ async function useWalkInCustomer() {
     }
 
     ordFoundCustomer = data;
+    /* ⚠️ Khách vãng lai: giảm giá luôn mặc định 0%, KHÔNG lấy theo
+       cấp độ (vì không phải thành viên thật). Nhân viên vẫn có thể
+       tự sửa tay nếu quán có chính sách giảm giá riêng cho trường hợp cụ thể. */
     document.getElementById("ordDiscountPct").value = 0;
     orderDraftRows = [];
     document.getElementById("orderDraftRows").innerHTML = "";
@@ -495,8 +506,7 @@ function updateOrderPreview() {
 }
 
 /* ══════════════════════════════════════════════
-   SUBMIT ĐƠN — giữ nguyên logic gốc (kho + auto check-in),
-   chỉ khác: khi xong thì ĐÓNG POPUP thay vì reset khu vực inline
+   SUBMIT ĐƠN — kho + auto check-in (CHỈ cho thành viên thật)
    ══════════════════════════════════════════════ */
 async function submitOrder() {
   if (!canCreateOrders || !ordFoundCustomer) return;
@@ -504,6 +514,7 @@ async function submitOrder() {
   if (!rows.length) { window.showToast("⚠️ Vui lòng chọn ít nhất 1 sản phẩm.", "#e17055"); return; }
 
   const customerId = ordFoundCustomer.id;
+  const isWalkInOrder = ordFoundCustomer.phone === WALKIN_PHONE; // ⚠️ MỚI
   const discountPct = Number(document.getElementById("ordDiscountPct").value) || 0;
   const staff = currentSession.displayName || currentSession.username;
   const btn = document.getElementById("ordSubmitBtn");
@@ -535,7 +546,14 @@ async function submitOrder() {
     if (itemsErr) throw itemsErr;
 
     await consumeStockForOrderItems(insertedItems);
-    await maybeAutoCheckin(customerId, order.id, staff);
+
+    /* ⚠️ MỚI: khách vãng lai KHÔNG check-in / KHÔNG tích XP / KHÔNG
+       streak. Đơn hàng vẫn lưu đầy đủ để tổng kết doanh thu/lợi nhuận
+       chung của quán, nhưng không đụng tới customer_quests/xp/level
+       của hàng "Khách vãng lai" dùng chung cho mọi lượt khách khác nhau. */
+    if (!isWalkInOrder) {
+      await maybeAutoCheckin(customerId, order.id, staff);
+    }
 
     window.showToast(`✅ Đã tạo đơn hàng ${order.order_number}!`);
     closeOrderCreateModal();
@@ -719,7 +737,8 @@ function renderOrdersOfDayTable() {
 
 /* ══════════════════════════════════════════════
    HUỶ ĐƠN / HUỶ DÒNG (giữ nguyên logic gốc — vẫn dùng
-   isOrdersReadOnly, KHÔNG đổi sang canCreateOrders.)
+   isOrdersReadOnly, KHÔNG đổi sang canCreateOrders. Barstaff được
+   tạo đơn nhưng vẫn KHÔNG được huỷ đơn/huỷ dòng.)
    ══════════════════════════════════════════════ */
 function openVoidModal(type, targetId, customerId) {
   if (isOrdersReadOnly) return;
