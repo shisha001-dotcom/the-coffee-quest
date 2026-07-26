@@ -30,9 +30,15 @@
    <script src="./core/dashboard-auth.js"></script> — KHÔNG còn
    bất kỳ <script> nào khác phía sau nó trong HTML nữa. Toàn bộ
    phần còn lại (page-registry, inventory, games, drinks,
-   membership, nav, chat, analytics, banners, media, accounts,
-   mobile-menu) được chính file này tải bằng JS theo đúng thứ
-   tự cũ (xem SCRIPT_SEQUENCE / MODULE_SEQUENCE bên dưới).
+   membership, orders, nav, chat, analytics, banners, media,
+   accounts, mobile-menu) được chính file này tải bằng JS theo
+   đúng thứ tự cũ (xem SCRIPT_SEQUENCE / MODULE_SEQUENCE bên dưới).
+
+   ⚠️ SỬA (bổ sung — fix "Đơn hàng" không hoạt động + nút "Chi tiết"
+   khách hàng không mở được trang): SCRIPT_SEQUENCE trước đây bị
+   THIẾU "./modules/orders/dashboard-orders.js" và
+   "./modules/membership/dashboard-customer-detail.js" — đã bổ sung
+   lại đúng vị trí bên dưới.
    ══════════════════════════════════════════════ */
 
 /* Khai báo ở scope ngoài cùng (không bọc trong function) để các
@@ -56,8 +62,11 @@ const SCRIPT_SEQUENCE = [
 
   "./modules/membership/membership-shared.js",
   "./modules/membership/dashboard-customers.js",
+  "./modules/membership/dashboard-customer-detail.js",
   "./modules/membership/dashboard-quests.js",
   "./modules/membership/dashboard-levels.js",
+
+  "./modules/orders/dashboard-orders.js",
 
   "./modules/inventory/dashboard-ingredients.js",
 
