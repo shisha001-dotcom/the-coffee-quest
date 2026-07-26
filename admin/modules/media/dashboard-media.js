@@ -6,6 +6,11 @@
      thay vì so sánh chuỗi thủ công (chỉ Super Admin mới xóa được ảnh).
    - Thêm guard + early-return dựa trên window.AdminPermissions.can()
      để chặn role "Bar Staff" xem toàn bộ trang này.
+
+   ⚠️ SỬA (ponytail dedupe): convertGDriveUrl() giờ dùng
+   window.extractGDriveFileId() (js/shared-utils.js) thay vì tự lặp
+   lại chuỗi regex trích fileId — cùng logic dùng bởi
+   window.gdrivePreviewUrl() (PDF luật chơi ở trang chi tiết game).
    ══════════════════════════════════════════════ */
 
 const isSuperAdminMedia  = window.AdminPermissions.isSuperAdmin(currentSession.role);
@@ -267,17 +272,15 @@ const mediaSizeCache = new Map();
 
 function isGDriveUrl(url) { return /drive\.google\.com|googleusercontent\.com/i.test(url || ''); }
 function isDirectGDriveUrl(url) { return /^https:\/\/lh3\.googleusercontent\.com\/d\//i.test(url || ''); }
+
+/* ⚠️ TỐI ƯU (ponytail dedupe): trích fileId qua window.extractGDriveFileId()
+   dùng chung (shared-utils.js) thay vì tự lặp lại 4 nhánh regex ở đây. */
 function convertGDriveUrl(url) {
   if (!url) return null;
   url = url.trim();
   if (isDirectGDriveUrl(url)) return url;
 
-  let fileId = null, m;
-  m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (m) fileId = m[1];
-  if (!fileId) { m = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/); if (m) fileId = m[1]; }
-  if (!fileId) { m = url.match(/drive\.google\.com\/uc\?.*[?&]id=([a-zA-Z0-9_-]+)/); if (m) fileId = m[1]; }
-  if (!fileId && isGDriveUrl(url)) { m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/); if (m) fileId = m[1]; }
+  const fileId = window.extractGDriveFileId(url);
   if (!fileId) return null;
   return `https://lh3.googleusercontent.com/d/${fileId}`;
 }
