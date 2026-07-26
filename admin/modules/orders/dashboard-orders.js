@@ -25,12 +25,47 @@
    "ordersMenuItemPlaceholder"` để registerPage() nâng cấp ĐÚNG phần
    tử có sẵn thay vì tạo bản sao.
 
+   ⚠️ MỚI (barstaff được tạo đơn hàng nhưng KHÔNG xem giá vốn):
+   - Trước đây toàn bộ khối "Tạo đơn hàng" (form, nút tra SĐT, nút
+     submit) bị ẩn/disable dựa trên `isOrdersReadOnly` — biến này
+     TRUE với mọi role trong READONLY_ROLES (chỉ có barstaff hiện
+     tại), nên barstaff không thể tạo đơn hàng dù chỉ cần họ không
+     thấy giá vốn/lợi nhuận.
+   - Giờ tách ra 2 khái niệm ĐỘC LẬP qua AdminPermissions:
+       • `isOrdersReadOnly`  — GIỮ NGUYÊN hành vi cũ, chỉ dùng để
+         chặn HUỶ đơn/huỷ dòng (openVoidModal/confirmVoidOrder).
+         Barstaff vẫn KHÔNG được huỷ đơn.
+       • `canCreateOrders`   — quyết định form tạo đơn có hiện/hoạt
+         động hay không. Barstaff giờ = true (ngoại lệ khai báo ở
+         dashboard-permissions.js::ORDER_CREATE_EXTRA_ROLES).
+       • `canViewCost`       — quyết định dòng "Lợi nhuận gộp" trong
+         phần preview có hiển thị hay không. Barstaff = false, nên
+         chỉ thấy "Khách trả", không thấy giá vốn/lợi nhuận.
+   - Lịch sử đơn hàng (bảng tra cứu theo ngày) vốn đã KHÔNG hiển thị
+     giá vốn/lợi nhuận ở đâu cả (chỉ có "Khách trả") nên không cần
+     sửa thêm ở renderOrdersOfDayTable().
+
    Cần: client, currentSession, window.Membership (M),
    window.Inventory (INV), window.AdminPermissions.
    ══════════════════════════════════════════════ */
 
 const M_O = window.Membership;
+
+/* ⚠️ isOrdersReadOnly: GIỮ NGUYÊN như bản gốc — chỉ dùng để chặn
+   HUỶ đơn/huỷ dòng sản phẩm. KHÔNG dùng biến này để quyết định có
+   cho tạo đơn hàng hay không nữa (xem canCreateOrders bên dưới). */
 const isOrdersReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
+
+/* ⚠️ MỚI: barstaff (và role tương lai nếu có) được phép TẠO đơn
+   hàng dù isOrdersReadOnly = true, nhờ ngoại lệ khai báo tập trung
+   ở dashboard-permissions.js. */
+const canCreateOrders = window.AdminPermissions.canCreateOrders(currentSession.role);
+
+/* ⚠️ MỚI: role bị giấu giá vốn nguyên liệu / lợi nhuận gộp — chỉ
+   ảnh hưởng phần hiển thị preview, KHÔNG ảnh hưởng việc tính toán
+   nội bộ (server/DB vẫn lưu đủ ingredient_cost_total/profit như cũ,
+   chỉ là barstaff không nhìn thấy con số đó trên UI). */
+const canViewOrderCost = window.AdminPermissions.canViewCost(currentSession.role);
 
 let orderDrinksCache = [];
 let orderDraftRows   = [];
@@ -167,7 +202,11 @@ function bindOrdersPageEvents() {
   voidModal?.addEventListener("click", e => { if (e.target === voidModal) voidModal.classList.add("hidden"); });
   voidModal?.addEventListener("keydown", e => { if (e.key === "Escape") voidModal.classList.add("hidden"); });
 
-  if (isOrdersReadOnly) {
+  /* ⚠️ SỬA: trước đây dùng isOrdersReadOnly (chặn cả tạo đơn với
+     barstaff). Giờ dùng canCreateOrders — barstaff vẫn thấy/dùng
+     được form tạo đơn, chỉ huỷ đơn/huỷ dòng là còn bị chặn (xem
+     openVoidModal bên dưới, vẫn dùng isOrdersReadOnly như cũ). */
+  if (!canCreateOrders) {
     document.getElementById("ordFormArea").style.display = "none";
     document.getElementById("ordLookupBtn").disabled = true;
   }
@@ -215,7 +254,8 @@ async function loadOrderDrinksCache() {
    TRA SĐT
    ══════════════════════════════════════════════ */
 async function lookupCustomerForOrder() {
-  if (isOrdersReadOnly) return;
+  /* ⚠️ SỬA: isOrdersReadOnly → canCreateOrders */
+  if (!canCreateOrders) return;
   const phone = M_O.normalizePhone(document.getElementById("ordLookupPhone").value);
   const foundBox    = document.getElementById("ordCustomerFound");
   const notFoundBox = document.getElementById("ordCustomerNotFound");
@@ -287,6 +327,10 @@ function readOrderDraftRows() {
   })).filter(r => r.drink_id && r.quantity > 0);
 }
 
+/* ⚠️ SỬA: preview giờ chỉ hiện dòng "Lợi nhuận gộp" nếu
+   canViewOrderCost = true. Barstaff vẫn thấy đầy đủ tên món, số
+   lượng, và tổng "Khách trả" (cần để thu tiền đúng), chỉ riêng giá
+   vốn/lợi nhuận là bị ẩn. */
 function updateOrderPreview() {
   const box = document.getElementById("ordPreviewBox");
   if (!box) return;
@@ -308,20 +352,25 @@ function updateOrderPreview() {
     return `<div style="display:flex;justify-content:space-between;"><span>${window.escHtml(d.name)} ×${r.quantity}</span><span>${customerPaid.toLocaleString('vi-VN')}đ</span></div>`;
   }).join('');
 
-  box.innerHTML = lines +
-    `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700;">
+  const totalPaidBlock = `
+    <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700;">
       <span>Khách trả</span><span>${totalPaid.toLocaleString('vi-VN')}đ</span>
-    </div>
+    </div>`;
+
+  const profitBlock = canViewOrderCost ? `
     <div style="display:flex;justify-content:space-between;color:${totalProfit >= 0 ? '#00b894' : 'var(--danger)'};font-weight:600;">
       <span>Lợi nhuận gộp</span><span>${totalProfit.toLocaleString('vi-VN')}đ</span>
-    </div>`;
+    </div>` : '';
+
+  box.innerHTML = lines + totalPaidBlock + profitBlock;
 }
 
 /* ══════════════════════════════════════════════
    SUBMIT ĐƠN — giữ nguyên logic gốc (kho + auto check-in)
    ══════════════════════════════════════════════ */
 async function submitOrder() {
-  if (isOrdersReadOnly || !ordFoundCustomer) return;
+  /* ⚠️ SỬA: isOrdersReadOnly → canCreateOrders */
+  if (!canCreateOrders || !ordFoundCustomer) return;
   const rows = readOrderDraftRows();
   if (!rows.length) { window.showToast("⚠️ Vui lòng chọn ít nhất 1 sản phẩm.", "#e17055"); return; }
 
@@ -449,6 +498,8 @@ async function maybeAutoCheckin(customerId, orderId, staff) {
 
 /* ══════════════════════════════════════════════
    TRA CỨU THEO KHOẢNG NGÀY + ACCORDION
+   ⚠️ Bảng này chỉ hiện "Khách trả", KHÔNG hiện giá vốn/lợi nhuận ở
+   đâu cả — nên không cần thêm check canViewOrderCost ở đây.
    ══════════════════════════════════════════════ */
 async function loadOrdersByDate(fromStr, toStr) {
   const tbody = document.getElementById("ordDateTableBody");
@@ -528,7 +579,9 @@ function renderOrdersOfDayTable() {
 }
 
 /* ══════════════════════════════════════════════
-   HUỶ ĐƠN / HUỶ DÒNG (giữ nguyên logic gốc)
+   HUỶ ĐƠN / HUỶ DÒNG (giữ nguyên logic gốc — vẫn dùng
+   isOrdersReadOnly, KHÔNG đổi sang canCreateOrders. Barstaff được
+   tạo đơn nhưng vẫn KHÔNG được huỷ đơn/huỷ dòng.)
    ══════════════════════════════════════════════ */
 function openVoidModal(type, targetId, customerId) {
   if (isOrdersReadOnly) return;
