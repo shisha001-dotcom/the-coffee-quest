@@ -46,6 +46,9 @@
           <span aria-hidden="true">☕</span> Đồ uống
         </a>
 
+        <!-- Nâng cấp bởi dashboard-orders.js qua registerPage() -->
+        <a class="menu-item" id="ordersMenuItemPlaceholder"><span aria-hidden="true">🧾</span> Đơn hàng</a>
+
         <!-- Nâng cấp bởi dashboard-chat.js qua registerPage({ placeholderId }) -->
         <a class="menu-item" id="chatMenuItemPlaceholder"><span aria-hidden="true">💬</span> Cộng đồng</a>
       </div>
@@ -187,37 +190,53 @@
 
     </div>
 
+    <!-- ── ORDERS PAGE (🧾 Đơn hàng), CUSTOMER DETAIL PAGE (👤 Chi tiết khách),
+         GAME DETAIL PAGE (📄 Chi tiết Boardgame), CUSTOMERS PAGE (🎮 Khách hàng)
+         và mọi page động khác (chat/analytics/banners/media/accounts/ingredients)
+         ĐỀU được inject bởi module JS tương ứng — KHÔNG có gì tĩnh thêm ở đây. -->
+
   </main>
 </div>
 
 <!-- ══════════════════════════════════════════════
-     KHÔNG CÒN modal HTML tĩnh (#gameModal / #drinkModal) ở đây.
-     Mỗi modal giờ được module JS tương ứng tự inject vào <body>
-     lúc load — cùng pattern với banners/media/accounts/customers/
-     ingredients (MỚI).
+     KHÔNG CÒN modal HTML tĩnh (#gameModal / #drinkModal /
+     #customerDetailModal / #voidOrderModal cũ) ở đây.
+     Mỗi modal/page giờ được module JS tương ứng tự inject vào
+     <body> hoặc .main-content lúc load.
      ══════════════════════════════════════════════ -->
 
 <!-- ══════════════════════════════════════════════
-     SCRIPTS
-     ─────────────────────────────────────────────
-     ⚠️ SỬA LẦN 2 (2026-07-18): HTML giờ CHỈ còn các script "hạ
-     tầng" (không cần đăng nhập) + DUY NHẤT 1 dòng gọi
-     core/dashboard-auth.js. TOÀN BỘ phần còn lại của Dashboard
-     (page-registry, inventory, games, drinks, membership, nav,
-     chat, analytics, banners, media, accounts, mobile-menu) được
-     CHÍNH dashboard-auth.js tự tải bằng JavaScript (đúng thứ tự
-     tuần tự như cũ) — nhưng CHỈ SAU KHI xác thực Supabase Auth +
-     admin_users thành công. Xem chi tiết lý do trong comment đầu
-     file core/dashboard-auth.js — tránh được lỗi thứ tự thực thi
-     giữa script module (deferred) và script thường (immediate)
-     từng gây vòng lặp nhấp nháy login ⇄ dashboard.
-
-     Không tự thêm bất kỳ <script src="./modules/...">/<script
-     src="./core/...")> nào khác vào đây nữa — mọi thứ đã được
-     liệt kê trong SCRIPT_SEQUENCE / MODULE_SEQUENCE của
-     core/dashboard-auth.js. Muốn thêm module admin mới → thêm
-     đường dẫn vào đúng 2 mảng đó, KHÔNG thêm <script> vào file
-     HTML này.
+     SCRIPTS — thứ tự quan trọng:
+     1) shared-config / shared-emoji / shared-categories / shared-utils
+     2) core/dashboard-permissions.js
+     3) Supabase SDK + QRCode CDN
+     4) core/dashboard-auth.js   → `client` + `currentSession` global
+     5) core/dashboard-page-registry.js → window.AdminDashboard
+     6) modules/inventory/inventory-shared.js → window.Inventory
+        PHẢI load TRƯỚC modules/drinks/dashboard-drinks.js VÀ TRƯỚC
+        modules/orders/dashboard-orders.js (cần state.ingredients để
+        trừ kho khi tạo đơn)
+     7) modules/games/dashboard-games.js + modules/drinks/dashboard-drinks.js
+     8) modules/games/dashboard-game-detail.js
+     9) modules/membership/membership-shared.js  → PHẢI load TRƯỚC
+        3 file domain Membership + dashboard-orders.js bên dưới
+     10) modules/membership/dashboard-customers.js   (đăng ký page
+         "customersPage" — DUY NHẤT cho domain này; bảng danh sách +
+         thêm/xoá khách, KHÔNG còn tạo đơn/huỷ đơn)
+         modules/membership/dashboard-customer-detail.js (MỚI — page
+         "customerDetailPage": lịch sử đơn (chỉ xem) + lịch sử EXP,
+         cần M.state.customers đã load nên load SAU dashboard-customers.js)
+         modules/membership/dashboard-quests.js
+         modules/membership/dashboard-levels.js
+     11) modules/orders/dashboard-orders.js (MỚI — đăng ký page riêng
+         "🧾 Đơn hàng": tạo đơn (tra SĐT/chọn món/submit/auto check-in)
+         + tra cứu theo ngày (accordion) + huỷ đơn/huỷ dòng. Cần
+         window.Inventory + window.Membership đã load trước.)
+     12) modules/inventory/dashboard-ingredients.js (đăng ký page riêng
+         "Kho nguyên liệu", độc lập với Membership)
+     13) core/dashboard-nav.js   → điều hướng, dùng loadGames/loadDrinks
+     14) các module ES module (type="module") — chat/analytics/banners/media/accounts
+     15) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
      ══════════════════════════════════════════════ -->
 <script src="../js/shared-config.js"></script>
 <script src="../js/shared-emoji.js"></script>
@@ -226,8 +245,34 @@
 <script src="./core/dashboard-permissions.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
-
 <script src="./core/dashboard-auth.js"></script>
+<script src="./core/dashboard-page-registry.js"></script>
+
+<script src="./modules/inventory/inventory-shared.js"></script>
+
+<script src="./modules/games/dashboard-games.js"></script>
+<script src="./modules/drinks/dashboard-drinks.js"></script>
+<script src="./modules/games/dashboard-game-detail.js"></script>
+
+<script src="./modules/membership/membership-shared.js"></script>
+<script src="./modules/membership/dashboard-customers.js"></script>
+<script src="./modules/membership/dashboard-customer-detail.js"></script>
+<script src="./modules/membership/dashboard-quests.js"></script>
+<script src="./modules/membership/dashboard-levels.js"></script>
+
+<script src="./modules/orders/dashboard-orders.js"></script>
+
+<script src="./modules/inventory/dashboard-ingredients.js"></script>
+
+<script src="./core/dashboard-nav.js"></script>
+
+<script type="module" src="./modules/chat/dashboard-chat.js"></script>
+<script type="module" src="./modules/analytics/dashboard-analytics.js"></script>
+<script type="module" src="./modules/banners/dashboard-banners.js"></script>
+<script type="module" src="./modules/media/dashboard-media.js"></script>
+<script type="module" src="./modules/accounts/dashboard-accounts.js"></script>
+
+<script src="./dashboard-mobile-menu.js"></script>
 
 </body>
 </html>
