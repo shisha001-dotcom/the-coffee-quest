@@ -6,6 +6,19 @@
    - Tra cứu đơn hàng theo ngày (accordion xem món tại chỗ)
    - Huỷ đơn / huỷ dòng sản phẩm
 
+   ⚠️ ĐÃ SỬA (fix "bấm vào Đơn hàng không hoạt động"): registerPage()
+   trước đây KHÔNG truyền `placeholderId`, trong khi dashboard.html đã
+   có sẵn placeholder tĩnh <a id="ordersMenuItemPlaceholder">. Vì
+   thiếu placeholderId, registerPage() không tìm thấy phần tử có sẵn
+   để nâng cấp tại chỗ — nó tạo hẳn 1 <a> MỚI rồi cố chèn trước
+   "#chatMenuItem" (lúc đó chưa tồn tại vì dashboard-chat.js là module,
+   chạy sau, mới đổi id placeholder chat thành "chatMenuItem"), nên bị
+   appendChild xuống cuối nhóm menu. Kết quả: placeholder "🧾 Đơn hàng"
+   gốc (đúng vị trí người dùng nhìn thấy & bấm vào) không hề được gán
+   onclick → bấm không có tác dụng. Đã thêm `placeholderId:
+   "ordersMenuItemPlaceholder"` để registerPage() nâng cấp ĐÚNG phần
+   tử có sẵn thay vì tạo bản sao.
+
    Cần: client, currentSession, window.Membership (M),
    window.Inventory (INV), window.AdminPermissions.
    ══════════════════════════════════════════════ */
