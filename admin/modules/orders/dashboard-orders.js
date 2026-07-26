@@ -3,8 +3,14 @@
    ─────────────────────────────────────────────
    Tab "Đơn hàng" — tách từ dashboard-customers.js:
    - Tạo đơn hàng mới (tra SĐT → chọn món → submit → auto check-in)
-   - Tra cứu đơn hàng theo ngày (accordion xem món tại chỗ)
+   - Tra cứu đơn hàng theo KHOẢNG NGÀY (accordion xem món tại chỗ)
    - Huỷ đơn / huỷ dòng sản phẩm
+
+   ⚠️ SỬA (tra cứu theo khoảng ngày): trước đây chỉ có 1 ô ngày
+   (currentOrderDate) → giờ có 2 ô "Từ ngày"/"Đến ngày"
+   (currentOrderFrom/currentOrderTo), cùng pattern với trang Thống kê
+   (anDateFrom/anDateTo trong dashboard-analytics.js). Cột "Giờ tạo"
+   đổi thành hiển thị cả ngày vì kết quả giờ có thể trải nhiều ngày.
 
    ⚠️ ĐÃ SỬA (fix "bấm vào Đơn hàng không hoạt động"): registerPage()
    trước đây KHÔNG truyền `placeholderId`, trong khi dashboard.html đã
@@ -30,7 +36,10 @@ let orderDrinksCache = [];
 let orderDraftRows   = [];
 let orderRowSeq      = 0;
 let ordFoundCustomer = null;
-let currentOrderDate = new Date().toISOString().slice(0, 10);
+
+const _todayStr = new Date().toISOString().slice(0, 10);
+let currentOrderFrom = _todayStr;
+let currentOrderTo   = _todayStr;
 let ordersOfDay      = [];
 
 function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
@@ -41,14 +50,14 @@ function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 window.AdminDashboard.registerPage({
   pageId: "ordersPage",
   menuId: "ordersMenuItem",
-  placeholderId: "ordersMenuItemPlaceholder", // ⚠️ MỚI — đã có sẵn trong dashboard.html
+  placeholderId: "ordersMenuItemPlaceholder", // ⚠️ đã có sẵn trong dashboard.html
   icon: "🧾",
   label: "Đơn hàng",
   insertBeforeMenuId: "chatMenuItem",
   onShow: () => {
     loadOrderDrinksCache();
     resetOrderForm();
-    loadOrdersByDate(currentOrderDate);
+    loadOrdersByDate(currentOrderFrom, currentOrderTo);
   },
 });
 
@@ -66,7 +75,7 @@ window.AdminDashboard.registerPage({
     <div class="page-header">
       <div>
         <h1 class="page-title">🧾 Đơn hàng</h1>
-        <p class="page-subtitle">Tạo đơn hàng mới &amp; tra cứu lịch sử đơn theo ngày</p>
+        <p class="page-subtitle">Tạo đơn hàng mới &amp; tra cứu lịch sử đơn theo khoảng ngày</p>
       </div>
     </div>
 
@@ -97,17 +106,19 @@ window.AdminDashboard.registerPage({
       </div>
     </div>
 
-    <!-- ═══ TRA CỨU THEO NGÀY ═══ -->
+    <!-- ═══ TRA CỨU THEO KHOẢNG NGÀY ═══ -->
     <div class="table-card" style="padding:22px 24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
         <div style="font-size:14px;font-weight:700;">📅 Lịch sử đơn hàng</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="date" id="ordDateFilter" style="height:38px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <input type="date" id="ordDateFrom" style="height:38px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;">
+          <span style="color:var(--text-muted);font-size:13px;">→</span>
+          <input type="date" id="ordDateTo" style="height:38px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;">
           <button class="btn btn-secondary" id="ordDateRefreshBtn">🔄</button>
         </div>
       </div>
       <table class="game-table">
-        <thead><tr><th></th><th>Mã đơn</th><th>Khách hàng</th><th>Giờ tạo</th><th>Số món</th><th>Khách trả</th><th>Trạng thái</th></tr></thead>
+        <thead><tr><th></th><th>Mã đơn</th><th>Khách hàng</th><th>Thời gian</th><th>Số món</th><th>Khách trả</th><th>Trạng thái</th></tr></thead>
         <tbody id="ordDateTableBody"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Đang tải...</td></tr></tbody>
       </table>
     </div>
@@ -142,12 +153,11 @@ function bindOrdersPageEvents() {
   document.getElementById("ordDiscountPct")?.addEventListener("input", updateOrderPreview);
   document.getElementById("ordSubmitBtn")?.addEventListener("click", submitOrder);
 
-  document.getElementById("ordDateFilter").value = currentOrderDate;
-  document.getElementById("ordDateFilter")?.addEventListener("change", e => {
-    currentOrderDate = e.target.value;
-    loadOrdersByDate(currentOrderDate);
-  });
-  document.getElementById("ordDateRefreshBtn")?.addEventListener("click", () => loadOrdersByDate(currentOrderDate));
+  document.getElementById("ordDateFrom").value = currentOrderFrom;
+  document.getElementById("ordDateTo").value   = currentOrderTo;
+  document.getElementById("ordDateFrom")?.addEventListener("change", handleOrderDateRangeChange);
+  document.getElementById("ordDateTo")?.addEventListener("change", handleOrderDateRangeChange);
+  document.getElementById("ordDateRefreshBtn")?.addEventListener("click", () => loadOrdersByDate(currentOrderFrom, currentOrderTo));
 
   document.getElementById("closeVoidOrderModalBtn")?.addEventListener("click", () =>
     document.getElementById("voidOrderModal").classList.add("hidden"));
@@ -161,6 +171,16 @@ function bindOrdersPageEvents() {
     document.getElementById("ordFormArea").style.display = "none";
     document.getElementById("ordLookupBtn").disabled = true;
   }
+}
+
+/* Đổi "Từ ngày"/"Đến ngày" → tự hoán đổi nếu nhập ngược, rồi tải lại */
+function handleOrderDateRangeChange() {
+  currentOrderFrom = document.getElementById("ordDateFrom").value || currentOrderFrom;
+  currentOrderTo   = document.getElementById("ordDateTo").value   || currentOrderTo;
+  if (currentOrderFrom > currentOrderTo) [currentOrderFrom, currentOrderTo] = [currentOrderTo, currentOrderFrom];
+  document.getElementById("ordDateFrom").value = currentOrderFrom;
+  document.getElementById("ordDateTo").value   = currentOrderTo;
+  loadOrdersByDate(currentOrderFrom, currentOrderTo);
 }
 
 function resetOrderForm() {
@@ -341,7 +361,12 @@ async function submitOrder() {
 
     window.showToast(`✅ Đã tạo đơn hàng ${order.order_number}!`);
     resetOrderForm();
-    if (currentOrderDate === new Date().toISOString().slice(0, 10)) loadOrdersByDate(currentOrderDate);
+
+    /* Chỉ tự tải lại bảng nếu khoảng ngày đang xem có bao gồm hôm nay */
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (todayStr >= currentOrderFrom && todayStr <= currentOrderTo) {
+      loadOrdersByDate(currentOrderFrom, currentOrderTo);
+    }
   } catch (err) {
     window.showToast("❌ Lỗi khi tạo đơn hàng: " + err.message, "#e17055");
   } finally {
@@ -423,17 +448,17 @@ async function maybeAutoCheckin(customerId, orderId, staff) {
 }
 
 /* ══════════════════════════════════════════════
-   TRA CỨU THEO NGÀY + ACCORDION
+   TRA CỨU THEO KHOẢNG NGÀY + ACCORDION
    ══════════════════════════════════════════════ */
-async function loadOrdersByDate(dateStr) {
+async function loadOrdersByDate(fromStr, toStr) {
   const tbody = document.getElementById("ordDateTableBody");
   tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Đang tải...</td></tr>`;
 
   const { data, error } = await client
     .from("customer_orders")
     .select("*, customers(name, phone), customer_order_items(*)")
-    .gte("created_at", dateStr + "T00:00:00")
-    .lt("created_at", dateStr + "T23:59:59.999")
+    .gte("created_at", fromStr + "T00:00:00")
+    .lt("created_at", toStr + "T23:59:59.999")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -448,10 +473,11 @@ async function loadOrdersByDate(dateStr) {
 function renderOrdersOfDayTable() {
   const tbody = document.getElementById("ordDateTableBody");
   if (!ordersOfDay.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Không có đơn hàng nào trong ngày này.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Không có đơn hàng nào trong khoảng ngày này.</td></tr>`;
     return;
   }
 
+  /* Khoảng ngày có thể trải nhiều ngày → hiển thị cả ngày, không chỉ giờ */
   tbody.innerHTML = ordersOfDay.map(o => {
     const items = o.customer_order_items || [];
     const activeItems = items.filter(it => !it.is_void);
@@ -463,7 +489,7 @@ function renderOrdersOfDayTable() {
         <td style="width:28px;"><span class="ord-caret" data-caret="${o.id}">▸</span></td>
         <td><b>${window.escHtml(o.order_number)}</b></td>
         <td>${window.escHtml(o.customers?.name || "—")}<div class="game-id">${window.escHtml(o.customers?.phone || "")}</div></td>
-        <td>${new Date(o.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</td>
+        <td>${new Date(o.created_at).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
         <td>${activeItems.length} món</td>
         <td style="font-weight:700;">${totalPaid.toLocaleString('vi-VN')}đ</td>
         <td>${isVoided ? '<span class="badge" style="background:#fdecea;color:var(--danger);">Đã huỷ</span>' : '<span class="badge">Hoàn tất</span>'}</td>
@@ -566,7 +592,7 @@ async function confirmVoidOrder() {
     }
 
     document.getElementById("voidOrderModal").classList.add("hidden");
-    loadOrdersByDate(currentOrderDate);
+    loadOrdersByDate(currentOrderFrom, currentOrderTo);
   } catch (err) {
     window.showToast("❌ Lỗi: " + err.message, "#e17055");
   } finally {
