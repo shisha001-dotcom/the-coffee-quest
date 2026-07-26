@@ -1,49 +1,19 @@
 /* ══════════════════════════════════════════════
    DASHBOARD ORDERS — admin/modules/orders/dashboard-orders.js
    ─────────────────────────────────────────────
-   Tab "Đơn hàng" — tách từ dashboard-customers.js:
-   - Tạo đơn hàng mới (tra SĐT → chọn món → submit → auto check-in)
-   - Tra cứu đơn hàng theo KHOẢNG NGÀY (accordion xem món tại chỗ)
-   - Huỷ đơn / huỷ dòng sản phẩm
-
-   ⚠️ SỬA (tra cứu theo khoảng ngày): trước đây chỉ có 1 ô ngày
-   (currentOrderDate) → giờ có 2 ô "Từ ngày"/"Đến ngày"
-   (currentOrderFrom/currentOrderTo), cùng pattern với trang Thống kê
-   (anDateFrom/anDateTo trong dashboard-analytics.js). Cột "Giờ tạo"
-   đổi thành hiển thị cả ngày vì kết quả giờ có thể trải nhiều ngày.
-
-   ⚠️ ĐÃ SỬA (fix "bấm vào Đơn hàng không hoạt động"): registerPage()
-   trước đây KHÔNG truyền `placeholderId`, trong khi dashboard.html đã
-   có sẵn placeholder tĩnh <a id="ordersMenuItemPlaceholder">. Vì
-   thiếu placeholderId, registerPage() không tìm thấy phần tử có sẵn
-   để nâng cấp tại chỗ — nó tạo hẳn 1 <a> MỚI rồi cố chèn trước
-   "#chatMenuItem" (lúc đó chưa tồn tại vì dashboard-chat.js là module,
-   chạy sau, mới đổi id placeholder chat thành "chatMenuItem"), nên bị
-   appendChild xuống cuối nhóm menu. Kết quả: placeholder "🧾 Đơn hàng"
-   gốc (đúng vị trí người dùng nhìn thấy & bấm vào) không hề được gán
-   onclick → bấm không có tác dụng. Đã thêm `placeholderId:
-   "ordersMenuItemPlaceholder"` để registerPage() nâng cấp ĐÚNG phần
-   tử có sẵn thay vì tạo bản sao.
-
-   ⚠️ MỚI (barstaff được tạo đơn hàng nhưng KHÔNG xem giá vốn):
-   - Trước đây toàn bộ khối "Tạo đơn hàng" (form, nút tra SĐT, nút
-     submit) bị ẩn/disable dựa trên `isOrdersReadOnly` — biến này
-     TRUE với mọi role trong READONLY_ROLES (chỉ có barstaff hiện
-     tại), nên barstaff không thể tạo đơn hàng dù chỉ cần họ không
-     thấy giá vốn/lợi nhuận.
-   - Giờ tách ra 2 khái niệm ĐỘC LẬP qua AdminPermissions:
-       • `isOrdersReadOnly`  — GIỮ NGUYÊN hành vi cũ, chỉ dùng để
-         chặn HUỶ đơn/huỷ dòng (openVoidModal/confirmVoidOrder).
-         Barstaff vẫn KHÔNG được huỷ đơn.
-       • `canCreateOrders`   — quyết định form tạo đơn có hiện/hoạt
-         động hay không. Barstaff giờ = true (ngoại lệ khai báo ở
-         dashboard-permissions.js::ORDER_CREATE_EXTRA_ROLES).
-       • `canViewCost`       — quyết định dòng "Lợi nhuận gộp" trong
-         phần preview có hiển thị hay không. Barstaff = false, nên
-         chỉ thấy "Khách trả", không thấy giá vốn/lợi nhuận.
-   - Lịch sử đơn hàng (bảng tra cứu theo ngày) vốn đã KHÔNG hiển thị
-     giá vốn/lợi nhuận ở đâu cả (chỉ có "Khách trả") nên không cần
-     sửa thêm ở renderOrdersOfDayTable().
+   ⚠️ VIẾT LẠI (UX tạo đơn hàng):
+   - Tra cứu SĐT không còn là bước bắt buộc đầu tiên để tạo đơn —
+     khách vãng lai (không muốn/không có SĐT đăng ký) giờ tạo đơn
+     được ngay, gán vào 1 khách hàng cố định "Khách vãng lai"
+     (phone = WALKIN_PHONE, tự tạo trong bảng `customers` nếu chưa
+     có — cần vì customer_orders.customer_id là NOT NULL/FK).
+   - Toàn bộ luồng "Tạo đơn hàng mới" giờ là 1 POPUP (orderCreateModal):
+       Bước 1: chọn "🎫 Thành viên" hay "🚶 Khách vãng lai"
+       Bước 2 (chỉ Thành viên): nhập SĐT → tra cứu
+       Bước 3: chọn sản phẩm + giảm giá + preview + submit
+     (Khách vãng lai bỏ qua Bước 2, vào thẳng Bước 3.)
+   - Tra cứu theo SĐT/tên khách giờ nằm ở khối "📅 Lịch sử đơn hàng"
+     (lọc client-side trên danh sách đơn đã tải theo khoảng ngày).
 
    Cần: client, currentSession, window.Membership (M),
    window.Inventory (INV), window.AdminPermissions.
@@ -51,33 +21,51 @@
 
 const M_O = window.Membership;
 
-/* ⚠️ isOrdersReadOnly: GIỮ NGUYÊN như bản gốc — chỉ dùng để chặn
-   HUỶ đơn/huỷ dòng sản phẩm. KHÔNG dùng biến này để quyết định có
-   cho tạo đơn hàng hay không nữa (xem canCreateOrders bên dưới). */
+/* Khách hàng cố định dùng cho "Khách vãng lai" — không cần đăng ký SĐT thật.
+   ⚠️ Đổi số này ở ĐÚNG 1 CHỖ nếu cần thay đổi sau này. */
+const WALKIN_PHONE = "0000136631";
+const WALKIN_NAME  = "Khách vãng lai";
+
 const isOrdersReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
-
-/* ⚠️ MỚI: barstaff (và role tương lai nếu có) được phép TẠO đơn
-   hàng dù isOrdersReadOnly = true, nhờ ngoại lệ khai báo tập trung
-   ở dashboard-permissions.js. */
-const canCreateOrders = window.AdminPermissions.canCreateOrders(currentSession.role);
-
-/* ⚠️ MỚI: role bị giấu giá vốn nguyên liệu / lợi nhuận gộp — chỉ
-   ảnh hưởng phần hiển thị preview, KHÔNG ảnh hưởng việc tính toán
-   nội bộ (server/DB vẫn lưu đủ ingredient_cost_total/profit như cũ,
-   chỉ là barstaff không nhìn thấy con số đó trên UI). */
+const canCreateOrders  = window.AdminPermissions.canCreateOrders(currentSession.role);
 const canViewOrderCost = window.AdminPermissions.canViewCost(currentSession.role);
 
 let orderDrinksCache = [];
 let orderDraftRows   = [];
 let orderRowSeq      = 0;
 let ordFoundCustomer = null;
+let ordCustomerType  = null; // "member" | "guest" | null
 
 const _todayStr = new Date().toISOString().slice(0, 10);
 let currentOrderFrom = _todayStr;
 let currentOrderTo   = _todayStr;
 let ordersOfDay      = [];
+let ordHistorySearchQ = "";
 
 function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+/* ══════════════════════════════════════════════
+   STYLES riêng cho khối chọn loại khách (bước 1)
+   ══════════════════════════════════════════════ */
+(function injectOrdersStyles() {
+  if (document.getElementById("ordersModuleStyles")) return;
+  const style = document.createElement("style");
+  style.id = "ordersModuleStyles";
+  style.textContent = `
+    .ord-type-btn {
+      display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+      padding:22px 20px;border:2px solid var(--border);border-radius:14px;
+      background:var(--card);cursor:pointer;text-align:left;
+      font-family:'Inter',sans-serif;transition:border-color .15s,background .15s,transform .1s;
+    }
+    .ord-type-btn:hover { border-color:var(--primary); background:#faf9ff; }
+    .ord-type-btn:active { transform:scale(.98); }
+    .ord-type-icon { font-size:28px; line-height:1; }
+    .ord-type-name { font-weight:700; font-size:14px; color:var(--text); margin-top:8px; }
+    .ord-type-desc { font-size:12px; color:var(--text-muted); margin-top:4px; line-height:1.4; }
+  `;
+  document.head.appendChild(style);
+})();
 
 /* ══════════════════════════════════════════════
    ĐĂNG KÝ PAGE
@@ -85,13 +73,13 @@ function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 window.AdminDashboard.registerPage({
   pageId: "ordersPage",
   menuId: "ordersMenuItem",
-  placeholderId: "ordersMenuItemPlaceholder", // ⚠️ đã có sẵn trong dashboard.html
+  placeholderId: "ordersMenuItemPlaceholder",
   icon: "🧾",
   label: "Đơn hàng",
   insertBeforeMenuId: "chatMenuItem",
   onShow: () => {
+    closeOrderCreateModal();
     loadOrderDrinksCache();
-    resetOrderForm();
     loadOrdersByDate(currentOrderFrom, currentOrderTo);
   },
 });
@@ -110,38 +98,14 @@ window.AdminDashboard.registerPage({
     <div class="page-header">
       <div>
         <h1 class="page-title">🧾 Đơn hàng</h1>
-        <p class="page-subtitle">Tạo đơn hàng mới &amp; tra cứu lịch sử đơn theo khoảng ngày</p>
+        <p class="page-subtitle">Tạo đơn hàng mới &amp; tra cứu lịch sử đơn theo khoảng ngày hoặc SĐT</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-primary" id="ordOpenCreateBtn">➕ Tạo đơn hàng mới</button>
       </div>
     </div>
 
-    <!-- ═══ TẠO ĐƠN HÀNG ═══ -->
-    <div class="table-card" style="padding:22px 24px;margin-bottom:24px;">
-      <div style="font-size:14px;font-weight:700;margin-bottom:14px;">➕ Tạo đơn hàng mới</div>
-
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
-        <input type="tel" id="ordLookupPhone" placeholder="Nhập SĐT khách hàng..." inputmode="tel"
-          style="height:44px;border:1px solid var(--border);border-radius:10px;padding:0 14px;font-size:14px;min-width:220px;">
-        <button class="btn btn-primary" id="ordLookupBtn">🔍 Tìm khách</button>
-      </div>
-
-      <div id="ordCustomerFound" class="hidden" style="background:var(--bg);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;"></div>
-      <div id="ordCustomerNotFound" class="hidden" style="color:var(--danger);font-size:13px;margin-bottom:14px;">
-        ⚠️ Không tìm thấy khách hàng với SĐT này. Vào tab Khách hàng để tạo mới trước.
-      </div>
-
-      <div id="ordFormArea" class="hidden">
-        <div id="orderDraftRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
-        <button type="button" class="btn btn-secondary" id="ordAddRowBtn" style="margin-bottom:12px;">+ Thêm sản phẩm</button>
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
-          <label style="font-size:12px;color:var(--text-muted);">Giảm giá áp dụng (%)</label>
-          <input type="number" id="ordDiscountPct" min="0" max="100" value="0" style="width:80px;height:36px;border:1px solid var(--border);border-radius:8px;padding:0 8px;">
-        </div>
-        <div id="ordPreviewBox" style="background:var(--bg);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;"></div>
-        <button class="btn btn-primary" id="ordSubmitBtn">✅ Tạo đơn hàng</button>
-      </div>
-    </div>
-
-    <!-- ═══ TRA CỨU THEO KHOẢNG NGÀY ═══ -->
+    <!-- ═══ LỊCH SỬ + TRA CỨU ═══ -->
     <div class="table-card" style="padding:22px 24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
         <div style="font-size:14px;font-weight:700;">📅 Lịch sử đơn hàng</div>
@@ -152,10 +116,71 @@ window.AdminDashboard.registerPage({
           <button class="btn btn-secondary" id="ordDateRefreshBtn">🔄</button>
         </div>
       </div>
+
+      <div style="margin-bottom:16px;">
+        <label for="ordHistorySearchInput" class="visually-hidden">Tìm theo SĐT hoặc tên khách</label>
+        <input type="text" id="ordHistorySearchInput" class="search-input" style="max-width:340px;"
+          placeholder="🔍 Tìm theo SĐT hoặc tên khách trong khoảng ngày này...">
+      </div>
+
       <table class="game-table">
         <thead><tr><th></th><th>Mã đơn</th><th>Khách hàng</th><th>Thời gian</th><th>Số món</th><th>Khách trả</th><th>Trạng thái</th></tr></thead>
         <tbody id="ordDateTableBody"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Đang tải...</td></tr></tbody>
       </table>
+    </div>
+
+    <!-- ═══ MODAL: TẠO ĐƠN HÀNG ═══ -->
+    <div class="modal-overlay hidden" id="orderCreateModal" role="dialog" aria-modal="true" aria-labelledby="orderCreateModalTitle">
+      <div class="modal-box" style="max-width:640px;">
+        <div class="modal-header">
+          <h2 id="orderCreateModalTitle">➕ Tạo đơn hàng mới</h2>
+          <button class="close-btn" id="closeOrderCreateModalBtn" aria-label="Đóng cửa sổ">✕</button>
+        </div>
+
+        <!-- BƯỚC 1: chọn loại khách -->
+        <div id="ordStepType">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Đơn hàng này dành cho ai?</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <button type="button" class="ord-type-btn" data-type="member">
+              <span class="ord-type-icon" aria-hidden="true">🎫</span>
+              <span class="ord-type-name">Thành viên</span>
+              <span class="ord-type-desc">Tra SĐT đã đăng ký — tích XP &amp; áp dụng ưu đãi theo cấp độ</span>
+            </button>
+            <button type="button" class="ord-type-btn" data-type="guest">
+              <span class="ord-type-icon" aria-hidden="true">🚶</span>
+              <span class="ord-type-name">Khách vãng lai</span>
+              <span class="ord-type-desc">Không cần SĐT / đăng ký — vào thẳng chọn món</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- BƯỚC 2: nhập SĐT (chỉ khi chọn Thành viên) -->
+        <div id="ordStepPhone" class="hidden">
+          <button type="button" class="btn btn-secondary" id="ordBackToTypeBtn" style="margin-bottom:16px;">← Quay lại</button>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+            <input type="tel" id="ordLookupPhone" placeholder="Nhập SĐT khách hàng..." inputmode="tel"
+              style="height:44px;border:1px solid var(--border);border-radius:10px;padding:0 14px;font-size:14px;flex:1;min-width:220px;">
+            <button class="btn btn-primary" id="ordLookupBtn">🔍 Tìm khách</button>
+          </div>
+          <div id="ordCustomerNotFound" class="hidden" style="color:var(--danger);font-size:13px;">
+            ⚠️ Không tìm thấy khách hàng với SĐT này. Vào tab Khách hàng để tạo mới trước, hoặc chọn "Khách vãng lai".
+          </div>
+        </div>
+
+        <!-- BƯỚC 3: chọn sản phẩm -->
+        <div id="ordFormArea" class="hidden">
+          <div id="ordSelectedCustomerBar" style="background:var(--bg);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"></div>
+
+          <div id="orderDraftRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+          <button type="button" class="btn btn-secondary" id="ordAddRowBtn" style="margin-bottom:12px;">+ Thêm sản phẩm</button>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+            <label style="font-size:12px;color:var(--text-muted);">Giảm giá áp dụng (%)</label>
+            <input type="number" id="ordDiscountPct" min="0" max="100" value="0" style="width:80px;height:36px;border:1px solid var(--border);border-radius:8px;padding:0 8px;">
+          </div>
+          <div id="ordPreviewBox" style="background:var(--bg);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;"></div>
+          <button class="btn btn-primary" id="ordSubmitBtn">✅ Tạo đơn hàng</button>
+        </div>
+      </div>
     </div>
 
     <!-- Modal huỷ (dùng chung order/item) -->
@@ -180,20 +205,42 @@ window.AdminDashboard.registerPage({
 })();
 
 function bindOrdersPageEvents() {
+  /* ── Mở/đóng popup tạo đơn ── */
+  document.getElementById("ordOpenCreateBtn")?.addEventListener("click", openOrderCreateModal);
+  document.getElementById("closeOrderCreateModalBtn")?.addEventListener("click", closeOrderCreateModal);
+  const createModal = document.getElementById("orderCreateModal");
+  createModal?.addEventListener("click", e => { if (e.target === createModal) closeOrderCreateModal(); });
+  createModal?.addEventListener("keydown", e => { if (e.key === "Escape") closeOrderCreateModal(); });
+
+  /* ── Bước 1: chọn loại khách ── */
+  document.querySelectorAll(".ord-type-btn").forEach(btn => {
+    btn.addEventListener("click", () => selectOrderType(btn.dataset.type));
+  });
+  document.getElementById("ordBackToTypeBtn")?.addEventListener("click", goBackToType);
+
+  /* ── Bước 2: tra SĐT ── */
   document.getElementById("ordLookupBtn")?.addEventListener("click", lookupCustomerForOrder);
   document.getElementById("ordLookupPhone")?.addEventListener("keydown", e => {
     if (e.key === "Enter") lookupCustomerForOrder();
   });
+
+  /* ── Bước 3: chọn sản phẩm ── */
   document.getElementById("ordAddRowBtn")?.addEventListener("click", () => addOrderDraftRow());
   document.getElementById("ordDiscountPct")?.addEventListener("input", updateOrderPreview);
   document.getElementById("ordSubmitBtn")?.addEventListener("click", submitOrder);
 
+  /* ── Lịch sử theo khoảng ngày + tìm SĐT/tên ── */
   document.getElementById("ordDateFrom").value = currentOrderFrom;
   document.getElementById("ordDateTo").value   = currentOrderTo;
   document.getElementById("ordDateFrom")?.addEventListener("change", handleOrderDateRangeChange);
   document.getElementById("ordDateTo")?.addEventListener("change", handleOrderDateRangeChange);
   document.getElementById("ordDateRefreshBtn")?.addEventListener("click", () => loadOrdersByDate(currentOrderFrom, currentOrderTo));
+  document.getElementById("ordHistorySearchInput")?.addEventListener("input", window.debounce(e => {
+    ordHistorySearchQ = e.target.value.trim().toLowerCase();
+    renderOrdersOfDayTable();
+  }, 200));
 
+  /* ── Modal huỷ ── */
   document.getElementById("closeVoidOrderModalBtn")?.addEventListener("click", () =>
     document.getElementById("voidOrderModal").classList.add("hidden"));
   document.getElementById("confirmVoidOrderBtn")?.addEventListener("click", confirmVoidOrder);
@@ -202,13 +249,9 @@ function bindOrdersPageEvents() {
   voidModal?.addEventListener("click", e => { if (e.target === voidModal) voidModal.classList.add("hidden"); });
   voidModal?.addEventListener("keydown", e => { if (e.key === "Escape") voidModal.classList.add("hidden"); });
 
-  /* ⚠️ SỬA: trước đây dùng isOrdersReadOnly (chặn cả tạo đơn với
-     barstaff). Giờ dùng canCreateOrders — barstaff vẫn thấy/dùng
-     được form tạo đơn, chỉ huỷ đơn/huỷ dòng là còn bị chặn (xem
-     openVoidModal bên dưới, vẫn dùng isOrdersReadOnly như cũ). */
   if (!canCreateOrders) {
-    document.getElementById("ordFormArea").style.display = "none";
-    document.getElementById("ordLookupBtn").disabled = true;
+    const btn = document.getElementById("ordOpenCreateBtn");
+    if (btn) { btn.disabled = true; btn.title = "Tài khoản của bạn không có quyền tạo đơn hàng."; }
   }
 }
 
@@ -222,14 +265,141 @@ function handleOrderDateRangeChange() {
   loadOrdersByDate(currentOrderFrom, currentOrderTo);
 }
 
-function resetOrderForm() {
+/* ══════════════════════════════════════════════
+   POPUP TẠO ĐƠN — mở/đóng/điều hướng bước
+   ══════════════════════════════════════════════ */
+function openOrderCreateModal() {
+  if (!canCreateOrders) return;
+  resetOrderCreateState();
+  document.getElementById("orderCreateModal").classList.remove("hidden");
+}
+
+function closeOrderCreateModal() {
+  document.getElementById("orderCreateModal")?.classList.add("hidden");
+}
+
+function resetOrderCreateState() {
+  ordCustomerType  = null;
   ordFoundCustomer = null;
+  orderDraftRows   = [];
+
+  document.getElementById("orderDraftRows").innerHTML = "";
   document.getElementById("ordLookupPhone").value = "";
-  document.getElementById("ordCustomerFound").classList.add("hidden");
   document.getElementById("ordCustomerNotFound").classList.add("hidden");
+  document.getElementById("ordDiscountPct").value = 0;
+  document.getElementById("ordSelectedCustomerBar").innerHTML = "";
+
+  document.getElementById("ordStepType").classList.remove("hidden");
+  document.getElementById("ordStepPhone").classList.add("hidden");
   document.getElementById("ordFormArea").classList.add("hidden");
+}
+
+function selectOrderType(type) {
+  if (!canCreateOrders) return;
+  ordCustomerType = type;
+  document.getElementById("ordStepType").classList.add("hidden");
+
+  if (type === "member") {
+    document.getElementById("ordStepPhone").classList.remove("hidden");
+    document.getElementById("ordLookupPhone").focus();
+  } else {
+    useWalkInCustomer();
+  }
+}
+
+function goBackToType() {
+  ordFoundCustomer = null;
+  document.getElementById("ordStepPhone").classList.add("hidden");
+  document.getElementById("ordFormArea").classList.add("hidden");
+  document.getElementById("ordCustomerNotFound").classList.add("hidden");
+  document.getElementById("ordLookupPhone").value = "";
+  document.getElementById("ordStepType").classList.remove("hidden");
+}
+
+function showOrderFormArea() {
+  document.getElementById("ordStepPhone").classList.add("hidden");
+  document.getElementById("ordStepType").classList.add("hidden");
+  document.getElementById("ordFormArea").classList.remove("hidden");
+  renderSelectedCustomerBar();
+  updateOrderPreview();
+}
+
+function renderSelectedCustomerBar() {
+  const bar = document.getElementById("ordSelectedCustomerBar");
+  if (!bar || !ordFoundCustomer) return;
+
+  const isWalkIn = ordFoundCustomer.phone === WALKIN_PHONE;
+  let infoHtml;
+  if (isWalkIn) {
+    infoHtml = `🚶 <b>Khách vãng lai</b>`;
+  } else {
+    const info = M_O.getLevelInfo(ordFoundCustomer.level);
+    infoHtml = `${info.rank_icon} <b>${window.escHtml(ordFoundCustomer.name)}</b> — ${window.escHtml(info.rank_name)} · ${ordFoundCustomer.xp} XP`;
+  }
+
+  bar.innerHTML = `
+    <span>${infoHtml}</span>
+    <button type="button" class="btn btn-secondary" id="ordChangeCustomerBtn" style="font-size:12px;padding:6px 10px;">↺ Đổi khách hàng</button>
+  `;
+  document.getElementById("ordChangeCustomerBtn")?.addEventListener("click", goBackToType);
+}
+
+/* ══════════════════════════════════════════════
+   KHÁCH VÃNG LAI — dùng chung 1 hàng customers cố định
+   ══════════════════════════════════════════════ */
+async function useWalkInCustomer() {
+  try {
+    let { data, error } = await client
+      .from("customers").select("*").eq("phone", WALKIN_PHONE).is("deleted_at", null).maybeSingle();
+    if (error) throw error;
+
+    if (!data) {
+      const { data: created, error: insErr } = await client
+        .from("customers")
+        .insert({ name: WALKIN_NAME, phone: WALKIN_PHONE, created_by: currentSession.displayName || currentSession.username })
+        .select().single();
+      if (insErr) throw insErr;
+      data = created;
+    }
+
+    ordFoundCustomer = data;
+    document.getElementById("ordDiscountPct").value = 0;
+    orderDraftRows = [];
+    document.getElementById("orderDraftRows").innerHTML = "";
+    addOrderDraftRow();
+    showOrderFormArea();
+  } catch (err) {
+    window.showToast("❌ Không thể tạo đơn cho khách vãng lai: " + err.message, "#e17055");
+    goBackToType();
+  }
+}
+
+/* ══════════════════════════════════════════════
+   TRA SĐT — chỉ dùng khi chọn "Thành viên"
+   ══════════════════════════════════════════════ */
+async function lookupCustomerForOrder() {
+  if (!canCreateOrders) return;
+  const phone = M_O.normalizePhone(document.getElementById("ordLookupPhone").value);
+  const notFoundBox = document.getElementById("ordCustomerNotFound");
+
+  if (!/^0\d{9,10}$/.test(phone)) { window.showToast("⚠️ SĐT không hợp lệ.", "#e17055"); return; }
+
+  const { data, error } = await client
+    .from("customers").select("*").eq("phone", phone).is("deleted_at", null).maybeSingle();
+
+  if (error || !data) {
+    notFoundBox.classList.remove("hidden");
+    return;
+  }
+
+  notFoundBox.classList.add("hidden");
+  ordFoundCustomer = data;
+  const info = M_O.getLevelInfo(data.level);
+  document.getElementById("ordDiscountPct").value = info.discount_pct || 0;
   orderDraftRows = [];
   document.getElementById("orderDraftRows").innerHTML = "";
+  addOrderDraftRow();
+  showOrderFormArea();
 }
 
 async function loadOrderDrinksCache() {
@@ -248,43 +418,6 @@ async function loadOrderDrinksCache() {
   } catch (err) {
     console.warn("loadOrderDrinksCache:", err.message);
   }
-}
-
-/* ══════════════════════════════════════════════
-   TRA SĐT
-   ══════════════════════════════════════════════ */
-async function lookupCustomerForOrder() {
-  /* ⚠️ SỬA: isOrdersReadOnly → canCreateOrders */
-  if (!canCreateOrders) return;
-  const phone = M_O.normalizePhone(document.getElementById("ordLookupPhone").value);
-  const foundBox    = document.getElementById("ordCustomerFound");
-  const notFoundBox = document.getElementById("ordCustomerNotFound");
-  const formArea    = document.getElementById("ordFormArea");
-
-  if (!/^0\d{9,10}$/.test(phone)) { window.showToast("⚠️ SĐT không hợp lệ.", "#e17055"); return; }
-
-  const { data, error } = await client
-    .from("customers").select("*").eq("phone", phone).is("deleted_at", null).maybeSingle();
-
-  if (error || !data) {
-    foundBox.classList.add("hidden");
-    notFoundBox.classList.remove("hidden");
-    formArea.classList.add("hidden");
-    ordFoundCustomer = null;
-    return;
-  }
-
-  ordFoundCustomer = data;
-  const info = M_O.getLevelInfo(data.level);
-  foundBox.innerHTML = `${info.rank_icon} <b>${window.escHtml(data.name)}</b> — ${window.escHtml(info.rank_name)} · ${data.xp} XP`;
-  foundBox.classList.remove("hidden");
-  notFoundBox.classList.add("hidden");
-  formArea.classList.remove("hidden");
-
-  document.getElementById("ordDiscountPct").value = info.discount_pct || 0;
-  orderDraftRows = [];
-  document.getElementById("orderDraftRows").innerHTML = "";
-  addOrderDraftRow();
 }
 
 /* ══════════════════════════════════════════════
@@ -327,10 +460,6 @@ function readOrderDraftRows() {
   })).filter(r => r.drink_id && r.quantity > 0);
 }
 
-/* ⚠️ SỬA: preview giờ chỉ hiện dòng "Lợi nhuận gộp" nếu
-   canViewOrderCost = true. Barstaff vẫn thấy đầy đủ tên món, số
-   lượng, và tổng "Khách trả" (cần để thu tiền đúng), chỉ riêng giá
-   vốn/lợi nhuận là bị ẩn. */
 function updateOrderPreview() {
   const box = document.getElementById("ordPreviewBox");
   if (!box) return;
@@ -366,10 +495,10 @@ function updateOrderPreview() {
 }
 
 /* ══════════════════════════════════════════════
-   SUBMIT ĐƠN — giữ nguyên logic gốc (kho + auto check-in)
+   SUBMIT ĐƠN — giữ nguyên logic gốc (kho + auto check-in),
+   chỉ khác: khi xong thì ĐÓNG POPUP thay vì reset khu vực inline
    ══════════════════════════════════════════════ */
 async function submitOrder() {
-  /* ⚠️ SỬA: isOrdersReadOnly → canCreateOrders */
   if (!canCreateOrders || !ordFoundCustomer) return;
   const rows = readOrderDraftRows();
   if (!rows.length) { window.showToast("⚠️ Vui lòng chọn ít nhất 1 sản phẩm.", "#e17055"); return; }
@@ -409,7 +538,7 @@ async function submitOrder() {
     await maybeAutoCheckin(customerId, order.id, staff);
 
     window.showToast(`✅ Đã tạo đơn hàng ${order.order_number}!`);
-    resetOrderForm();
+    closeOrderCreateModal();
 
     /* Chỉ tự tải lại bảng nếu khoảng ngày đang xem có bao gồm hôm nay */
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -497,9 +626,8 @@ async function maybeAutoCheckin(customerId, orderId, staff) {
 }
 
 /* ══════════════════════════════════════════════
-   TRA CỨU THEO KHOẢNG NGÀY + ACCORDION
-   ⚠️ Bảng này chỉ hiện "Khách trả", KHÔNG hiện giá vốn/lợi nhuận ở
-   đâu cả — nên không cần thêm check canViewOrderCost ở đây.
+   TRA CỨU THEO KHOẢNG NGÀY + TÌM SĐT/TÊN + ACCORDION
+   ⚠️ Bảng này chỉ hiện "Khách trả", KHÔNG hiện giá vốn/lợi nhuận.
    ══════════════════════════════════════════════ */
 async function loadOrdersByDate(fromStr, toStr) {
   const tbody = document.getElementById("ordDateTableBody");
@@ -523,13 +651,24 @@ async function loadOrdersByDate(fromStr, toStr) {
 
 function renderOrdersOfDayTable() {
   const tbody = document.getElementById("ordDateTableBody");
-  if (!ordersOfDay.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Không có đơn hàng nào trong khoảng ngày này.</td></tr>`;
+
+  const filtered = ordHistorySearchQ
+    ? ordersOfDay.filter(o => {
+        const name  = (o.customers?.name  || "").toLowerCase();
+        const phone = (o.customers?.phone || "").toLowerCase();
+        const num   = (o.order_number || "").toLowerCase();
+        return name.includes(ordHistorySearchQ) || phone.includes(ordHistorySearchQ) || num.includes(ordHistorySearchQ);
+      })
+    : ordersOfDay;
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">${
+      ordHistorySearchQ ? "Không tìm thấy đơn hàng phù hợp với SĐT/tên này trong khoảng ngày đã chọn." : "Không có đơn hàng nào trong khoảng ngày này."
+    }</td></tr>`;
     return;
   }
 
-  /* Khoảng ngày có thể trải nhiều ngày → hiển thị cả ngày, không chỉ giờ */
-  tbody.innerHTML = ordersOfDay.map(o => {
+  tbody.innerHTML = filtered.map(o => {
     const items = o.customer_order_items || [];
     const activeItems = items.filter(it => !it.is_void);
     const totalPaid = activeItems.reduce((s, it) => s + Number(it.customer_paid), 0);
@@ -580,8 +719,7 @@ function renderOrdersOfDayTable() {
 
 /* ══════════════════════════════════════════════
    HUỶ ĐƠN / HUỶ DÒNG (giữ nguyên logic gốc — vẫn dùng
-   isOrdersReadOnly, KHÔNG đổi sang canCreateOrders. Barstaff được
-   tạo đơn nhưng vẫn KHÔNG được huỷ đơn/huỷ dòng.)
+   isOrdersReadOnly, KHÔNG đổi sang canCreateOrders.)
    ══════════════════════════════════════════════ */
 function openVoidModal(type, targetId, customerId) {
   if (isOrdersReadOnly) return;
