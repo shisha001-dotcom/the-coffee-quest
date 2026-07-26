@@ -206,37 +206,30 @@
      ══════════════════════════════════════════════ -->
 
 <!-- ══════════════════════════════════════════════
-     SCRIPTS — thứ tự quan trọng:
-     1) shared-config / shared-emoji / shared-categories / shared-utils
-     2) core/dashboard-permissions.js
-     3) Supabase SDK + QRCode CDN
-     4) core/dashboard-auth.js   → `client` + `currentSession` global
-     5) core/dashboard-page-registry.js → window.AdminDashboard
-     6) modules/inventory/inventory-shared.js → window.Inventory
-        PHẢI load TRƯỚC modules/drinks/dashboard-drinks.js VÀ TRƯỚC
-        modules/orders/dashboard-orders.js (cần state.ingredients để
-        trừ kho khi tạo đơn)
-     7) modules/games/dashboard-games.js + modules/drinks/dashboard-drinks.js
-     8) modules/games/dashboard-game-detail.js
-     9) modules/membership/membership-shared.js  → PHẢI load TRƯỚC
-        3 file domain Membership + dashboard-orders.js bên dưới
-     10) modules/membership/dashboard-customers.js   (đăng ký page
-         "customersPage" — DUY NHẤT cho domain này; bảng danh sách +
-         thêm/xoá khách, KHÔNG còn tạo đơn/huỷ đơn)
-         modules/membership/dashboard-customer-detail.js (MỚI — page
-         "customerDetailPage": lịch sử đơn (chỉ xem) + lịch sử EXP,
-         cần M.state.customers đã load nên load SAU dashboard-customers.js)
-         modules/membership/dashboard-quests.js
-         modules/membership/dashboard-levels.js
-     11) modules/orders/dashboard-orders.js (MỚI — đăng ký page riêng
-         "🧾 Đơn hàng": tạo đơn (tra SĐT/chọn món/submit/auto check-in)
-         + tra cứu theo ngày (accordion) + huỷ đơn/huỷ dòng. Cần
-         window.Inventory + window.Membership đã load trước.)
-     12) modules/inventory/dashboard-ingredients.js (đăng ký page riêng
-         "Kho nguyên liệu", độc lập với Membership)
-     13) core/dashboard-nav.js   → điều hướng, dùng loadGames/loadDrinks
-     14) các module ES module (type="module") — chat/analytics/banners/media/accounts
-     15) dashboard-mobile-menu.js → cuối cùng, cần .sidebar đã có trong DOM
+     SCRIPTS
+     ─────────────────────────────────────────────
+     ⚠️ ĐÃ SỬA (fix lỗi "load mãi không ra dữ liệu" + "sidebar thiếu
+     tính năng"): CHỈ còn các script hạ tầng + dashboard-auth.js ở
+     đây. KHÔNG được thêm bất kỳ <script> nào khác phía sau
+     dashboard-auth.js nữa.
+
+     Lý do: dashboard-auth.js tự động tải toàn bộ phần còn lại
+     (page-registry, inventory, games, drinks, membership, orders,
+     nav, chat, analytics, banners, media, accounts, mobile-menu)
+     bằng JavaScript SAU KHI xác thực xong (session Supabase Auth +
+     hồ sơ admin_users đã sẵn sàng) — xem SCRIPT_SEQUENCE /
+     MODULE_SEQUENCE trong admin/core/dashboard-auth.js.
+
+     TRƯỚC ĐÂY các script đó bị khai báo TĨNH ở file này ĐỒNG THỜI
+     cũng được dashboard-auth.js tải lại bằng JS lần thứ 2 → gây 2 lỗi:
+       1) Script tĩnh chạy NGAY lúc parse HTML, tức là TRƯỚC khi biến
+          `client`/`currentSession` được gán (vì xác thực là async)
+          → dashboard-games.js gọi client.from(...) trên `undefined`
+          → trang "Boardgames" treo mãi ở "⏳ Đang tải dữ liệu...".
+       2) Lần tải thứ 2 (do dashboard-auth.js) bị SyntaxError vì
+          const/let khai báo trùng ở top-level → các module phía sau
+          (Kho nguyên liệu, Đơn hàng, Thư viện Media, Banners, Quản lý
+          tài khoản...) không đăng ký được vào sidebar hoặc mất hẳn.
      ══════════════════════════════════════════════ -->
 <script src="../js/shared-config.js"></script>
 <script src="../js/shared-emoji.js"></script>
@@ -246,33 +239,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="./core/dashboard-auth.js"></script>
-<script src="./core/dashboard-page-registry.js"></script>
-
-<script src="./modules/inventory/inventory-shared.js"></script>
-
-<script src="./modules/games/dashboard-games.js"></script>
-<script src="./modules/drinks/dashboard-drinks.js"></script>
-<script src="./modules/games/dashboard-game-detail.js"></script>
-
-<script src="./modules/membership/membership-shared.js"></script>
-<script src="./modules/membership/dashboard-customers.js"></script>
-<script src="./modules/membership/dashboard-customer-detail.js"></script>
-<script src="./modules/membership/dashboard-quests.js"></script>
-<script src="./modules/membership/dashboard-levels.js"></script>
-
-<script src="./modules/orders/dashboard-orders.js"></script>
-
-<script src="./modules/inventory/dashboard-ingredients.js"></script>
-
-<script src="./core/dashboard-nav.js"></script>
-
-<script type="module" src="./modules/chat/dashboard-chat.js"></script>
-<script type="module" src="./modules/analytics/dashboard-analytics.js"></script>
-<script type="module" src="./modules/banners/dashboard-banners.js"></script>
-<script type="module" src="./modules/media/dashboard-media.js"></script>
-<script type="module" src="./modules/accounts/dashboard-accounts.js"></script>
-
-<script src="./dashboard-mobile-menu.js"></script>
 
 </body>
 </html>
