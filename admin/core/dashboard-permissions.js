@@ -20,11 +20,15 @@
      và dashboard-game-detail.js (setModalReadOnly / setDrinkModalReadOnly
      / setGameDetailReadOnly). Dùng được cho cả modal lẫn page
      chi tiết vì chỉ cần 1 container gốc (modal-box hoặc page div).
-
-   ⚠️ Load file này TRƯỚC admin/core/dashboard-auth.js
-      (auth.js dùng AdminPermissions.roleInfo() để vẽ user bar)
-      và TRƯỚC mọi module có dùng AdminPermissions.can() /
-      isReadOnly() / applyReadOnlyForm() trong guard hoặc render.
+   - ⚠️ MỚI (barstaff được tạo đơn hàng nhưng không xem giá vốn):
+     Thêm ORDER_CREATE_EXTRA_ROLES + canCreateOrders(role) — cho
+     phép 1 số role READ-ONLY vẫn được TẠO đơn hàng (khác với việc
+     được sửa/xóa toàn bộ nơi khác, vẫn dùng isReadOnly() như cũ).
+     Thêm COST_HIDDEN_ROLES + canViewCost(role) — role trong danh
+     sách này KHÔNG được thấy giá vốn nguyên liệu / lợi nhuận gộp,
+     dù có được tạo đơn hàng hay không. 2 danh sách này ĐỘC LẬP với
+     READONLY_ROLES — không tự suy ra từ nhau, phải khai báo tường
+     minh để tránh vô tình cấp nhầm quyền khi thêm role mới.
    ══════════════════════════════════════════════ */
 
 window.AdminPermissions = (function () {
@@ -50,6 +54,19 @@ window.AdminPermissions = (function () {
      (Boardgames, Đồ uống...). ── */
   const READONLY_ROLES = ["barstaff"];
 
+  /* ── ⚠️ MỚI: role trong READONLY_ROLES nhưng vẫn được TẠO đơn
+     hàng (KHÔNG áp dụng cho huỷ đơn/huỷ dòng — việc đó vẫn dùng
+     isReadOnly() như trước, giữ nguyên bị chặn). Chỉ liệt kê role
+     cần ngoại lệ; role không nằm trong READONLY_ROLES thì luôn
+     được tạo đơn nên không cần khai báo ở đây. ── */
+  const ORDER_CREATE_EXTRA_ROLES = ["barstaff"];
+
+  /* ── ⚠️ MỚI: role KHÔNG được thấy giá vốn nguyên liệu / lợi
+     nhuận gộp (trong preview tạo đơn, báo cáo, v.v.). Độc lập với
+     READONLY_ROLES/ORDER_CREATE_EXTRA_ROLES — 1 role có thể vừa
+     được tạo đơn vừa bị giấu giá vốn, như barstaff hiện tại. ── */
+  const COST_HIDDEN_ROLES = ["barstaff"];
+
   function roleInfo(role) {
     return ROLES[role] || { label: role || "—", color: "#888" };
   }
@@ -69,9 +86,30 @@ window.AdminPermissions = (function () {
   }
 
   /* isReadOnly(role) → true nếu role chỉ được xem, không được
-     thêm/sửa/xóa ở bất kỳ trang nào */
+     thêm/sửa/xóa ở bất kỳ trang nào. Dùng nguyên như cũ cho mọi nơi
+     KHÔNG phải "tạo đơn hàng" (bao gồm cả huỷ đơn/huỷ dòng). */
   function isReadOnly(role) {
     return READONLY_ROLES.includes(role);
+  }
+
+  /* ── ⚠️ MỚI: canCreateOrders(role) ──
+     true nếu role được phép tạo đơn hàng mới:
+       - Role KHÔNG thuộc READONLY_ROLES → luôn được (hành vi cũ).
+       - Role thuộc READONLY_ROLES NHƯNG có trong
+         ORDER_CREATE_EXTRA_ROLES → vẫn được (ngoại lệ mới).
+     Không ảnh hưởng tới huỷ đơn/huỷ dòng — chỗ đó tiếp tục dùng
+     isReadOnly() như trước. */
+  function canCreateOrders(role) {
+    if (!READONLY_ROLES.includes(role)) return true;
+    return ORDER_CREATE_EXTRA_ROLES.includes(role);
+  }
+
+  /* ── ⚠️ MỚI: canViewCost(role) ──
+     true nếu role được phép thấy giá vốn nguyên liệu / lợi nhuận
+     gộp. Mặc định TRUE cho mọi role, trừ role nằm trong
+     COST_HIDDEN_ROLES. */
+  function canViewCost(role) {
+    return !COST_HIDDEN_ROLES.includes(role);
   }
 
   /* ══════════════════════════════════════════════
@@ -105,5 +143,9 @@ window.AdminPermissions = (function () {
     }
   }
 
-  return { ROLES, roleInfo, isSuperAdmin, can, isReadOnly, applyReadOnlyForm };
+  return {
+    ROLES, roleInfo, isSuperAdmin, can, isReadOnly,
+    canCreateOrders, canViewCost,
+    applyReadOnlyForm,
+  };
 })();
