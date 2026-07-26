@@ -1,34 +1,31 @@
 /* ══════════════════════════════════════════════
    DASHBOARD ORDERS — admin/modules/orders/dashboard-orders.js
    ─────────────────────────────────────────────
-   ⚠️ VIẾT LẠI (UX tạo đơn hàng):
-   - Tra cứu SĐT không còn là bước bắt buộc đầu tiên để tạo đơn —
-     khách vãng lai (không muốn/không có SĐT đăng ký) giờ tạo đơn
-     được ngay, gán vào 1 khách hàng cố định "Khách vãng lai"
-     (phone = WALKIN_PHONE, tự tạo trong bảng `customers` nếu chưa
-     có — cần vì customer_orders.customer_id là NOT NULL/FK).
-   - Toàn bộ luồng "Tạo đơn hàng mới" giờ là 1 POPUP (orderCreateModal):
-       Bước 1: chọn "🎫 Thành viên" hay "🚶 Khách vãng lai"
-       Bước 2 (chỉ Thành viên): nhập SĐT → tra cứu
-       Bước 3: chọn sản phẩm + giảm giá + preview + submit
-     (Khách vãng lai bỏ qua Bước 2, vào thẳng Bước 3, giảm giá mặc
-     định luôn là 0% — không áp theo cấp độ vì không phải thành viên.)
-   - Tra cứu theo SĐT/tên khách giờ nằm ở khối "📅 Lịch sử đơn hàng"
-     (lọc client-side trên danh sách đơn đã tải theo khoảng ngày).
-   - ⚠️ MỚI: Khách vãng lai KHÔNG được tích XP / streak / check-in tự
-     động (maybeAutoCheckin() bị bỏ qua hoàn toàn cho đơn của khách
-     vãng lai) — vì hàng "Khách vãng lai" là 1 customer dùng CHUNG
-     cho mọi lượt khách không đăng ký, tích XP/streak vào đó sẽ vô
-     nghĩa và gây lệch số liệu.
+   ⚠️ MỚI: Xuất Excel (SheetJS/xlsx qua CDN — xem dashboard.html) —
+   nút "⬇️ Xuất Excel" trong khối Lịch sử đơn hàng, xuất đúng danh
+   sách đơn đang hiển thị (đã lọc theo khoảng ngày + từ khóa tìm
+   kiếm hiện tại), gồm 2 sheet:
+     - "Dòng sản phẩm": mỗi dòng = 1 sản phẩm trong 1 đơn
+     - "Đơn hàng": tổng hợp theo từng đơn
+   Cột giá vốn/lợi nhuận chỉ xuất hiện nếu canViewOrderCost = true
+   (giữ đúng nguyên tắc ẩn giá vốn với barstaff như phần preview
+   tạo đơn).
+
+   ⚠️ VIẾT LẠI (UX tạo đơn hàng — giữ từ bản trước):
+   - Khách vãng lai (WALKIN_PHONE) tạo đơn không cần SĐT, không tích
+     XP/streak/check-in.
+   - Toàn bộ luồng "Tạo đơn hàng mới" là 1 POPUP (orderCreateModal):
+     chọn Thành viên/Khách vãng lai → (tra SĐT nếu Thành viên) →
+     chọn sản phẩm → submit.
+   - Tra cứu SĐT/tên khách nằm ở khối "📅 Lịch sử đơn hàng".
 
    Cần: client, currentSession, window.Membership (M),
-   window.Inventory (INV), window.AdminPermissions.
+   window.Inventory (INV), window.AdminPermissions, window.XLSX
+   (CDN SheetJS — load TRƯỚC file này trong dashboard.html).
    ══════════════════════════════════════════════ */
 
 const M_O = window.Membership;
 
-/* Khách hàng cố định dùng cho "Khách vãng lai" — không cần đăng ký SĐT thật.
-   ⚠️ Đổi số này ở ĐÚNG 1 CHỖ nếu cần thay đổi sau này. */
 const WALKIN_PHONE = "0000136631";
 const WALKIN_NAME  = "Khách vãng lai";
 
@@ -79,7 +76,7 @@ function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 window.AdminDashboard.registerPage({
   pageId: "ordersPage",
   menuId: "ordersMenuItem",
-  placeholderId: "ordersMenuItemPlaceholder", // ⚠️ đã có sẵn trong dashboard.html
+  placeholderId: "ordersMenuItemPlaceholder",
   icon: "🧾",
   label: "Đơn hàng",
   insertBeforeMenuId: "chatMenuItem",
@@ -111,7 +108,7 @@ window.AdminDashboard.registerPage({
       </div>
     </div>
 
-    <!-- ═══ LỊCH SỬ + TRA CỨU ═══ -->
+    <!-- ═══ LỊCH SỬ + TRA CỨU + XUẤT EXCEL ═══ -->
     <div class="table-card" style="padding:22px 24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
         <div style="font-size:14px;font-weight:700;">📅 Lịch sử đơn hàng</div>
@@ -120,6 +117,7 @@ window.AdminDashboard.registerPage({
           <span style="color:var(--text-muted);font-size:13px;">→</span>
           <input type="date" id="ordDateTo" style="height:38px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;">
           <button class="btn btn-secondary" id="ordDateRefreshBtn">🔄</button>
+          <button class="btn btn-secondary" id="ordExportExcelBtn">⬇️ Xuất Excel</button>
         </div>
       </div>
 
@@ -235,7 +233,7 @@ function bindOrdersPageEvents() {
   document.getElementById("ordDiscountPct")?.addEventListener("input", updateOrderPreview);
   document.getElementById("ordSubmitBtn")?.addEventListener("click", submitOrder);
 
-  /* ── Lịch sử theo khoảng ngày + tìm SĐT/tên ── */
+  /* ── Lịch sử theo khoảng ngày + tìm SĐT/tên + xuất Excel ── */
   document.getElementById("ordDateFrom").value = currentOrderFrom;
   document.getElementById("ordDateTo").value   = currentOrderTo;
   document.getElementById("ordDateFrom")?.addEventListener("change", handleOrderDateRangeChange);
@@ -245,6 +243,7 @@ function bindOrdersPageEvents() {
     ordHistorySearchQ = e.target.value.trim().toLowerCase();
     renderOrdersOfDayTable();
   }, 200));
+  document.getElementById("ordExportExcelBtn")?.addEventListener("click", exportOrdersToExcel);
 
   /* ── Modal huỷ ── */
   document.getElementById("closeVoidOrderModalBtn")?.addEventListener("click", () =>
@@ -293,7 +292,6 @@ function resetOrderCreateState() {
   document.getElementById("ordLookupPhone").value = "";
   document.getElementById("ordCustomerNotFound").classList.add("hidden");
   document.getElementById("ordDiscountPct").value = 0;
-  document.getElementById("ordDiscountPct").disabled = false;
   document.getElementById("ordSelectedCustomerBar").innerHTML = "";
 
   document.getElementById("ordStepType").classList.remove("hidden");
@@ -371,9 +369,6 @@ async function useWalkInCustomer() {
     }
 
     ordFoundCustomer = data;
-    /* ⚠️ Khách vãng lai: giảm giá luôn mặc định 0%, KHÔNG lấy theo
-       cấp độ (vì không phải thành viên thật). Nhân viên vẫn có thể
-       tự sửa tay nếu quán có chính sách giảm giá riêng cho trường hợp cụ thể. */
     document.getElementById("ordDiscountPct").value = 0;
     orderDraftRows = [];
     document.getElementById("orderDraftRows").innerHTML = "";
@@ -514,7 +509,7 @@ async function submitOrder() {
   if (!rows.length) { window.showToast("⚠️ Vui lòng chọn ít nhất 1 sản phẩm.", "#e17055"); return; }
 
   const customerId = ordFoundCustomer.id;
-  const isWalkInOrder = ordFoundCustomer.phone === WALKIN_PHONE; // ⚠️ MỚI
+  const isWalkInOrder = ordFoundCustomer.phone === WALKIN_PHONE;
   const discountPct = Number(document.getElementById("ordDiscountPct").value) || 0;
   const staff = currentSession.displayName || currentSession.username;
   const btn = document.getElementById("ordSubmitBtn");
@@ -547,10 +542,6 @@ async function submitOrder() {
 
     await consumeStockForOrderItems(insertedItems);
 
-    /* ⚠️ MỚI: khách vãng lai KHÔNG check-in / KHÔNG tích XP / KHÔNG
-       streak. Đơn hàng vẫn lưu đầy đủ để tổng kết doanh thu/lợi nhuận
-       chung của quán, nhưng không đụng tới customer_quests/xp/level
-       của hàng "Khách vãng lai" dùng chung cho mọi lượt khách khác nhau. */
     if (!isWalkInOrder) {
       await maybeAutoCheckin(customerId, order.id, staff);
     }
@@ -558,7 +549,6 @@ async function submitOrder() {
     window.showToast(`✅ Đã tạo đơn hàng ${order.order_number}!`);
     closeOrderCreateModal();
 
-    /* Chỉ tự tải lại bảng nếu khoảng ngày đang xem có bao gồm hôm nay */
     const todayStr = new Date().toISOString().slice(0, 10);
     if (todayStr >= currentOrderFrom && todayStr <= currentOrderTo) {
       loadOrdersByDate(currentOrderFrom, currentOrderTo);
@@ -645,7 +635,6 @@ async function maybeAutoCheckin(customerId, orderId, staff) {
 
 /* ══════════════════════════════════════════════
    TRA CỨU THEO KHOẢNG NGÀY + TÌM SĐT/TÊN + ACCORDION
-   ⚠️ Bảng này chỉ hiện "Khách trả", KHÔNG hiện giá vốn/lợi nhuận.
    ══════════════════════════════════════════════ */
 async function loadOrdersByDate(fromStr, toStr) {
   const tbody = document.getElementById("ordDateTableBody");
@@ -667,17 +656,21 @@ async function loadOrdersByDate(fromStr, toStr) {
   renderOrdersOfDayTable();
 }
 
+/* ── Trả về danh sách đơn ĐANG hiển thị (đã áp bộ lọc tìm kiếm) —
+   dùng chung cho cả bảng và xuất Excel để luôn khớp nhau. ── */
+function getFilteredOrdersOfDay() {
+  if (!ordHistorySearchQ) return ordersOfDay;
+  return ordersOfDay.filter(o => {
+    const name  = (o.customers?.name  || "").toLowerCase();
+    const phone = (o.customers?.phone || "").toLowerCase();
+    const num   = (o.order_number || "").toLowerCase();
+    return name.includes(ordHistorySearchQ) || phone.includes(ordHistorySearchQ) || num.includes(ordHistorySearchQ);
+  });
+}
+
 function renderOrdersOfDayTable() {
   const tbody = document.getElementById("ordDateTableBody");
-
-  const filtered = ordHistorySearchQ
-    ? ordersOfDay.filter(o => {
-        const name  = (o.customers?.name  || "").toLowerCase();
-        const phone = (o.customers?.phone || "").toLowerCase();
-        const num   = (o.order_number || "").toLowerCase();
-        return name.includes(ordHistorySearchQ) || phone.includes(ordHistorySearchQ) || num.includes(ordHistorySearchQ);
-      })
-    : ordersOfDay;
+  const filtered = getFilteredOrdersOfDay();
 
   if (!filtered.length) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">${
@@ -736,9 +729,122 @@ function renderOrdersOfDayTable() {
 }
 
 /* ══════════════════════════════════════════════
-   HUỶ ĐƠN / HUỶ DÒNG (giữ nguyên logic gốc — vẫn dùng
-   isOrdersReadOnly, KHÔNG đổi sang canCreateOrders. Barstaff được
-   tạo đơn nhưng vẫn KHÔNG được huỷ đơn/huỷ dòng.)
+   ⚠️ MỚI — XUẤT EXCEL (SheetJS/xlsx)
+   Xuất đúng danh sách đơn ĐANG hiển thị (getFilteredOrdersOfDay()),
+   2 sheet: "Dòng sản phẩm" (chi tiết từng dòng) + "Đơn hàng" (tổng
+   hợp theo đơn). Cột giá vốn/lợi nhuận chỉ có nếu canViewOrderCost.
+   ══════════════════════════════════════════════ */
+function exportOrdersToExcel() {
+  if (typeof window.XLSX === "undefined") {
+    window.showToast("⚠️ Chưa tải được thư viện xuất Excel — kiểm tra kết nối mạng hoặc CDN xlsx trong dashboard.html.", "#e17055");
+    return;
+  }
+
+  const orders = getFilteredOrdersOfDay();
+  if (!orders.length) {
+    window.showToast("⚠️ Không có đơn hàng nào để xuất trong khoảng ngày/từ khoá hiện tại.", "#e17055");
+    return;
+  }
+
+  const fmtDT = iso => new Date(iso).toLocaleString("vi-VN");
+
+  /* ── Sheet 1: Dòng sản phẩm ── */
+  const lineHeader = [
+    "Mã đơn", "Khách hàng", "SĐT", "Thời gian tạo đơn",
+    "Sản phẩm", "Số lượng", "Đơn giá", "Giảm giá (%)", "Thành tiền (Khách trả)",
+    ...(canViewOrderCost ? ["Giá vốn NL/đơn vị", "Tổng giá vốn NL", "Lợi nhuận"] : []),
+    "Trạng thái dòng", "Lý do huỷ dòng", "Trạng thái đơn", "Lý do huỷ đơn", "Nhân viên tạo đơn",
+  ];
+
+  const lineRows = [];
+  orders.forEach(o => {
+    const items = o.customer_order_items || [];
+    const custName  = o.customers?.name  || "";
+    const custPhone = o.customers?.phone || "";
+    const orderStatusLabel = o.status === "voided" ? "Đã huỷ" : "Hoàn tất";
+
+    if (!items.length) {
+      lineRows.push([
+        o.order_number, custName, custPhone, fmtDT(o.created_at),
+        "(Không có sản phẩm)", "", "", "", "",
+        ...(canViewOrderCost ? ["", "", ""] : []),
+        "", "", orderStatusLabel, o.void_reason || "", o.staff_name || "",
+      ]);
+      return;
+    }
+
+    items.forEach(it => {
+      lineRows.push([
+        o.order_number, custName, custPhone, fmtDT(o.created_at),
+        it.product_name, it.quantity, Number(it.unit_price), Number(it.discount_pct),
+        Number(it.customer_paid),
+        ...(canViewOrderCost ? [
+          Number(it.ingredient_unit_cost || 0),
+          Number(it.ingredient_cost_total || 0),
+          Number(it.profit || 0),
+        ] : []),
+        it.is_void ? "Đã huỷ" : "Bình thường",
+        it.void_reason || "",
+        orderStatusLabel,
+        o.void_reason || "",
+        o.staff_name || "",
+      ]);
+    });
+  });
+
+  /* ── Sheet 2: Đơn hàng (tổng hợp) ── */
+  const summaryHeader = [
+    "Mã đơn", "Khách hàng", "SĐT", "Thời gian tạo đơn", "Số món (còn hiệu lực)",
+    "Tổng khách trả",
+    ...(canViewOrderCost ? ["Tổng lợi nhuận gộp"] : []),
+    "Trạng thái", "Lý do huỷ", "Nhân viên tạo đơn",
+  ];
+
+  const summaryRows = orders.map(o => {
+    const items = o.customer_order_items || [];
+    const activeItems = items.filter(it => !it.is_void);
+    const totalPaid = activeItems.reduce((s, it) => s + Number(it.customer_paid), 0);
+    const totalProfit = activeItems.reduce((s, it) => s + Number(it.profit || 0), 0);
+    return [
+      o.order_number,
+      o.customers?.name || "",
+      o.customers?.phone || "",
+      fmtDT(o.created_at),
+      activeItems.length,
+      round2(totalPaid),
+      ...(canViewOrderCost ? [round2(totalProfit)] : []),
+      o.status === "voided" ? "Đã huỷ" : "Hoàn tất",
+      o.void_reason || "",
+      o.staff_name || "",
+    ];
+  });
+
+  const wb = window.XLSX.utils.book_new();
+
+  const wsLines = window.XLSX.utils.aoa_to_sheet([lineHeader, ...lineRows]);
+  wsLines['!cols'] = lineHeader.map((_, i) => ({ wch: i === 0 ? 14 : i === 4 ? 26 : 16 }));
+  window.XLSX.utils.book_append_sheet(wb, wsLines, "Dòng sản phẩm");
+
+  const wsSummary = window.XLSX.utils.aoa_to_sheet([summaryHeader, ...summaryRows]);
+  wsSummary['!cols'] = summaryHeader.map((_, i) => ({ wch: i === 0 ? 14 : i === 1 ? 22 : 16 }));
+  window.XLSX.utils.book_append_sheet(wb, wsSummary, "Đơn hàng");
+
+  const rangeLabel = currentOrderFrom === currentOrderTo
+    ? currentOrderFrom
+    : `${currentOrderFrom}_den_${currentOrderTo}`;
+  const searchSuffix = ordHistorySearchQ ? `_loc-${window.slugify(ordHistorySearchQ)}` : "";
+  const filename = `don-hang_${rangeLabel}${searchSuffix}.xlsx`;
+
+  try {
+    window.XLSX.writeFile(wb, filename);
+    window.showToast(`✅ Đã xuất file "${filename}"!`);
+  } catch (err) {
+    window.showToast("❌ Lỗi khi xuất Excel: " + err.message, "#e17055");
+  }
+}
+
+/* ══════════════════════════════════════════════
+   HUỶ ĐƠN / HUỶ DÒNG
    ══════════════════════════════════════════════ */
 function openVoidModal(type, targetId, customerId) {
   if (isOrdersReadOnly) return;
