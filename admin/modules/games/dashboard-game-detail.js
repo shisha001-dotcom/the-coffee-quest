@@ -12,11 +12,16 @@
    - Các nút icon-only (gdQrDownloadBtn không đổi vì đã có text)
      giữ nguyên; đã thêm aria-label cho khu vực preview lỗi ảnh.
 
+   ⚠️ SỬA (ponytail dedupe): getGdYoutubeId() cục bộ đã bị xoá —
+   trùng y hệt window.getYoutubeId() trong js/shared-utils.js (dùng
+   chung với js/app.js — trang chi tiết game phía frontend). Dùng
+   thẳng window.getYoutubeId() thay vì giữ 2 bản giống nhau.
+
    Cần: `client`, `currentSession`, `isGamesReadOnly`, `games`, `parseLines`,
    `parseImages`, `setLines`, `setImages` (tất cả từ dashboard-games.js —
    load TRƯỚC file này), window.escHtml / window.showToast / window.showConfirm /
-   window.slugify / window.buildGameSlugMap (shared-utils.js), thư viện
-   QRCode (CDN, load trước file này).
+   window.slugify / window.buildGameSlugMap / window.getYoutubeId (shared-utils.js),
+   thư viện QRCode (CDN, load trước file này).
    ══════════════════════════════════════════════ */
 
 /* ⚠️ Đổi domain tại đây nếu deploy sang địa chỉ khác */
@@ -148,23 +153,11 @@ function updateGdImagesPreview() {
   `).join('');
 }
 
-function getGdYoutubeId(url) {
-  if (!url) return null;
-  const patterns = [
-    /[?&]v=([a-zA-Z0-9_-]{11})/,
-    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
-    /embed\/([a-zA-Z0-9_-]{11})/,
-    /shorts\/([a-zA-Z0-9_-]{11})/,
-  ];
-  for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
-  return null;
-}
-
 function updateGdYoutubePreview() {
   const url = document.getElementById("gdYoutube")?.value.trim();
   const box = document.getElementById("gdYoutubePreview");
   if (!box) return;
-  const ytId = getGdYoutubeId(url);
+  const ytId = window.getYoutubeId(url);
   if (!ytId) {
     box.innerHTML = url
       ? '<span role="alert" style="font-size:12px;color:var(--danger);text-align:center;padding:8px;">⚠️ Link YouTube không hợp lệ</span>'
