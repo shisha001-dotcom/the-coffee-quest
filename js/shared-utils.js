@@ -16,12 +16,14 @@
      window.slugify(s)
      window.buildGameSlugMap(games)
      window.showConfirm(opts)        — modal xác nhận (Đồng ý/Huỷ)
-     window.showReasonPrompt(opts)   — MỚI (migration V3): modal xác
-                                        nhận CÓ Ô NHẬP LÝ DO bắt buộc,
-                                        dùng cho mọi thao tác "xoá"
-                                        (soft-delete/vô hiệu hoá) cần
-                                        lưu lại vì sao — thay vì mất
-                                        hẳn dữ liệu như xoá cứng.
+     window.showReasonPrompt(opts)   — modal xác nhận CÓ Ô NHẬP LÝ DO bắt buộc
+     window.getYoutubeId(url)        — MỚI: parse ID từ 4 dạng URL YouTube,
+                                        dùng chung bởi js/app.js (frontend)
+                                        và admin/modules/games/dashboard-game-detail.js
+     window.extractGDriveFileId(url) — MỚI: trích fileId từ mọi dạng link
+                                        Google Drive, dùng chung bởi
+                                        gdrivePreviewUrl() (PDF) và
+                                        dashboard-media.js::convertGDriveUrl()
    ══════════════════════════════════════════════ */
 
 /* ── ESCAPE HTML ── */
@@ -390,15 +392,46 @@ window.showToast = function (msg, bg = '#00b894') {
   };
 })();
 
+/* ── YOUTUBE ID ──
+   Parse ID từ 4 dạng URL YouTube (watch?v=, youtu.be/, embed/, shorts/).
+   Dùng chung bởi js/app.js (trang chi tiết game — frontend) và
+   admin/modules/games/dashboard-game-detail.js (preview thumbnail khi
+   admin nhập link) — trước đây mỗi nơi tự viết lại y hệt logic này. */
+window.getYoutubeId = function (url) {
+  if (!url || url.includes('/None')) return null;
+  const patterns = [
+    /[?&]v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /embed\/([a-zA-Z0-9_-]{11})/,
+    /shorts\/([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
+  return null;
+};
+
+/* ── GOOGLE DRIVE FILE ID ──
+   Trích fileId từ mọi dạng link chia sẻ Google Drive gặp trong dự án
+   (/file/d/{id}/, ?id={id}, open?id={id}, uc?...&id={id}). Dùng chung
+   bởi gdrivePreviewUrl() (PDF luật chơi) và
+   admin/modules/media/dashboard-media.js::convertGDriveUrl() (ảnh) —
+   trước đây mỗi nơi tự viết lại 1 chuỗi regex gần giống hệt nhau. */
+window.extractGDriveFileId = function (url) {
+  if (!url) return null;
+  url = url.trim();
+  let m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  m = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  return null;
+};
+
 /* ── GOOGLE DRIVE PDF PREVIEW ── */
 window.gdrivePreviewUrl = function (url) {
   if (!url) return null;
-  url = url.trim();
-  let fileId = null, m;
-  m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (m) fileId = m[1];
-  if (!fileId) { m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/); if (m) fileId = m[1]; }
-  if (!fileId) return url;
+  const fileId = window.extractGDriveFileId(url.trim());
+  if (!fileId) return url.trim();
   return `https://drive.google.com/file/d/${fileId}/preview`;
 };
 
