@@ -14,6 +14,11 @@
 //  sách game càng lớn, chi phí render càng tăng bậc hai không cần
 //  thiết. Giờ tra cứu O(1) qua Map, build lại 1 lần mỗi khi GAMES
 //  thay đổi (ngay sau GAMES_READY).
+//
+//  ⚠️ SỬA (ponytail dedupe): getYtId() cục bộ đã bị xoá — trùng y
+//  hệt window.getYoutubeId() trong js/shared-utils.js (dùng chung
+//  với admin/modules/games/dashboard-game-detail.js). Dùng thẳng
+//  window.getYoutubeId() thay vì giữ 2 bản giống nhau.
 // ═══════════════════════════════════════════════════════════════
 
 let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
@@ -22,12 +27,6 @@ let gameIndexById = new Map(); // ⚠️ MỚI
 
 const esc = window.escHtml;
 function diffClass(d){ return d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium' }
-function getYtId(url){
-  if(!url||url.includes('/None')) return null;
-  const pp=[/[?&]v=([a-zA-Z0-9_-]{11})/,/youtu\.be\/([a-zA-Z0-9_-]{11})/,/embed\/([a-zA-Z0-9_-]{11})/,/shorts\/([a-zA-Z0-9_-]{11})/];
-  for(const p of pp){ const m=url.match(p); if(m) return m[1]; }
-  return null;
-}
 
 /* ── Helper: lấy categories chuẩn (luôn trả về array) ── */
 function getCategories(g){
@@ -288,7 +287,7 @@ if(pw && pd){
   const vid = document.getElementById('d-video');
   if(vw && vid){
     vw.style.display = 'block';
-    const ytId = getYtId(g.youtubeUrl);
+    const ytId = window.getYoutubeId(g.youtubeUrl);
     vid.innerHTML = ytId
       ? `<div class="video-frame"><iframe src="https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1" title="Hướng dẫn ${esc(g.name)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
       : `<div class="no-video"><div class="nv-icon">📽️</div><p>Chưa có video hướng dẫn.</p><a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to play '+g.name)}" target="_blank" rel="noopener">Tìm trên YouTube →</a></div>`;
