@@ -15,23 +15,23 @@
 //  thiết. Giờ tra cứu O(1) qua Map, build lại 1 lần mỗi khi GAMES
 //  thay đổi (ngay sau GAMES_READY).
 //
-//  ⚠️ SỬA (ponytail dedupe): getYtId() cục bộ đã bị xoá — trùng y
-//  hệt window.getYoutubeId() trong js/shared-utils.js (dùng chung
-//  với admin/modules/games/dashboard-game-detail.js). Dùng thẳng
-//  window.getYoutubeId() thay vì giữ 2 bản giống nhau.
-//
 //  ⚠️ SỬA (fix "Không tìm thấy game nào" trên mobile / mạng chậm):
-//  TRƯỚC ĐÂY loadPage('boardgame')/loadPage('news') render NGAY
-//  bằng biến GAMES hiện tại mà không đợi window.GAMES_READY. Lần
-//  ĐẦU TIÊN load trang, khối `window.GAMES_READY.then(routeFromHash)`
-//  ở cuối file che giấu vấn đề này. Nhưng mọi lần điều hướng SAU ĐÓ
-//  (bấm menu "Luật Boardgame" chẳng hạn) đều đi qua hashchange →
-//  routeFromHash() → loadPage() KHÔNG chờ GAMES_READY — nếu Supabase
-//  chưa fetch xong (rất dễ xảy ra trên mạng mobile chậm/chập chờn),
-//  GAMES vẫn là mảng rỗng → renderGrid() luôn ra "Không tìm thấy
-//  game nào" và KHÔNG có gì render lại sau khi dữ liệu về kịp.
-//  → GIỜ: loadPage() luôn `await window.GAMES_READY` trước khi
-//  render bất kỳ trang nào phụ thuộc GAMES (boardgame/news).
+//  loadPage('boardgame')/loadPage('news') giờ LUÔN `await
+//  window.GAMES_READY` trước khi render, thay vì chỉ đợi đúng 1 lần
+//  duy nhất lúc mở trang. Nhờ vậy dù người dùng bấm menu trước khi
+//  Supabase kịp trả dữ liệu (hay gặp trên mobile mạng chậm), trang
+//  vẫn đợi dữ liệu về rồi mới render, không còn bị "Không tìm thấy
+//  game nào" vĩnh viễn.
+//
+//  ⚠️ SỬA (fix "renderDailyPick is not defined"): TOÀN BỘ hàm được
+//  gọi từ loadPage()/routeFromHash() giờ được gán tường minh vào
+//  `window.*` NGAY SAU khi định nghĩa (thay vì chỉ dựa vào hoisting
+//  của function declaration). Đồng thời loadPage() gọi qua
+//  `window.renderDailyPick`/`window.initBoardgame`... có kiểm tra
+//  `typeof === 'function'` trước khi gọi — nếu vì lý do nào đó
+//  (file dán thiếu, lỗi cú pháp phía trên khiến parser dừng sớm...)
+//  một hàm chưa sẵn sàng, ứng dụng sẽ báo lỗi rõ ràng trong console
+//  thay vì crash trắng trang, và không văng lỗi "not defined" nữa.
 // ═══════════════════════════════════════════════════════════════
 
 let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
@@ -111,15 +111,25 @@ async function loadPage(pageName){
     if(pageName === 'boardgame'){
       await window.GAMES_READY;
       ensureGameIndexBuilt();
-      initBoardgame();
+      if (typeof window.initBoardgame === 'function') {
+        window.initBoardgame();
+      } else {
+        console.error('[app.js] initBoardgame chưa sẵn sàng — kiểm tra lại js/app.js có bị thiếu đoạn khi dán không.');
+      }
     }
-    if(pageName === 'settings')  initSettings();
+    if(pageName === 'settings'){
+      if (typeof window.initSettings === 'function') window.initSettings();
+    }
     /* ĐÃ TÁCH: gọi qua window vì logic thật nằm ở js/membership.js */
     if(pageName === 'membership' && typeof window.initMembership === 'function') window.initMembership();
     if(pageName === 'news'){
       await window.GAMES_READY;
       ensureGameIndexBuilt();
-      renderDailyPick();
+      if (typeof window.renderDailyPick === 'function') {
+        window.renderDailyPick();
+      } else {
+        console.error('[app.js] renderDailyPick chưa sẵn sàng — kiểm tra lại js/app.js có bị thiếu đoạn khi dán không.');
+      }
     }
   } catch(e){
     app.innerHTML = '<div style="padding:60px 24px;text-align:center">'
@@ -294,21 +304,21 @@ function renderDetail(idx){
   setH('d-turn',  (g.turn||[]).map(t=>`<div class="turn-item"><div class="turn-icon">▸</div><div>${esc(t)}</div></div>`).join(''));
 
   const pw = document.getElementById('d-pdf-wrap');
-const pd = document.getElementById('d-pdf');
-if(pw && pd){
-  const previewUrl = g.rulesPdfUrl ? window.gdrivePreviewUrl(g.rulesPdfUrl) : null;
-  if(previewUrl){
-    pw.style.display = 'block';
-    pd.innerHTML = `
-      <div class="pdf-frame">
-        <iframe src="${previewUrl}" title="Luật chơi ${esc(g.name)} (PDF)" allow="autoplay" loading="lazy"></iframe>
-      </div>
-      <a class="pdf-open-link" href="${g.rulesPdfUrl}" target="_blank" rel="noopener">↗️ Mở file gốc trên Google Drive</a>`;
-  } else {
-    pw.style.display = 'none';
-    pd.innerHTML = '';
+  const pd = document.getElementById('d-pdf');
+  if(pw && pd){
+    const previewUrl = g.rulesPdfUrl ? window.gdrivePreviewUrl(g.rulesPdfUrl) : null;
+    if(previewUrl){
+      pw.style.display = 'block';
+      pd.innerHTML = `
+        <div class="pdf-frame">
+          <iframe src="${previewUrl}" title="Luật chơi ${esc(g.name)} (PDF)" allow="autoplay" loading="lazy"></iframe>
+        </div>
+        <a class="pdf-open-link" href="${g.rulesPdfUrl}" target="_blank" rel="noopener">↗️ Mở file gốc trên Google Drive</a>`;
+    } else {
+      pw.style.display = 'none';
+      pd.innerHTML = '';
+    }
   }
-}
 
   const tw = document.getElementById('d-tips-wrap');
   if(tw){
@@ -472,11 +482,112 @@ function routeFromHash(){
 
 window.addEventListener('hashchange', routeFromHash);
 
-/* ⚠️ SỬA: khối này giờ chỉ lo build gameSlugs/gameIndexById ngay khi
-   có dữ liệu (phòng trường hợp loadPage() sau này gọi ensureGameIndexBuilt()
-   mà GAMES vẫn rỗng do lỗi mạng) + route lần đầu. loadPage() ở trên đã
-   TỰ đợi window.GAMES_READY cho mọi lần điều hướng về sau — không còn
-   phụ thuộc hoàn toàn vào khối .then() này nữa. */
+/* ═══ BANNERS (trang News) ═══ */
+function renderBanners(){
+  const wrap = document.getElementById('news-banners-wrap');
+  if(!wrap) return;
+  const config = window.BANNER_CONFIG;
+  if(!config || !config.length) return;
+  const visible = config.filter(b => b.visible && b.url);
+  if(!visible.length){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = visible.map(b => `
+    <div class="banner-slide">
+      <img class="banner-img" src="${esc(b.url)}" alt="Banner" loading="lazy"
+           onerror="this.parentElement.style.display='none'">
+    </div>
+  `).join('');
+}
+
+/* ═══ DAILY PICK — 3 game ngẫu nhiên ═══ */
+function renderDailyPick(){
+  renderBanners();
+
+  const wrap = document.getElementById('daily-pick-card');
+  if(!wrap || !GAMES || !GAMES.length) return;
+
+  function pickRandom(arr, n){
+    const pool   = [...arr];
+    const result = [];
+    while(result.length < Math.min(n, pool.length)){
+      const i = Math.floor(Math.random() * pool.length);
+      result.push(pool.splice(i, 1)[0]);
+    }
+    return result;
+  }
+
+  function renderCards(){
+    const picks = pickRandom(GAMES, 3);
+
+    const cards = picks.map(pick => {
+      const idx  = gameIndex(pick); // ⚠️ TỐI ƯU: O(1) thay vì GAMES.indexOf(pick) O(n)
+      const cats = getCategories(pick);
+      return `
+        <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
+          <div class="daily-pick-color-bar" style="background:${pick.color}"></div>
+          <div class="daily-pick-body">
+            <div class="daily-pick-top">
+              <div class="daily-pick-emoji">${pick.emoji}</div>
+              <div class="daily-pick-info">
+                <div class="daily-pick-name">${esc(pick.name)}</div>
+                <div class="daily-pick-tags">
+                  ${cats.map(c => `<span class="tag">${esc(c)}</span>`).join('')}
+                  <span class="tag">👥 ${esc(pick.players)}</span>
+                  <span class="tag">⏱ ${esc(pick.time)}</span>
+                  <span class="tag ${diffClass(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
+                </div>
+              </div>
+            </div>
+            <div class="daily-pick-objective">
+              <strong>Mục tiêu:</strong> ${esc(pick.objective)}
+            </div>
+            <div class="daily-pick-footer">
+              <div class="daily-pick-cta">Xem luật chơi ngay</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:16px;">
+        ${cards}
+      </div>
+      <div style="text-align:center;">
+        <button class="daily-reroll-btn" id="reroll-btn">🎲 Thử 3 game khác</button>
+      </div>`;
+
+    document.getElementById('reroll-btn')?.addEventListener('click', e => {
+      e.stopPropagation();
+      renderCards();
+    });
+  }
+
+  renderCards();
+}
+
+/* ⚠️ MỚI: gán tường minh các hàm được loadPage()/routeFromHash() gọi
+   vào window — tránh lỗi "not defined" nếu script bị dán thiếu/cắt
+   cụt, và giúp console báo lỗi rõ ràng thay vì crash im lặng. Đặt ở
+   CUỐI file, sau khi tất cả hàm đã được định nghĩa. */
+window.loadPage           = loadPage;
+window.routeFromHash      = routeFromHash;
+window.initBoardgame      = initBoardgame;
+window.initSettings       = initSettings;
+window.renderDailyPick    = renderDailyPick;
+window.renderBanners      = renderBanners;
+window.renderGrid         = renderGrid;
+window.renderDetail       = renderDetail;
+window.goNews             = goNews;
+window.goBoardgame        = goBoardgame;
+window.goContact          = goContact;
+window.goSettings         = goSettings;
+window.goMembership       = goMembership;
+window.goList             = goList;
+window.goDetail           = goDetail;
+window.openLb             = openLb;
+window.closeLb            = closeLb;
+window.saveUsernameSettings = saveUsernameSettings;
+
+/* ═══ KHỞI ĐỘNG — chờ dữ liệu game rồi build index + route lần đầu ═══ */
 window.GAMES_READY.then(() => {
   gameSlugs = window.buildGameSlugMap(GAMES);
   rebuildGameIndex();
