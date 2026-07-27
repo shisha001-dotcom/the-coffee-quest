@@ -19,6 +19,19 @@
 //  hệt window.getYoutubeId() trong js/shared-utils.js (dùng chung
 //  với admin/modules/games/dashboard-game-detail.js). Dùng thẳng
 //  window.getYoutubeId() thay vì giữ 2 bản giống nhau.
+//
+//  ⚠️ SỬA (fix "Không tìm thấy game nào" trên mobile / mạng chậm):
+//  TRƯỚC ĐÂY loadPage('boardgame')/loadPage('news') render NGAY
+//  bằng biến GAMES hiện tại mà không đợi window.GAMES_READY. Lần
+//  ĐẦU TIÊN load trang, khối `window.GAMES_READY.then(routeFromHash)`
+//  ở cuối file che giấu vấn đề này. Nhưng mọi lần điều hướng SAU ĐÓ
+//  (bấm menu "Luật Boardgame" chẳng hạn) đều đi qua hashchange →
+//  routeFromHash() → loadPage() KHÔNG chờ GAMES_READY — nếu Supabase
+//  chưa fetch xong (rất dễ xảy ra trên mạng mobile chậm/chập chờn),
+//  GAMES vẫn là mảng rỗng → renderGrid() luôn ra "Không tìm thấy
+//  game nào" và KHÔNG có gì render lại sau khi dữ liệu về kịp.
+//  → GIỜ: loadPage() luôn `await window.GAMES_READY` trước khi
+//  render bất kỳ trang nào phụ thuộc GAMES (boardgame/news).
 // ═══════════════════════════════════════════════════════════════
 
 let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
@@ -42,6 +55,17 @@ function rebuildGameIndex(){
 function gameIndex(g){
   const idx = gameIndexById.get(g.id);
   return idx === undefined ? GAMES.indexOf(g) : idx; // fallback an toàn nếu index chưa build kịp
+}
+
+/* ⚠️ MỚI: đảm bảo gameSlugs/gameIndexById đã build — gọi mỗi khi
+   cần render dữ liệu phụ thuộc GAMES, an toàn để gọi nhiều lần. */
+function ensureGameIndexBuilt(){
+  if (!gameSlugs.slugById || !Object.keys(gameSlugs.slugById).length) {
+    gameSlugs = window.buildGameSlugMap(GAMES);
+  }
+  if (!gameIndexById.size && GAMES.length) {
+    rebuildGameIndex();
+  }
 }
 
 /* ═══ MENU ═══ */
@@ -79,11 +103,24 @@ async function loadPage(pageName){
     if(!res.ok) throw new Error('HTTP ' + res.status + ' — pages/' + pageName + '.html');
     app.innerHTML = await res.text();
     window.scrollTo(0, 0);
-    if(pageName === 'boardgame') initBoardgame();
+
+    /* ⚠️ SỬA: boardgame & news đều phụ thuộc GAMES — LUÔN đợi
+       GAMES_READY trước khi render, không chỉ lúc load trang lần đầu.
+       window.GAMES_READY đã settled thì await lại vẫn trả về ngay
+       lập tức, nên gọi nhiều lần không tốn thêm thời gian. */
+    if(pageName === 'boardgame'){
+      await window.GAMES_READY;
+      ensureGameIndexBuilt();
+      initBoardgame();
+    }
     if(pageName === 'settings')  initSettings();
     /* ĐÃ TÁCH: gọi qua window vì logic thật nằm ở js/membership.js */
     if(pageName === 'membership' && typeof window.initMembership === 'function') window.initMembership();
-    if(pageName === 'news')      renderDailyPick();
+    if(pageName === 'news'){
+      await window.GAMES_READY;
+      ensureGameIndexBuilt();
+      renderDailyPick();
+    }
   } catch(e){
     app.innerHTML = '<div style="padding:60px 24px;text-align:center">'
       + '<div style="font-size:3rem;margin-bottom:12px">⚠️</div>'
@@ -435,90 +472,13 @@ function routeFromHash(){
 
 window.addEventListener('hashchange', routeFromHash);
 
+/* ⚠️ SỬA: khối này giờ chỉ lo build gameSlugs/gameIndexById ngay khi
+   có dữ liệu (phòng trường hợp loadPage() sau này gọi ensureGameIndexBuilt()
+   mà GAMES vẫn rỗng do lỗi mạng) + route lần đầu. loadPage() ở trên đã
+   TỰ đợi window.GAMES_READY cho mọi lần điều hướng về sau — không còn
+   phụ thuộc hoàn toàn vào khối .then() này nữa. */
 window.GAMES_READY.then(() => {
   gameSlugs = window.buildGameSlugMap(GAMES);
-  rebuildGameIndex(); // ⚠️ MỚI: build 1 lần ngay khi GAMES sẵn sàng
+  rebuildGameIndex();
   routeFromHash();
 });
-
-/* ═══ BANNERS (trang News) ═══ */
-function renderBanners(){
-  const wrap = document.getElementById('news-banners-wrap');
-  if(!wrap) return;
-  const config = window.BANNER_CONFIG;
-  if(!config || !config.length) return;
-  const visible = config.filter(b => b.visible && b.url);
-  if(!visible.length){ wrap.innerHTML = ''; return; }
-  wrap.innerHTML = visible.map(b => `
-    <div class="banner-slide">
-      <img class="banner-img" src="${esc(b.url)}" alt="Banner" loading="lazy"
-           onerror="this.parentElement.style.display='none'">
-    </div>
-  `).join('');
-}
-
-/* ═══ DAILY PICK — 3 game ngẫu nhiên ═══ */
-function renderDailyPick(){
-  renderBanners();
-
-  const wrap = document.getElementById('daily-pick-card');
-  if(!wrap || !GAMES || !GAMES.length) return;
-
-  function pickRandom(arr, n){
-    const pool   = [...arr];
-    const result = [];
-    while(result.length < Math.min(n, pool.length)){
-      const i = Math.floor(Math.random() * pool.length);
-      result.push(pool.splice(i, 1)[0]);
-    }
-    return result;
-  }
-
-  function renderCards(){
-    const picks = pickRandom(GAMES, 3);
-
-    const cards = picks.map(pick => {
-      const idx  = gameIndex(pick); // ⚠️ TỐI ƯU: O(1) thay vì GAMES.indexOf(pick) O(n)
-      const cats = getCategories(pick);
-      return `
-        <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
-          <div class="daily-pick-color-bar" style="background:${pick.color}"></div>
-          <div class="daily-pick-body">
-            <div class="daily-pick-top">
-              <div class="daily-pick-emoji">${pick.emoji}</div>
-              <div class="daily-pick-info">
-                <div class="daily-pick-name">${esc(pick.name)}</div>
-                <div class="daily-pick-tags">
-                  ${cats.map(c => `<span class="tag">${esc(c)}</span>`).join('')}
-                  <span class="tag">👥 ${esc(pick.players)}</span>
-                  <span class="tag">⏱ ${esc(pick.time)}</span>
-                  <span class="tag ${diffClass(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
-                </div>
-              </div>
-            </div>
-            <div class="daily-pick-objective">
-              <strong>Mục tiêu:</strong> ${esc(pick.objective)}
-            </div>
-            <div class="daily-pick-footer">
-              <div class="daily-pick-cta">Xem luật chơi ngay</div>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-
-    wrap.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:16px;">
-        ${cards}
-      </div>
-      <div style="text-align:center;">
-        <button class="daily-reroll-btn" id="reroll-btn">🎲 Thử 3 game khác</button>
-      </div>`;
-
-    document.getElementById('reroll-btn')?.addEventListener('click', e => {
-      e.stopPropagation();
-      renderCards();
-    });
-  }
-
-  renderCards();
-}
