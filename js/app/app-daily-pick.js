@@ -1,9 +1,9 @@
 /* ══════════════════════════════════════════════
    BANNERS + DAILY PICK — js/app/app-daily-pick.js
    ─────────────────────────────────────────────
-   ⚠️ FIX (đồng bộ với app-boardgame-list.js): thêm nút "Thử lại
-   ngay" khi GAMES chưa tải được, thay vì chỉ hiện chữ chờ vô thời
-   hạn không có cách nào thoát ra trên mobile.
+   ⚠️ ĐÃ QUAY VỀ LOGIC ĐƠN GIẢN CỦA BẢN CŨ (ver1.2): bỏ trạng thái
+   "đang tải / lỗi mạng + nút thử lại". Nếu GAMES chưa có dữ liệu
+   thì không hiển thị gì, giống hệt hành vi bản cũ.
 
    Cần: app-state.js (esc, diffClass, getCategories, gameIndex)
    — load TRƯỚC file này.
@@ -30,32 +30,7 @@ function renderDailyPick(){
   renderBanners();
 
   const wrap = document.getElementById('daily-pick-card');
-  if(!wrap) return;
-
-  /* ⚠️ FIX: thêm nút thử lại thay vì chỉ hiện chữ chờ mãi */
-  if (!GAMES || !GAMES.length) {
-    const isError = window.GAMES_LOAD_ERROR;
-    wrap.innerHTML = `
-      <div style="text-align:center;padding:40px 20px;color:var(--muted)">
-        <div style="font-size:2.2rem;margin-bottom:10px">${isError ? '📡' : '⏳'}</div>
-        <div style="font-weight:800;color:var(--ink)">
-          ${isError ? 'Không tải được gợi ý' : 'Đang tải gợi ý...'}
-        </div>
-        <p style="margin-top:6px;font-size:.85rem">
-          ${isError ? 'Mạng có thể đang chập chờn — bấm để thử lại.' : 'Trang sẽ tự hiện gợi ý khi kết nối được.'}
-        </p>
-        <button type="button" id="dailyPickRetryBtn"
-          style="margin-top:14px;padding:9px 20px;border:none;border-radius:var(--r-md);
-                 background:var(--accent);color:#fff;font-weight:800;font-size:.82rem;cursor:pointer;">
-          🔄 Thử lại ngay
-        </button>
-      </div>`;
-    document.getElementById('dailyPickRetryBtn')?.addEventListener('click', () => {
-      renderDailyPick();
-      if (typeof window.retryLoadGamesNow === 'function') window.retryLoadGamesNow();
-    });
-    return;
-  }
+  if(!wrap || !GAMES || !GAMES.length) return;
 
   function pickRandom(arr, n){
     const pool   = [...arr];
