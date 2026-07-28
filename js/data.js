@@ -68,15 +68,20 @@ async function fetchGamesOnce() {
   }
 }
 
-/* ⚠️ FIX CHÍNH: retry nền có backoff khi lần đầu thất bại (mất mạng,
-   CDN chậm trên mobile...) — set window.GAMES_LOAD_ERROR (đã được
-   app-boardgame-list.js/app-daily-pick.js đọc sẵn để hiện "Đang kết
-   nối lại...") và bắn 'tcq:games-updated' khi thành công (đã được
-   app-state.js::attachAutoReloadOnGamesUpdate() lắng nghe sẵn để tự
-   vẽ lại trang) — 2 cơ chế này TỒN TẠI SẴN ở phía UI nhưng chưa bao
-   giờ được data.js kích hoạt. */
+/* ⚠️ FIX (mobile — tra cứu luật chơi qua QR/link trực tiếp):
+   - Trước đây lần retry đầu tiên đợi tới 3000ms mới thử lại. Trên
+     mạng di động chập chờn (lý do phổ biến nhất khiến lần fetch đầu
+     tiên fail khi vừa quét QR mở thẳng #game-{slug}), 3s là khá lâu
+     và người dùng dễ tưởng trang bị lỗi rồi thoát ra trước khi kịp
+     tự phục hồi.
+   - Giờ retry lần đầu chỉ sau 800ms (phục hồi nhanh hơn với lỗi
+     mạng thoáng qua/timeout ngắn), các lần sau mới backoff tăng dần
+     như cũ (tối đa 20s) để tránh spam request nếu mất mạng thật sự.
+   - Kết hợp với app-state.js::attachAutoReloadOnGamesUpdate() đã
+     được sửa để tự mở lại đúng trang luật chơi theo hash khi
+     'tcq:games-updated' bắn ra (xem app-state.js). */
 function retryGamesInBackground() {
-  let delay = 3000;
+  let delay = 800;
   const attempt = () => {
     fetchGamesOnce().then(() => {
       window.GAMES_LOAD_ERROR = false;
@@ -84,7 +89,7 @@ function retryGamesInBackground() {
     }).catch(err => {
       console.error('❌ data.js retry error:', err);
       window.GAMES_LOAD_ERROR = true;
-      delay = Math.min(delay * 1.5, 20000); // backoff, tối đa 20s
+      delay = Math.min(delay * 1.8, 20000); // backoff, tối đa 20s
       setTimeout(attempt, delay);
     });
   };
