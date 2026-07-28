@@ -112,8 +112,6 @@ select:focus-visible {
 
 .page.active{
   display:block;
-  opacity:1;                 /* ⚠️ THÊM: đảm bảo hiện ngay cả khi animation bị tắt */
-  transform:translateY(0);   /* ⚠️ THÊM: tương tự cho transform */
   animation:pageIn .28s ease both;
 }
 
