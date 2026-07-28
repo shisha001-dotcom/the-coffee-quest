@@ -1,0 +1,33 @@
+/* ══════════════════════════════════════════════════════════════════
+   THE COFFEE QUEST — style.css  (entry point)
+   ─────────────────────────────────────────────────────────────────
+   File này CHỈ chứa @import — không sửa style trực tiếp ở đây.
+
+   Toàn bộ style được tách theo khu vực màn hình vào css/base/:
+
+     base/variables.css        ← Mục 1: CSS variables (đổi màu/font tại đây)
+     base/reset.css             ← Mục 2: Reset & base + animation page
+     base/header-menu.css       ← Mục 3-4: Header + Side menu
+     base/news-banner.css       ← Mục 5-6: Banner trang News + Daily pick
+     base/boardgame-list.css    ← Mục 7-8: Filter bar, grid, game card
+     base/boardgame-detail.css  ← Mục 9-10: Trang chi tiết game + related
+     base/pages.css             ← Mục 11-12: Trang Contact + Settings
+     base/modals.css            ← Mục 13-14: Username modal + Lightbox
+     base/responsive.css        ← Mục 15-17: Footer, animations, responsive
+
+   ► Muốn sửa style ở khu vực nào → mở đúng file đó.
+   ► variables.css LUÔN load đầu tiên vì các file khác dùng
+     biến CSS (--accent, --border, --r-md, ...) định nghĩa ở đó.
+   ► responsive.css LUÔN load CUỐI CÙNG để các @media override
+     đúng các rule desktop ở trên.
+   ══════════════════════════════════════════════════════════════════ */
+
+@import url("base/variables.css");
+@import url("base/reset.css");
+@import url("base/header-menu.css");
+@import url("base/news-banner.css");
+@import url("base/boardgame-list.css");
+@import url("base/boardgame-detail.css");
+@import url("base/pages.css");
+@import url("base/modals.css");
+@import url("base/responsive.css");

@@ -1,0 +1,199 @@
+/* ══════════════════════════════════════════════════════════════════
+   7. LIST PAGE — Filter bar & Grid
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Thanh lọc danh mục */
+.filter-bar {
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  position: sticky;
+  top: var(--header-h);  /* ► Dính ngay dưới header khi scroll */
+  z-index: 100;
+}
+
+.filter-label {
+  font-size: .72rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-right: 4px;
+}
+
+/* Chip lọc */
+.chip {
+  padding: 5px 15px;
+  border-radius: 100px;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+  transition: all var(--t);
+  user-select: none;
+}
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 10px var(--accent-glow);
+}
+
+/* Wrapper content */
+.list-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 24px 80px;
+}
+
+/* Trạng thái rỗng (không tìm thấy) */
+#empty {
+  text-align: center;
+  padding: 80px 20px;
+  display: none;
+  animation: fadeUp .4s ease both;
+}
+#empty .e-icon {
+  font-size: 52px;
+  margin-bottom: 16px;
+  display: block;
+}
+#empty h3 {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  color: var(--muted);
+}
+#empty p {
+  color: var(--muted);
+  font-size: .9rem;
+  margin-top: 8px;
+}
+
+/* Grid game */
+#grid {
+  display: grid;
+  /* ► Thay 300px để game card nhỏ/to hơn */
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   8. GAME CARD
+   ═══════════════════════════════════════════════════════════════════
+   ► Đổi border-radius trong .game-card để thay độ bo góc card.
+   ► Đổi translateY(-4px) trong :hover để thay độ "nổi" khi hover.
+   ══════════════════════════════════════════════════════════════════ */
+.game-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+  animation: fadeUp .38s ease both;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+.game-card:hover {
+  transform:
+  translate3d(0,-4px,0)
+  scale(1.012);
+  box-shadow: var(--shadow-md);
+  border-color: #c0b8ac;
+}
+
+/* Dải màu trên cùng của card (màu từ data.js) */
+.card-stripe { height: 6px; }
+
+.card-body { padding: 18px 20px 12px; }
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+/* Khung emoji lớn */
+.card-emoji {
+  font-size: 28px;
+  width: 50px;
+  height: 50px;
+  background: var(--tag-bg);
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform var(--t);
+}
+.game-card:hover .card-emoji { transform: rotate(-5deg) scale(1.1); }  /* ► Xóa nếu không muốn emoji xoay */
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 1px;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+
+/* Các tag nhỏ (loại, người chơi, thời gian, độ khó) */
+.card-meta { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.tag {
+  font-size: .7rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 100px;
+  background: var(--tag-bg);
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+/* ► Đổi màu difficulty nếu muốn */
+.tag.diff-easy   { background: #d4edda; color: #1a5c2d; }
+.tag.diff-medium { background: #fff3cd; color: #7d5a00; }
+.tag.diff-hard   { background: #fde8e8; color: #8b0000; }
+
+/* Mô tả mục tiêu */
+.card-objective {
+  font-size: .86rem;
+  color: #555;
+  line-height: 1.6;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.card-objective strong { color: var(--ink); font-weight: 800; }
+
+/* Footer card */
+.card-footer {
+  padding: 10px 20px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.view-btn {
+  font-size: .78rem;
+  font-weight: 800;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.view-btn::after { content: '→'; transition: transform var(--t); }
+.game-card:hover .view-btn::after { transform: translateX(5px); }

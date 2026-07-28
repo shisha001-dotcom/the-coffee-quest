@@ -1,0 +1,239 @@
+/* ══════════════════════════════════════════════════════════════════
+   5. BANNER (News page)
+   ─────────────────────────────────────────────────────────────────
+   ► Mỗi .banner-slide chiếm 100vh trên desktop.
+   ► Đổi height trong .banner-slide để thay chiều cao.
+   ► Đổi height trong responsive.css (≤768px) cho mobile.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Container banners — full width, không padding */
+.news-container {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+/* Mỗi banner */
+.banner-slide {
+  position: relative;
+  width: 100%;
+  /* ► Thay 100vh thành giá trị khác nếu muốn banner nhỏ hơn, vd: 70vh */
+  height: 80vh;
+  overflow: hidden;
+  background: #111;
+  display: block;
+}
+
+/* Ảnh banner fill toàn bộ */
+.banner-slide .banner-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* ► Tăng thời gian để ảnh zoom vào chậm hơn khi load */
+  /*animation: bannerKenBurns 8s ease-out both;*/
+}
+
+/* ► Bật/tắt hiệu ứng Ken Burns (zoom nhẹ khi ảnh xuất hiện) */
+@keyframes bannerKenBurns {
+  from { transform: scale(1.04); }
+  to   { transform: scale(1); }
+}
+
+/* Vùng text trong banner */
+.banner-slide .banner-safe {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px min(10vw, 120px);
+  /* Gradient overlay để text dễ đọc */
+  background: linear-gradient(
+    to top,
+    rgba(0,0,0,.7)  0%,
+    rgba(0,0,0,.25) 50%,
+    transparent     100%
+  );
+}
+
+/* Nội dung text banner */
+.banner-content {
+  width: 100%;
+  max-width: 1200px;
+  color: #fff;
+  text-shadow: 0 4px 20px rgba(0,0,0,.6);
+}
+.banner-content h1 {
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-family: var(--font-display);
+  letter-spacing: 4px;
+  margin-bottom: 16px;
+}
+.banner-content p {
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  font-weight: 700;
+  max-width: 700px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   6. DAILY PICK — "Hôm nay chơi gì?"
+   ─────────────────────────────────────────────────────────────────
+   ► Đổi padding của .daily-pick-section để điều chỉnh khoảng cách.
+   ══════════════════════════════════════════════════════════════════ */
+.daily-pick-section {
+  padding: 48px 24px 64px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* Tiêu đề section */
+.daily-pick-heading {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: 2px;
+  color: var(--ink);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* Dòng kẻ sau tiêu đề */
+.daily-pick-heading::after {
+  content: '';
+  flex: 1;
+  height: 3px;
+  background: linear-gradient(to right, var(--accent), transparent);
+  border-radius: 2px;
+}
+
+.daily-pick-sub {
+  color: var(--muted);
+  font-size: .84rem;
+  font-weight: 700;
+  margin-bottom: 22px;
+  letter-spacing: .4px;
+}
+
+/* Card lớn */
+.daily-pick-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  display: flex;
+  cursor: pointer;
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+  box-shadow: var(--shadow-sm);
+}
+.daily-pick-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+  border-color: #c8c0b4;
+}
+
+.daily-pick-color-bar {
+  width: 7px;
+  flex-shrink: 0;
+}
+
+.daily-pick-body {
+  padding: 28px 28px 22px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.daily-pick-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.daily-pick-emoji {
+  font-size: 46px;
+  width: 72px;
+  height: 72px;
+  background: var(--tag-bg);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  /* ► Bật dòng dưới để emoji có hiệu ứng nảy */
+  /* animation: bounceIn .5s cubic-bezier(.34,1.56,.64,1) both; */
+}
+
+.daily-pick-name {
+  font-family: var(--font-display);
+  font-size: 1.85rem;
+  letter-spacing: 1.5px;
+  line-height: 1.1;
+  margin-bottom: 10px;
+}
+
+.daily-pick-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.daily-pick-objective {
+  font-size: .92rem;
+  color: #555;
+  line-height: 1.65;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.daily-pick-objective strong { color: var(--ink); font-weight: 800; }
+
+.daily-pick-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+/* Nút "Xem luật chơi ngay" */
+.daily-pick-cta {
+  font-size: .82rem;
+  font-weight: 800;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.daily-pick-cta::after {
+  content: '→';
+  transition: transform var(--t);
+}
+.daily-pick-card:hover .daily-pick-cta::after { transform: translateX(6px); }
+
+/* Nút "Thử game khác" */
+.daily-reroll-btn {
+  background: var(--tag-bg);
+  border: 2px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 16px;
+  font-size: .8rem;
+  font-weight: 800;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--t), border-color var(--t), color var(--t), transform var(--t);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.daily-reroll-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  /* ► Hiệu ứng "lăn" dice khi hover */
+  transform: rotate(-8deg) scale(1.05);
+}
