@@ -1,9 +1,10 @@
 /* ══════════════════════════════════════════════
    BOOTSTRAP — js/app/app-init.js
    ─────────────────────────────────────────────
-   ⚠️ TÁCH RA từ js/app.js — PHẢI load CUỐI CÙNG trong nhóm
-   js/app/*.js. Chờ window.GAMES_READY (js/data.js) resolve rồi
-   build slug map + game index + chạy route lần đầu.
+   ⚠️ ĐÃ QUAY VỀ LOGIC ĐƠN GIẢN CỦA BẢN CŨ (ver1.2): chỉ chờ
+   window.GAMES_READY MỘT LẦN DUY NHẤT rồi build slug map + index,
+   sau đó chạy route lần đầu — không còn cơ chế tự retry / tự mở lại
+   trang khi dữ liệu tới muộn.
    ══════════════════════════════════════════════ */
 
 window.GAMES_READY.then(() => {
