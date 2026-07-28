@@ -1,33 +1,112 @@
-/* ═══ ROUTER ═══ */
+// ═══════════════════════════════════════════════════════════════
+//  app.js — The Coffee Quest
+//  ─────────────────────────────────────────────────────────────
+//  ⚠️ VIẾT LẠI (fix "không hiện game trên mobile" + fix lỗi vỡ
+//  toàn trang sau lần sửa trước):
+//  - Đây là FILE HOÀN CHỈNH — xoá sạch app.js cũ, dán đè toàn bộ
+//    file này để tránh trùng khai báo let/const gây SyntaxError
+//    làm sập cả file (nguyên nhân gây lỗi "cả web và mobile" lần
+//    trước, do dán chèn rời rạc từng hàm).
+//  - Thêm cơ chế tự động re-render khi js/data.js tải xong ở lần
+//    retry nền (sự kiện 'tcq:games-updated') — người dùng không
+//    cần bấm gì, không cần reload.
+//  - renderGrid()/renderDailyPick() phân biệt 3 trạng thái: đang
+//    tải lần đầu / đang retry vì lỗi mạng / đã tải xong nhưng lọc
+//    không ra kết quả — tránh hiện nhầm "Không tìm thấy game nào"
+//    khi thực chất là do mạng.
+// ═══════════════════════════════════════════════════════════════
+
+let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
+let gameSlugs = { slugById: {}, idBySlug: {} };
+let gameIndexById = new Map();
 let _gamesUpdateListenerAttached = false;
 
-/* ⚠️ MỚI: lắng nghe sự kiện 'tcq:games-updated' (bắn ra từ data.js
-   khi retry nền thành công) — tự render lại trang hiện tại, KHÔNG
-   cần người dùng bấm gì hay reload trang. Chỉ gắn 1 lần. */
-function attachAutoReloadOnGamesUpdate() {
-  if (_gamesUpdateListenerAttached) return;
-  _gamesUpdateListenerAttached = true;
+const esc = window.escHtml;
+function diffClass(d){ return d==='Dễ'?'diff-easy':d==='Khó'?'diff-hard':'diff-medium' }
 
-  window.addEventListener('tcq:games-updated', () => {
-    ensureGameIndexBuiltForce();
-    const hash = location.hash.replace('#', '');
-    if (hash === 'boardgame' || hash.startsWith('game-') || hash === '' ) {
-      // Chỉ re-render nếu đang đứng ở trang phụ thuộc GAMES
-      if (document.getElementById('grid')) {
-        renderGrid();
-      }
-      if (document.getElementById('daily-pick-card')) {
-        renderDailyPick();
-      }
-    }
-  });
+/* ── Helper: lấy categories chuẩn (luôn trả về array) ── */
+function getCategories(g){
+  return Array.isArray(g.categories) && g.categories.length
+    ? g.categories
+    : (g.category ? [g.category] : []);
 }
 
+/* ── Helper: chỉ số của game trong GAMES — O(1) thay vì GAMES.indexOf() O(n) ── */
+function rebuildGameIndex(){
+  gameIndexById = new Map(GAMES.map((g, i) => [g.id, i]));
+}
+function gameIndex(g){
+  const idx = gameIndexById.get(g.id);
+  return idx === undefined ? GAMES.indexOf(g) : idx; // fallback an toàn nếu index chưa build kịp
+}
+
+/* Đảm bảo gameSlugs/gameIndexById đã build — gọi mỗi khi cần render
+   dữ liệu phụ thuộc GAMES, an toàn để gọi nhiều lần. */
+function ensureGameIndexBuilt(){
+  if (!gameSlugs.slugById || !Object.keys(gameSlugs.slugById).length) {
+    gameSlugs = window.buildGameSlugMap(GAMES);
+  }
+  if (!gameIndexById.size && GAMES.length) {
+    rebuildGameIndex();
+  }
+}
+
+/* Bản "ép build lại" — dùng khi GAMES vừa được cập nhật sau retry
+   nền (dữ liệu đổi từ [] sang có game thật), khác ensureGameIndexBuilt()
+   ở chỗ luôn build lại bất kể trạng thái cũ. */
 function ensureGameIndexBuiltForce(){
   gameSlugs = window.buildGameSlugMap(GAMES);
   rebuildGameIndex();
 }
 
+/* ⚠️ MỚI: lắng nghe sự kiện 'tcq:games-updated' (bắn ra từ data.js
+   khi retry nền tải game thành công) — tự render lại trang hiện
+   tại, KHÔNG cần người dùng bấm gì hay reload trang. Chỉ gắn 1 lần
+   duy nhất trong suốt vòng đời trang (dù loadPage() gọi lại nhiều
+   lần khi chuyển trang). */
+function attachAutoReloadOnGamesUpdate(){
+  if (_gamesUpdateListenerAttached) return;
+  _gamesUpdateListenerAttached = true;
+
+  window.addEventListener('tcq:games-updated', () => {
+    ensureGameIndexBuiltForce();
+    if (document.getElementById('grid')) {
+      renderGrid();
+    }
+    if (document.getElementById('daily-pick-card')) {
+      renderDailyPick();
+    }
+  });
+}
+
+/* ═══ MENU ═══ */
+const menuToggle  = document.getElementById('menu-toggle');
+const sideMenu    = document.getElementById('side-menu');
+const menuOverlay = document.getElementById('menu-overlay');
+
+function openMenu(){ sideMenu.classList.add('open'); menuOverlay.classList.add('show'); }
+function closeMenu(){ sideMenu.classList.remove('open'); menuOverlay.classList.remove('show'); }
+
+menuToggle?.addEventListener('click', openMenu);
+menuOverlay?.addEventListener('click', closeMenu);
+
+/* ═══ HEADER ═══ */
+function updateHeader(type){
+  const search = document.getElementById('header-search');
+  const count  = document.getElementById('header-count-wrap');
+  const header = document.querySelector('.site-header');
+  if(type === 'boardgame'){
+    search.style.display = 'flex';
+    count.style.display  = 'block';
+    header.classList.remove('news-mode');
+  } else {
+    search.style.display = 'none';
+    count.style.display  = 'none';
+    header.classList.add('news-mode');
+  }
+}
+
+/* ═══ ROUTER ═══ */
 async function loadPage(pageName){
   const app = document.getElementById('app');
   try {
@@ -70,17 +149,95 @@ async function loadPage(pageName){
   }
 }
 
+/* ═══ NAVIGATION ═══ */
+function setActive(fn){
+  document.querySelectorAll('.menu-item').forEach(el=>{
+    el.classList.toggle('active', (el.getAttribute('onclick')||'').includes(fn));
+  });
+}
+
+function goNews(){
+  closeMenu();
+  if(location.hash === '#news'){ routeFromHash(); return; }
+  location.hash = 'news';
+}
+function goBoardgame(){
+  closeMenu();
+  if(location.hash === '#boardgame'){ routeFromHash(); return; }
+  location.hash = 'boardgame';
+}
+function goContact(){
+  closeMenu();
+  if(location.hash === '#contact'){ routeFromHash(); return; }
+  location.hash = 'contact';
+}
+function goSettings(){
+  closeMenu();
+  if(location.hash === '#settings'){ routeFromHash(); return; }
+  location.hash = 'settings';
+}
+function goMembership(){
+  closeMenu();
+  if(location.hash === '#membership'){ routeFromHash(); return; }
+  location.hash = 'membership';
+}
+
+/* ═══ BOARDGAME — List & Detail ═══ */
+function showInApp(id){
+  document.querySelectorAll('#app .page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById(id);
+  if(el) el.classList.add('active');
+}
+
+function goList(){
+  showInApp('page-list');
+  const v = document.getElementById('d-video');
+  if(v) v.innerHTML = '';
+  window.scrollTo(0,0);
+  history.pushState(null,'','#boardgame');
+}
+
+function goDetail(idx){
+  if(idx < 0 || idx >= GAMES.length) return;
+  currentIdx = idx;
+  showInApp('page-detail');
+  renderDetail(idx);
+  window.scrollTo(0,0);
+  const slug = gameSlugs.slugById[GAMES[idx].id] || idx;
+  history.pushState(null,'','#game-'+slug);
+  trackGameView(idx);
+}
+
+/* ═══ TRACKING ═══ */
+function getDateStr(){ return new Date().toISOString().slice(0,10); }
+
+function trackGameView(idx){
+  if(typeof window.__fbTrack !== 'function') return;
+  const game = GAMES[idx];
+  if(!game) return;
+  window.__fbTrack('gameViews', getDateStr(), String(game.id), game.name || String(game.id));
+}
+
 /* ═══ BOARDGAME LIST ═══ */
+function filteredGames(){
+  const q = searchQ.toLowerCase();
+  return GAMES.filter(g=>{
+    const cats = getCategories(g);
+    const matchCat = activeFilter === '🧩 Tất cả' || cats.includes(activeFilter);
+    const matchQ   = !q || g.name.toLowerCase().includes(q) || cats.some(c => c.toLowerCase().includes(q));
+    return matchCat && matchQ;
+  });
+}
+
 function renderGrid(){
   const grid  = document.getElementById('grid');
   const empty = document.getElementById('empty');
   if(!grid) return;
 
-  /* ⚠️ MỚI: phân biệt "chưa có dữ liệu vì đang tải/lỗi mạng"
-     với "có dữ liệu nhưng lọc không ra kết quả nào". Không hiện
-     "Không tìm thấy game nào" (gây hiểu lầm) khi thực chất là
-     đang chờ mạng — hiện trạng thái tải rõ ràng, tự cập nhật khi
-     data.js bắn sự kiện 'tcq:games-updated'. */
+  /* ⚠️ MỚI: phân biệt "chưa có dữ liệu vì đang tải/lỗi mạng" với
+     "có dữ liệu nhưng lọc không ra kết quả nào". Tránh hiện nhầm
+     "Không tìm thấy game nào" khi thực chất đang chờ mạng — trang
+     sẽ tự cập nhật khi data.js bắn sự kiện 'tcq:games-updated'. */
   if (!GAMES.length) {
     const countElEmpty = document.getElementById('countNum');
     if (countElEmpty) countElEmpty.textContent = 0;
@@ -135,6 +292,239 @@ function renderGrid(){
   }).join('');
 }
 
+/* ═══ BOARDGAME DETAIL ═══ */
+function renderDetail(idx){
+  const g    = GAMES[idx];
+  const cats = getCategories(g);
+
+  const set  = (id,val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  const setH = (id,val) => { const el=document.getElementById(id); if(el) el.innerHTML=val; };
+
+  set('d-crumb', g.name);
+  set('d-emoji', g.emoji);
+  set('d-title', g.name);
+  set('d-objective', g.objective);
+  set('d-win', g.win);
+
+  const bg = document.getElementById('d-hero-bg');
+  if(bg) bg.style.backgroundImage = g.heroBg
+    ? `url('${g.heroBg}')`
+    : `linear-gradient(135deg,${g.color}cc,${g.color}44)`;
+
+  setH('d-tags',
+    cats.map(c => `<span class="hero-tag hl">${esc(c)}</span>`).join('')
+    + `<span class="hero-tag">👥 ${esc(g.players)} người</span>`
+    + `<span class="hero-tag">⏱ ${esc(g.time)}</span>`
+    + `<span class="hero-tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>`
+  );
+
+  const imgEl = document.getElementById('d-images');
+  if(imgEl){
+    if(g.images && g.images.length){
+      imgEl.innerHTML = `<div class="images-grid">${g.images.map(im=>
+        `<div class="img-wrap" onclick="openLb('${im.url.replace(/'/g,"\\'")}','${esc(im.caption)}')">`
+        +`<img src="${im.url}" alt="${esc(im.caption)}" loading="lazy" onerror="this.parentElement.style.display='none'"/>`
+        +`<div class="img-caption">${esc(im.caption)}</div></div>`).join('')}</div>`;
+    } else {
+      imgEl.innerHTML = `<div class="no-images"><b>🖼️</b> Chưa có ảnh hướng dẫn.<br><code>images: [{url,caption}]</code></div>`;
+    }
+  }
+
+  setH('d-setup', (g.setup||[]).map((s,i)=>`<li class="step-item"><div class="step-num">${i+1}</div><div>${esc(s)}</div></li>`).join(''));
+  setH('d-turn',  (g.turn||[]).map(t=>`<div class="turn-item"><div class="turn-icon">▸</div><div>${esc(t)}</div></div>`).join(''));
+
+  const pw = document.getElementById('d-pdf-wrap');
+  const pd = document.getElementById('d-pdf');
+  if(pw && pd){
+    const previewUrl = g.rulesPdfUrl ? window.gdrivePreviewUrl(g.rulesPdfUrl) : null;
+    if(previewUrl){
+      pw.style.display = 'block';
+      pd.innerHTML = `
+        <div class="pdf-frame">
+          <iframe src="${previewUrl}" title="Luật chơi ${esc(g.name)} (PDF)" allow="autoplay" loading="lazy"></iframe>
+        </div>
+        <a class="pdf-open-link" href="${g.rulesPdfUrl}" target="_blank" rel="noopener">↗️ Mở file gốc trên Google Drive</a>`;
+    } else {
+      pw.style.display = 'none';
+      pd.innerHTML = '';
+    }
+  }
+
+  const tw = document.getElementById('d-tips-wrap');
+  if(tw){
+    if(g.tips && g.tips.length){
+      tw.style.display = 'block';
+      setH('d-tips', g.tips.map(t=>`<div class="tip-item"><div class="turn-icon">💡</div><div>${esc(t)}</div></div>`).join(''));
+    } else {
+      tw.style.display = 'none';
+    }
+  }
+
+  const vw  = document.getElementById('d-video-wrap');
+  const vid = document.getElementById('d-video');
+  if(vw && vid){
+    vw.style.display = 'block';
+    const ytId = window.getYoutubeId(g.youtubeUrl);
+    vid.innerHTML = ytId
+      ? `<div class="video-frame"><iframe src="https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1" title="Hướng dẫn ${esc(g.name)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      : `<div class="no-video"><div class="nv-icon">📽️</div><p>Chưa có video hướng dẫn.</p><a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to play '+g.name)}" target="_blank" rel="noopener">Tìm trên YouTube →</a></div>`;
+  }
+
+  const related = GAMES
+    .filter((r, i) => i !== idx && getCategories(r).some(c => cats.includes(c)))
+    .slice(0, 4);
+
+  const relEl = document.getElementById('d-related');
+  if(relEl){
+    relEl.innerHTML = related.length
+      ? related.map(r => {
+          const ri = gameIndex(r);
+          return `<div class="rel-card" onclick="goDetail(${ri})">
+            <div class="rel-stripe" style="background:${r.color}"></div>
+            <div class="rel-body"><span class="rel-emoji">${r.emoji}</span>
+            <div class="rel-name">${esc(r.name)}</div>
+            <div class="rel-meta">
+              <span class="rel-tag">👥 ${esc(r.players)}</span>
+              <span class="rel-tag">⏱ ${esc(r.time)}</span>
+              <span class="rel-tag ${diffClass(r.difficulty)}">⚡ ${esc(r.difficulty)}</span>
+            </div></div>
+            <div class="rel-go">Xem luật chơi</div></div>`;
+        }).join('')
+      : `<p style="color:var(--muted);font-size:.9rem;grid-column:1/-1">Chưa có game cùng thể loại.</p>`;
+  }
+}
+
+/* ═══ INIT BOARDGAME PAGE ═══ */
+function initBoardgame(){
+  renderGrid();
+  const si = document.getElementById('searchInput');
+  if(si){
+    si.value = searchQ;
+    si.addEventListener('input', window.debounce(e=>{ searchQ = e.target.value; renderGrid(); }, 150));
+  }
+  document.querySelectorAll('.chip').forEach(c=>{
+    if(c.getAttribute('data-filter') === activeFilter) c.classList.add('active');
+    c.addEventListener('click', ()=>{
+      document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+      c.classList.add('active');
+      activeFilter = c.getAttribute('data-filter');
+      renderGrid();
+    });
+  });
+}
+
+/* ═══ SETTINGS ═══ */
+function initSettings(){
+  const input = document.getElementById('settings-username');
+  if(input) input.value = localStorage.getItem('tcq_username') || '';
+  renderThemePicker();
+}
+
+function renderThemePicker(){
+  const wrap = document.getElementById('theme-picker');
+  if(!wrap || !window.TCQ_THEMES) return;
+
+  const current = window.getCurrentTheme();
+
+  wrap.innerHTML = window.TCQ_THEMES.map(t => `
+    <button type="button" class="theme-chip${t.id === current ? ' active' : ''}" data-theme-id="${t.id}">
+      <span class="theme-chip-icon">${t.icon}</span>
+      <span>${esc(t.label)}</span>
+    </button>
+  `).join('');
+
+  wrap.querySelectorAll('.theme-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.applyTheme(btn.dataset.themeId);
+      wrap.querySelectorAll('.theme-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+}
+
+function saveUsernameSettings(){
+  const input = document.getElementById('settings-username');
+  if(!input) return;
+  const val = input.value.trim();
+  if(!val){ input.focus(); return; }
+  localStorage.setItem('tcq_username', val);
+  if(typeof updateChatUsername === 'function') updateChatUsername(val);
+  const btn = document.querySelector('.settings-page button');
+  if(btn){ const orig=btn.textContent; btn.textContent='✅ Đã lưu!'; setTimeout(()=>btn.textContent=orig, 1800); }
+}
+
+/* ═══ LIGHTBOX ═══ */
+function openLb(url, cap){
+  const lb    = document.getElementById('lightbox');
+  const img   = document.getElementById('lb-img');
+  const capEl = document.getElementById('lb-caption');
+  if(!lb) return;
+  if(img)   img.src = url;
+  if(capEl) capEl.textContent = cap;
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLb(){
+  const lb = document.getElementById('lightbox');
+  if(lb) lb.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeLb(); });
+const staticLb = document.getElementById('lightbox');
+if(staticLb) staticLb.addEventListener('click', e=>{ if(e.target.id==='lightbox') closeLb(); });
+
+/* ═══ HASH ROUTER ═══ */
+function routeFromHash(){
+  const hash = location.hash.replace('#','');
+  if(hash === 'boardgame' || hash.startsWith('game-')){
+    loadPage('boardgame').then(()=>{
+      updateHeader('boardgame'); setActive('goBoardgame');
+      if(hash.startsWith('game-')){
+        const key = hash.replace('game-','');
+        let idx = -1;
+
+        const idFromSlug = gameSlugs.idBySlug[key];
+        if(idFromSlug !== undefined){
+          idx = GAMES.findIndex(g => g.id === idFromSlug);
+        }
+        if(idx === -1){
+          const numIdx = parseInt(key, 10);
+          if(!isNaN(numIdx) && numIdx >= 0 && numIdx < GAMES.length) idx = numIdx;
+        }
+        if(idx !== -1) setTimeout(()=>goDetail(idx), 80);
+      }
+    });
+  } else if(hash === 'contact'){
+    loadPage('contact'); updateHeader('contact'); setActive('goContact');
+  } else if(hash === 'membership'){
+    loadPage('membership'); updateHeader('membership'); setActive('goMembership');
+  } else if(hash === 'settings'){
+    loadPage('settings'); updateHeader('settings'); setActive('goSettings');
+  } else {
+    if(location.hash !== '#news') history.replaceState(null,'','#news');
+    loadPage('news'); updateHeader('news'); setActive('goNews');
+  }
+}
+
+window.addEventListener('hashchange', routeFromHash);
+
+/* ═══ BANNERS (trang News) ═══ */
+function renderBanners(){
+  const wrap = document.getElementById('news-banners-wrap');
+  if(!wrap) return;
+  const config = window.BANNER_CONFIG;
+  if(!config || !config.length) return;
+  const visible = config.filter(b => b.visible && b.url);
+  if(!visible.length){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = visible.map(b => `
+    <div class="banner-slide">
+      <img class="banner-img" src="${esc(b.url)}" alt="Banner" loading="lazy"
+           onerror="this.parentElement.style.display='none'">
+    </div>
+  `).join('');
+}
+
 /* ═══ DAILY PICK — 3 game ngẫu nhiên ═══ */
 function renderDailyPick(){
   renderBanners();
@@ -142,7 +532,7 @@ function renderDailyPick(){
   const wrap = document.getElementById('daily-pick-card');
   if(!wrap) return;
 
-  /* ⚠️ MỚI: cùng logic phân biệt trạng thái tải như renderGrid() */
+  /* ⚠️ MỚI: phân biệt trạng thái tải/lỗi mạng giống renderGrid() */
   if (!GAMES || !GAMES.length) {
     wrap.innerHTML = window.GAMES_LOAD_ERROR
       ? `<div style="text-align:center;padding:40px 20px;color:var(--muted)">
@@ -215,3 +605,31 @@ function renderDailyPick(){
 
   renderCards();
 }
+
+/* Gán tường minh các hàm được loadPage()/routeFromHash() gọi vào
+   window — tránh lỗi "not defined" nếu script bị dán thiếu/cắt cụt. */
+window.loadPage           = loadPage;
+window.routeFromHash      = routeFromHash;
+window.initBoardgame      = initBoardgame;
+window.initSettings       = initSettings;
+window.renderDailyPick    = renderDailyPick;
+window.renderBanners      = renderBanners;
+window.renderGrid         = renderGrid;
+window.renderDetail       = renderDetail;
+window.goNews             = goNews;
+window.goBoardgame        = goBoardgame;
+window.goContact          = goContact;
+window.goSettings         = goSettings;
+window.goMembership       = goMembership;
+window.goList             = goList;
+window.goDetail           = goDetail;
+window.openLb             = openLb;
+window.closeLb            = closeLb;
+window.saveUsernameSettings = saveUsernameSettings;
+
+/* ═══ KHỞI ĐỘNG — chờ dữ liệu game rồi build index + route lần đầu ═══ */
+window.GAMES_READY.then(() => {
+  gameSlugs = window.buildGameSlugMap(GAMES);
+  rebuildGameIndex();
+  routeFromHash();
+});
