@@ -1,21 +1,14 @@
 /* ══════════════════════════════════════════════
    ROUTER — js/app/app-router.js
    ─────────────────────────────────────────────
-   ⚠️ TÁCH RA từ js/app.js. Router hash-based (routeFromHash),
-   loadPage() (fetch pages/*.html vào #app), các hàm điều hướng
-   goNews/goBoardgame/goContact/goSettings/goMembership, và
-   goList/goDetail (điều hướng bên trong trang Boardgame) +
-   trackGameView (ghi lượt xem game qua Firebase).
+   ⚠️ ĐÃ QUAY VỀ LOGIC ĐƠN GIẢN CỦA BẢN CŨ (ver1.2): loadPage()
+   KHÔNG còn await window.GAMES_READY / gọi ensureGameIndexBuilt()
+   bên trong nữa. GAMES đã được đảm bảo tải xong TRƯỚC KHI
+   routeFromHash() được gọi lần đầu tiên (xem js/app/app-init.js:
+   window.GAMES_READY.then(...)) nên các lần điều hướng sau (kể cả
+   qua hashchange) không cần chờ lại — đúng luồng bản cũ.
 
    Cần: app-state.js, app-menu-header.js (load TRƯỚC file này).
-   Các hàm window.initBoardgame / window.renderDailyPick /
-   window.initSettings / window.initMembership được gọi qua
-   typeof-check vì được export ở các file tương ứng
-   (app-boardgame-list.js, app-daily-pick.js, app-settings.js,
-   js/membership.js) — có thể load TRƯỚC hoặc SAU file này đều
-   được, miễn là load xong trước khi router thực sự điều hướng
-   (đảm bảo vì routeFromHash() lần đầu chỉ chạy sau khi mọi
-   script đã load, xem app-init.js).
    ══════════════════════════════════════════════ */
 
 /* ═══ ROUTER ═══ */
@@ -27,11 +20,7 @@ async function loadPage(pageName){
     app.innerHTML = await res.text();
     window.scrollTo(0, 0);
 
-    attachAutoReloadOnGamesUpdate();
-
     if(pageName === 'boardgame'){
-      await window.GAMES_READY;
-      ensureGameIndexBuilt();
       if (typeof window.initBoardgame === 'function') {
         window.initBoardgame();
       } else {
@@ -43,8 +32,6 @@ async function loadPage(pageName){
     }
     if(pageName === 'membership' && typeof window.initMembership === 'function') window.initMembership();
     if(pageName === 'news'){
-      await window.GAMES_READY;
-      ensureGameIndexBuilt();
       if (typeof window.renderDailyPick === 'function') {
         window.renderDailyPick();
       } else {
@@ -159,8 +146,7 @@ function routeFromHash(){
 
 window.addEventListener('hashchange', routeFromHash);
 
-/* ── Export tường minh (phòng khi script bị dán thiếu/cắt cụt,
-   và để pages/*.html gọi onclick="..." luôn tìm thấy trên window) ── */
+/* ── Export tường minh ── */
 window.loadPage      = loadPage;
 window.routeFromHash = routeFromHash;
 window.goNews        = goNews;
