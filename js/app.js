@@ -1,154 +1,217 @@
-// ═══════════════════════════════════════════════
-// SUPABASE DATA LOADER — js/data.js
-// ─────────────────────────────────────────────
-// ⚠️ VIẾT LẠI (fix "không hiện game trên mobile"):
-// - Bọc timeout cho cả import() CDN lẫn query Supabase — tránh
-//   treo vô hạn khi mobile chuyển mạng giữa chừng (Wi-Fi ↔ 4G).
-// - Tự động retry NỀN, không giới hạn số lần, không cần người
-//   dùng bấm nút — thử lại với backoff tăng dần rồi giữ nguyên
-//   ở mức tối đa, cho tới khi thành công.
-// - window.GAMES_READY vẫn giữ nguyên API cũ (Promise) để không
-//   phải sửa chỗ khác — resolve ngay sau lần thử ĐẦU TIÊN (thành
-//   công hoặc thất bại), không chặn UI vô thời hạn.
-// - Khi tải thành công (kể cả ở lần retry nền sau đó), bắn sự kiện
-//   'tcq:games-updated' trên window để app.js tự render lại mà
-//   không cần người dùng reload/bấm gì.
-// - window.GAMES_LOAD_ERROR: true nếu lần thử gần nhất thất bại —
-//   app.js dùng để phân biệt "đang tải/lỗi mạng" với "lọc không
-//   ra kết quả".
-// ═══════════════════════════════════════════════
+/* ═══ ROUTER ═══ */
+let _gamesUpdateListenerAttached = false;
 
-window.GAMES = [];
-window.BANNER_CONFIG = [
-  { key: 'banner_1', url: 'assets/img/banner_001.png', visible: true },
-  { key: 'banner_2', url: 'assets/img/banner2.jpg',    visible: true },
-];
-window.GAMES_LOAD_ERROR = false;
+/* ⚠️ MỚI: lắng nghe sự kiện 'tcq:games-updated' (bắn ra từ data.js
+   khi retry nền thành công) — tự render lại trang hiện tại, KHÔNG
+   cần người dùng bấm gì hay reload trang. Chỉ gắn 1 lần. */
+function attachAutoReloadOnGamesUpdate() {
+  if (_gamesUpdateListenerAttached) return;
+  _gamesUpdateListenerAttached = true;
 
-/* ── Helper: race 1 promise với timeout, để không bao giờ treo vô hạn ── */
-function withTimeout(promise, ms, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout (${ms}ms) khi ${label}`)), ms)
-    ),
-  ]);
+  window.addEventListener('tcq:games-updated', () => {
+    ensureGameIndexBuiltForce();
+    const hash = location.hash.replace('#', '');
+    if (hash === 'boardgame' || hash.startsWith('game-') || hash === '' ) {
+      // Chỉ re-render nếu đang đứng ở trang phụ thuộc GAMES
+      if (document.getElementById('grid')) {
+        renderGrid();
+      }
+      if (document.getElementById('daily-pick-card')) {
+        renderDailyPick();
+      }
+    }
+  });
 }
 
-/* ── 1 lần thử tải toàn bộ dữ liệu games + banner ── */
-async function attemptLoadGamesData() {
-  const { createClient } = await withTimeout(
-    import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'),
-    10000,
-    'tải thư viện Supabase'
-  );
+function ensureGameIndexBuiltForce(){
+  gameSlugs = window.buildGameSlugMap(GAMES);
+  rebuildGameIndex();
+}
 
-  const supabase = createClient(
-    window.APP_CONFIG.supabaseUrl,
-    window.APP_CONFIG.supabaseKey
-  );
+async function loadPage(pageName){
+  const app = document.getElementById('app');
+  try {
+    const res = await fetch('pages/' + pageName + '.html');
+    if(!res.ok) throw new Error('HTTP ' + res.status + ' — pages/' + pageName + '.html');
+    app.innerHTML = await res.text();
+    window.scrollTo(0, 0);
 
-  const [gamesResult, settingsResult] = await withTimeout(
-    Promise.all([
-      supabase.from('games').select('*').order('sort_order', { ascending: true }),
-      supabase.from('site_settings').select('key, value').in('key', ['banner_1', 'banner_2']),
-    ]),
-    12000,
-    'tải dữ liệu game/banner'
-  );
+    attachAutoReloadOnGamesUpdate();
 
-  if (gamesResult.error) throw gamesResult.error;
-
-  const mapped = gamesResult.data.map(g => ({
-    id:         g.id,
-    name:       g.name        || '',
-    emoji:      g.emoji       || '🎲',
-    color:      g.color       || '#6c5ce7',
-    categories: Array.isArray(g.categories) ? g.categories : [],
-    players:    g.players     || '',
-    time:       g.time        || '',
-    difficulty: g.difficulty  || '',
-    objective:  g.objective   || '',
-    win:        g.win         || '',
-    setup:      Array.isArray(g.setup)  ? g.setup  : [],
-    turn:       Array.isArray(g.turn)   ? g.turn   : [],
-    tips:       Array.isArray(g.tips)   ? g.tips   : [],
-    images:     Array.isArray(g.images) ? g.images : [],
-    youtubeUrl: g.youtube_url || '',
-    heroBg:     g.hero_bg     || '',
-    rulesPdfUrl: g.rules_pdf_url || '',
-  }));
-
-  window.GAMES.length = 0;
-  window.GAMES.push(...mapped);
-
-  if (!settingsResult.error && settingsResult.data?.length) {
-    settingsResult.data.forEach(row => {
-      const item = window.BANNER_CONFIG.find(b => b.key === row.key);
-      if (!item) return;
-      try {
-        const parsed = JSON.parse(row.value);
-        item.url     = parsed.url     ?? item.url;
-        item.visible = parsed.visible ?? true;
-      } catch {
-        item.url     = row.value || item.url;
-        item.visible = true;
+    if(pageName === 'boardgame'){
+      await window.GAMES_READY;
+      ensureGameIndexBuilt();
+      if (typeof window.initBoardgame === 'function') {
+        window.initBoardgame();
+      } else {
+        console.error('[app.js] initBoardgame chưa sẵn sàng — kiểm tra lại js/app.js có bị thiếu đoạn khi dán không.');
       }
+    }
+    if(pageName === 'settings'){
+      if (typeof window.initSettings === 'function') window.initSettings();
+    }
+    if(pageName === 'membership' && typeof window.initMembership === 'function') window.initMembership();
+    if(pageName === 'news'){
+      await window.GAMES_READY;
+      ensureGameIndexBuilt();
+      if (typeof window.renderDailyPick === 'function') {
+        window.renderDailyPick();
+      } else {
+        console.error('[app.js] renderDailyPick chưa sẵn sàng — kiểm tra lại js/app.js có bị thiếu đoạn khi dán không.');
+      }
+    }
+  } catch(e){
+    app.innerHTML = '<div style="padding:60px 24px;text-align:center">'
+      + '<div style="font-size:3rem;margin-bottom:12px">⚠️</div>'
+      + '<h2 style="font-family:Bebas Neue,sans-serif">Lỗi tải trang</h2>'
+      + '<p style="color:#888;margin-top:8px">' + e.message + '</p>'
+      + '</div>';
+    console.error('loadPage error:', e);
+  }
+}
+
+/* ═══ BOARDGAME LIST ═══ */
+function renderGrid(){
+  const grid  = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+  if(!grid) return;
+
+  /* ⚠️ MỚI: phân biệt "chưa có dữ liệu vì đang tải/lỗi mạng"
+     với "có dữ liệu nhưng lọc không ra kết quả nào". Không hiện
+     "Không tìm thấy game nào" (gây hiểu lầm) khi thực chất là
+     đang chờ mạng — hiện trạng thái tải rõ ràng, tự cập nhật khi
+     data.js bắn sự kiện 'tcq:games-updated'. */
+  if (!GAMES.length) {
+    const countElEmpty = document.getElementById('countNum');
+    if (countElEmpty) countElEmpty.textContent = 0;
+
+    if (empty) empty.style.display = 'none';
+    grid.innerHTML = window.GAMES_LOAD_ERROR
+      ? `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted)">
+           <div style="font-size:2.4rem;margin-bottom:10px">📡</div>
+           <div style="font-weight:800;font-size:1.05rem;color:var(--ink)">Đang kết nối lại...</div>
+           <p style="margin-top:6px;font-size:.85rem">Mạng chập chờn — hệ thống đang tự thử lại, trang sẽ tự hiện danh sách khi kết nối được.</p>
+         </div>`
+      : `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted)">
+           <div style="font-size:2.4rem;margin-bottom:10px">⏳</div>
+           <div style="font-weight:800;font-size:1.05rem;color:var(--ink)">Đang tải danh sách game...</div>
+         </div>`;
+    return;
+  }
+
+  const games   = filteredGames();
+  const countEl = document.getElementById('countNum');
+  if(countEl) countEl.textContent = games.length;
+
+  if(!games.length){
+    grid.innerHTML = '';
+    if(empty) empty.style.display = 'block';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+
+  grid.innerHTML = games.map((g, i) => {
+    const ri   = gameIndex(g);
+    const cats = getCategories(g);
+    return `<div class="game-card" onclick="goDetail(${ri})" style="animation-delay:${i*0.04}s">
+      <div class="card-stripe" style="background:${g.color}"></div>
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-emoji">${g.emoji}</div>
+          <div>
+            <div class="card-title">${esc(g.name)}</div>
+            <div class="card-meta">
+              ${cats.map(c => `<span class="tag">${esc(c)}</span>`).join('')}
+              <span class="tag">👥 ${esc(g.players)}</span>
+              <span class="tag">⏱ ${esc(g.time)}</span>
+              <span class="tag ${diffClass(g.difficulty)}">⚡ ${esc(g.difficulty)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-objective"><strong>Mục tiêu:</strong> ${esc(g.objective)}</div>
+      </div>
+      <div class="card-footer"><div class="view-btn">Xem luật chơi</div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ═══ DAILY PICK — 3 game ngẫu nhiên ═══ */
+function renderDailyPick(){
+  renderBanners();
+
+  const wrap = document.getElementById('daily-pick-card');
+  if(!wrap) return;
+
+  /* ⚠️ MỚI: cùng logic phân biệt trạng thái tải như renderGrid() */
+  if (!GAMES || !GAMES.length) {
+    wrap.innerHTML = window.GAMES_LOAD_ERROR
+      ? `<div style="text-align:center;padding:40px 20px;color:var(--muted)">
+           <div style="font-size:2.2rem;margin-bottom:10px">📡</div>
+           <div style="font-weight:800;color:var(--ink)">Đang kết nối lại...</div>
+           <p style="margin-top:6px;font-size:.85rem">Trang sẽ tự hiện gợi ý khi kết nối được.</p>
+         </div>`
+      : `<div style="text-align:center;padding:40px 20px;color:var(--muted)">
+           <div style="font-size:2.2rem;margin-bottom:10px">⏳</div>
+           <div style="font-weight:800;color:var(--ink)">Đang tải gợi ý...</div>
+         </div>`;
+    return;
+  }
+
+  function pickRandom(arr, n){
+    const pool   = [...arr];
+    const result = [];
+    while(result.length < Math.min(n, pool.length)){
+      const i = Math.floor(Math.random() * pool.length);
+      result.push(pool.splice(i, 1)[0]);
+    }
+    return result;
+  }
+
+  function renderCards(){
+    const picks = pickRandom(GAMES, 3);
+
+    const cards = picks.map(pick => {
+      const idx  = gameIndex(pick);
+      const cats = getCategories(pick);
+      return `
+        <div class="daily-pick-card" onclick="goBoardgame(); setTimeout(()=>goDetail(${idx}), 80)">
+          <div class="daily-pick-color-bar" style="background:${pick.color}"></div>
+          <div class="daily-pick-body">
+            <div class="daily-pick-top">
+              <div class="daily-pick-emoji">${pick.emoji}</div>
+              <div class="daily-pick-info">
+                <div class="daily-pick-name">${esc(pick.name)}</div>
+                <div class="daily-pick-tags">
+                  ${cats.map(c => `<span class="tag">${esc(c)}</span>`).join('')}
+                  <span class="tag">👥 ${esc(pick.players)}</span>
+                  <span class="tag">⏱ ${esc(pick.time)}</span>
+                  <span class="tag ${diffClass(pick.difficulty)}">⚡ ${esc(pick.difficulty)}</span>
+                </div>
+              </div>
+            </div>
+            <div class="daily-pick-objective">
+              <strong>Mục tiêu:</strong> ${esc(pick.objective)}
+            </div>
+            <div class="daily-pick-footer">
+              <div class="daily-pick-cta">Xem luật chơi ngay</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:16px;">
+        ${cards}
+      </div>
+      <div style="text-align:center;">
+        <button class="daily-reroll-btn" id="reroll-btn">🎲 Thử 3 game khác</button>
+      </div>`;
+
+    document.getElementById('reroll-btn')?.addEventListener('click', e => {
+      e.stopPropagation();
+      renderCards();
     });
   }
 
-  console.log('✅ Loaded:', window.GAMES.length, 'games');
+  renderCards();
 }
-
-/* ── Vòng lặp retry nền — chạy tới khi thành công, không cần người
-   dùng thao tác. Backoff tăng dần: 1.5s → 3s → 6s → 10s (giữ mức
-   10s cho các lần sau, tránh spam liên tục vô hạn). ── */
-const RETRY_DELAYS = [1500, 3000, 6000, 10000];
-
-function scheduleBackgroundRetry(attemptCount) {
-  const delay = RETRY_DELAYS[Math.min(attemptCount, RETRY_DELAYS.length - 1)];
-  setTimeout(async () => {
-    try {
-      await attemptLoadGamesData();
-      window.GAMES_LOAD_ERROR = false;
-      console.log('✅ Retry nền thành công sau', attemptCount + 1, 'lần thử.');
-      /* Báo cho UI biết để tự render lại — không cần người dùng làm gì */
-      window.dispatchEvent(new CustomEvent('tcq:games-updated'));
-    } catch (err) {
-      window.GAMES_LOAD_ERROR = true;
-      console.warn('⚠️ Retry nền lần', attemptCount + 1, 'thất bại:', err.message);
-      scheduleBackgroundRetry(attemptCount + 1);
-    }
-  }, delay);
-}
-
-/* ── Khởi động: thử ngay lập tức. GAMES_READY resolve sau lần thử
-   ĐẦU TIÊN này (không chờ các lần retry nền) để không chặn UI —
-   nếu fail, UI hiện trạng thái "đang tải lại" và tự cập nhật khi
-   scheduleBackgroundRetry() thành công. ── */
-window.GAMES_READY = (async () => {
-  try {
-    await attemptLoadGamesData();
-    window.GAMES_LOAD_ERROR = false;
-  } catch (err) {
-    window.GAMES_LOAD_ERROR = true;
-    console.error('❌ data.js — lần thử đầu thất bại, sẽ tự thử lại nền:', err.message);
-    scheduleBackgroundRetry(0);
-  }
-})();
-
-/* Cho phép gọi thủ công nếu cần (vd người dùng đổi mạng, hoặc
-   dev muốn ép tải lại) — không bắt buộc dùng, nhưng vẫn expose
-   để tương thích nếu sau này cần. */
-window.retryLoadGames = async function () {
-  try {
-    await attemptLoadGamesData();
-    window.GAMES_LOAD_ERROR = false;
-    window.dispatchEvent(new CustomEvent('tcq:games-updated'));
-    return true;
-  } catch (err) {
-    window.GAMES_LOAD_ERROR = true;
-    console.warn('retryLoadGames thất bại:', err.message);
-    return false;
-  }
-};
