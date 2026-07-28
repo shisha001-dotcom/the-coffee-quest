@@ -1,11 +1,9 @@
 /* ══════════════════════════════════════════════
    BANNERS + DAILY PICK — js/app/app-daily-pick.js
    ─────────────────────────────────────────────
-   ⚠️ TÁCH RA từ js/app.js. Render banner (pages/news.html
-   #news-banners-wrap) và khối "Hôm nay chơi gì?" (3 game ngẫu
-   nhiên, có nút "Thử 3 game khác"). Gọi bởi app-router.js khi
-   vào trang News, và bởi app-state.js::attachAutoReloadOnGamesUpdate()
-   khi GAMES vừa được cập nhật sau retry nền.
+   ⚠️ FIX (đồng bộ với app-boardgame-list.js): thêm nút "Thử lại
+   ngay" khi GAMES chưa tải được, thay vì chỉ hiện chữ chờ vô thời
+   hạn không có cách nào thoát ra trên mobile.
 
    Cần: app-state.js (esc, diffClass, getCategories, gameIndex)
    — load TRƯỚC file này.
@@ -34,18 +32,28 @@ function renderDailyPick(){
   const wrap = document.getElementById('daily-pick-card');
   if(!wrap) return;
 
-  /* Phân biệt trạng thái tải/lỗi mạng giống renderGrid() */
+  /* ⚠️ FIX: thêm nút thử lại thay vì chỉ hiện chữ chờ mãi */
   if (!GAMES || !GAMES.length) {
-    wrap.innerHTML = window.GAMES_LOAD_ERROR
-      ? `<div style="text-align:center;padding:40px 20px;color:var(--muted)">
-           <div style="font-size:2.2rem;margin-bottom:10px">📡</div>
-           <div style="font-weight:800;color:var(--ink)">Đang kết nối lại...</div>
-           <p style="margin-top:6px;font-size:.85rem">Trang sẽ tự hiện gợi ý khi kết nối được.</p>
-         </div>`
-      : `<div style="text-align:center;padding:40px 20px;color:var(--muted)">
-           <div style="font-size:2.2rem;margin-bottom:10px">⏳</div>
-           <div style="font-weight:800;color:var(--ink)">Đang tải gợi ý...</div>
-         </div>`;
+    const isError = window.GAMES_LOAD_ERROR;
+    wrap.innerHTML = `
+      <div style="text-align:center;padding:40px 20px;color:var(--muted)">
+        <div style="font-size:2.2rem;margin-bottom:10px">${isError ? '📡' : '⏳'}</div>
+        <div style="font-weight:800;color:var(--ink)">
+          ${isError ? 'Không tải được gợi ý' : 'Đang tải gợi ý...'}
+        </div>
+        <p style="margin-top:6px;font-size:.85rem">
+          ${isError ? 'Mạng có thể đang chập chờn — bấm để thử lại.' : 'Trang sẽ tự hiện gợi ý khi kết nối được.'}
+        </p>
+        <button type="button" id="dailyPickRetryBtn"
+          style="margin-top:14px;padding:9px 20px;border:none;border-radius:var(--r-md);
+                 background:var(--accent);color:#fff;font-weight:800;font-size:.82rem;cursor:pointer;">
+          🔄 Thử lại ngay
+        </button>
+      </div>`;
+    document.getElementById('dailyPickRetryBtn')?.addEventListener('click', () => {
+      renderDailyPick();
+      if (typeof window.retryLoadGamesNow === 'function') window.retryLoadGamesNow();
+    });
     return;
   }
 
