@@ -1,5 +1,10 @@
 // ═══════════════════════════════════════════════
 // SUPABASE DATA LOADER — js/data.js
+// ─────────────────────────────────────────────
+// ⚠️ ĐÃ QUAY VỀ LOGIC ĐƠN GIẢN CỦA BẢN CŨ (ver1.2): 1 lần tải
+// DUY NHẤT, KHÔNG timeout, KHÔNG multi-CDN fallback, KHÔNG tự
+// retry nền. Lỗi thì chỉ console.error, GAMES giữ nguyên rỗng —
+// đúng hành vi đã hoạt động ổn định trước đây.
 // ═══════════════════════════════════════════════
 
 window.GAMES = [];
@@ -28,29 +33,27 @@ window.GAMES_READY = (async () => {
     if (gamesResult.error) {
       console.error('games fetch error:', gamesResult.error);
     } else {
-      /* BUG FIX: gán thẳng array mới thay vì length=0 + push
-         → tránh race condition nếu GAMES_READY bị gọi lại */
       const mapped = gamesResult.data.map(g => ({
-        id:         g.id,
-        name:       g.name        || '',
-        emoji:      g.emoji       || '🎲',
-        color:      g.color       || '#6c5ce7',
-        categories: Array.isArray(g.categories) ? g.categories : [],
-        players:    g.players     || '',
-        time:       g.time        || '',
-        difficulty: g.difficulty  || '',
-        objective:  g.objective   || '',
-        win:        g.win         || '',
-        setup:      Array.isArray(g.setup)  ? g.setup  : [],
-        turn:       Array.isArray(g.turn)   ? g.turn   : [],
-        tips:       Array.isArray(g.tips)   ? g.tips   : [],
-        images:     Array.isArray(g.images) ? g.images : [],
-        youtubeUrl: g.youtube_url || '',
-        heroBg:     g.hero_bg     || '',
-        rulesPdfUrl: g.rules_pdf_url || '',
+        id:          g.id,
+        name:        g.name        || '',
+        emoji:       g.emoji       || '🎲',
+        color:       g.color       || '#6c5ce7',
+        categories:  Array.isArray(g.categories) ? g.categories : [],
+        players:     g.players     || '',
+        time:        g.time        || '',
+        difficulty:  g.difficulty  || '',
+        objective:   g.objective   || '',
+        win:         g.win         || '',
+        setup:       Array.isArray(g.setup)  ? g.setup  : [],
+        turn:        Array.isArray(g.turn)   ? g.turn   : [],
+        tips:        Array.isArray(g.tips)   ? g.tips   : [],
+        images:      Array.isArray(g.images) ? g.images : [],
+        youtubeUrl:  g.youtube_url    || '',
+        heroBg:      g.hero_bg        || '',
+        rulesPdfUrl: g.rules_pdf_url  || '',
       }));
 
-      /* Gán vào window.GAMES giữ nguyên reference (app.js dùng var GAMES = window.GAMES) */
+      /* Gán vào window.GAMES giữ nguyên reference */
       window.GAMES.length = 0;
       window.GAMES.push(...mapped);
 
