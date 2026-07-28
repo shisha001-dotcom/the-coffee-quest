@@ -1,5 +1,18 @@
 // ═══════════════════════════════════════════════
 // SUPABASE DATA LOADER — js/data.js
+// ─────────────────────────────────────────────
+// ⚠️ FIX (mobile treo mãi ở "Đang tải danh sách game..."):
+// - Trước đây import() thư viện supabase-js từ 1 CDN duy nhất
+//   (jsdelivr) KHÔNG có timeout — nếu request bị treo (mạng di
+//   động chặn/DNS lỗi/trình duyệt trong app như Zalo, Facebook...)
+//   thì Promise không bao giờ resolve/reject, khiến toàn bộ trang
+//   kẹt ở trạng thái loading vĩnh viễn dù máy tính cùng mạng vẫn
+//   chạy bình thường.
+// - Giờ: mỗi lần thử tải có timeout cứng (10s). Nếu jsdelivr fail/
+//   timeout, tự động thử CDN dự phòng (unpkg) trước khi báo lỗi.
+// - Thêm window.retryLoadGamesNow() để nút "Thử lại" (thêm ở
+//   app-boardgame-list.js / app-daily-pick.js) có thể ép tải lại
+//   NGAY thay vì phải chờ backoff timer.
 // ═══════════════════════════════════════════════
 
 window.GAMES = [];
@@ -8,20 +21,53 @@ window.BANNER_CONFIG = [
   { key: 'banner_2', url: 'assets/img/banner2.jpg',    visible: true },
 ];
 window.GAMES_LOAD_ERROR = false;
+window.GAMES_LOAD_ERROR_MESSAGE = '';
+
+const SUPABASE_ESM_CDNS = [
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm',
+  'https://esm.sh/@supabase/supabase-js',
+];
+
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Hết thời gian chờ (${label})`)), ms);
+    promise.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
+/* Thử lần lượt từng CDN cho tới khi import() thành công — mỗi CDN
+   có timeout riêng 10s, tránh treo vô thời hạn như trước. */
+async function importSupabaseJs() {
+  let lastErr;
+  for (const url of SUPABASE_ESM_CDNS) {
+    try {
+      return await withTimeout(import(url), 10000, 'tải thư viện Supabase');
+    } catch (err) {
+      console.warn('⚠️ Không tải được supabase-js từ', url, err);
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('Không tải được thư viện Supabase từ bất kỳ CDN nào.');
+}
 
 async function fetchGamesOnce() {
-  const { createClient } = await import(
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-  );
+  const { createClient } = await importSupabaseJs();
   const supabase = createClient(
     window.APP_CONFIG.supabaseUrl,
     window.APP_CONFIG.supabaseKey
   );
 
-  const [gamesResult, settingsResult] = await Promise.all([
-    supabase.from('games').select('*').order('sort_order', { ascending: true }),
-    supabase.from('site_settings').select('key, value').in('key', ['banner_1', 'banner_2']),
-  ]);
+  const [gamesResult, settingsResult] = await withTimeout(
+    Promise.all([
+      supabase.from('games').select('*').order('sort_order', { ascending: true }),
+      supabase.from('site_settings').select('key, value').in('key', ['banner_1', 'banner_2']),
+    ]),
+    10000,
+    'tải dữ liệu game'
+  );
 
   // ⚠️ FIX: trước đây lỗi query (vd RLS, sai cột...) bị nuốt im lặng
   // (chỉ console.error trong nhánh else cũ) → GAMES kẹt rỗng mãi mãi.
@@ -68,36 +114,49 @@ async function fetchGamesOnce() {
   }
 }
 
-/* ⚠️ FIX (mobile — tra cứu luật chơi qua QR/link trực tiếp):
-   - Trước đây lần retry đầu tiên đợi tới 3000ms mới thử lại. Trên
-     mạng di động chập chờn (lý do phổ biến nhất khiến lần fetch đầu
-     tiên fail khi vừa quét QR mở thẳng #game-{slug}), 3s là khá lâu
-     và người dùng dễ tưởng trang bị lỗi rồi thoát ra trước khi kịp
-     tự phục hồi.
-   - Giờ retry lần đầu chỉ sau 800ms (phục hồi nhanh hơn với lỗi
-     mạng thoáng qua/timeout ngắn), các lần sau mới backoff tăng dần
-     như cũ (tối đa 20s) để tránh spam request nếu mất mạng thật sự.
-   - Kết hợp với app-state.js::attachAutoReloadOnGamesUpdate() đã
-     được sửa để tự mở lại đúng trang luật chơi theo hash khi
-     'tcq:games-updated' bắn ra (xem app-state.js). */
-function retryGamesInBackground() {
-  let delay = 800;
+let _retryTimer = null;
+let _retryDelay = 800;
+
+function scheduleRetry() {
+  clearTimeout(_retryTimer);
   const attempt = () => {
     fetchGamesOnce().then(() => {
       window.GAMES_LOAD_ERROR = false;
+      window.GAMES_LOAD_ERROR_MESSAGE = '';
       window.dispatchEvent(new CustomEvent('tcq:games-updated'));
     }).catch(err => {
       console.error('❌ data.js retry error:', err);
       window.GAMES_LOAD_ERROR = true;
-      delay = Math.min(delay * 1.8, 20000); // backoff, tối đa 20s
-      setTimeout(attempt, delay);
+      window.GAMES_LOAD_ERROR_MESSAGE = err?.message || String(err);
+      window.dispatchEvent(new CustomEvent('tcq:games-updated'));
+      _retryDelay = Math.min(_retryDelay * 1.8, 20000); // backoff, tối đa 20s
+      _retryTimer = setTimeout(attempt, _retryDelay);
     });
   };
-  setTimeout(attempt, delay);
+  _retryTimer = setTimeout(attempt, _retryDelay);
 }
+
+/* ⚠️ MỚI: cho phép UI (nút "Thử lại") ép tải lại NGAY LẬP TỨC,
+   không cần chờ hết thời gian backoff hiện tại. */
+window.retryLoadGamesNow = function () {
+  _retryDelay = 800;
+  clearTimeout(_retryTimer);
+  fetchGamesOnce().then(() => {
+    window.GAMES_LOAD_ERROR = false;
+    window.GAMES_LOAD_ERROR_MESSAGE = '';
+    window.dispatchEvent(new CustomEvent('tcq:games-updated'));
+  }).catch(err => {
+    console.error('❌ data.js manual retry error:', err);
+    window.GAMES_LOAD_ERROR = true;
+    window.GAMES_LOAD_ERROR_MESSAGE = err?.message || String(err);
+    window.dispatchEvent(new CustomEvent('tcq:games-updated'));
+    scheduleRetry();
+  });
+};
 
 window.GAMES_READY = fetchGamesOnce().catch(err => {
   console.error('❌ data.js error:', err);
   window.GAMES_LOAD_ERROR = true;
-  retryGamesInBackground(); // không chặn app-init.js, cứ resolve rồi retry ngầm
+  window.GAMES_LOAD_ERROR_MESSAGE = err?.message || String(err);
+  scheduleRetry(); // không chặn app-init.js, cứ resolve rồi retry ngầm
 });
