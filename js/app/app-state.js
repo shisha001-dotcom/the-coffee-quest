@@ -1,22 +1,22 @@
 /* ══════════════════════════════════════════════
    APP STATE & HELPERS — js/app/app-state.js
    ─────────────────────────────────────────────
-   ⚠️ TÁCH RA từ js/app.js (bản cũ quá dài, khó bảo trì).
-   File này PHẢI load ĐẦU TIÊN trong nhóm js/app/*.js vì:
-   - Khai báo các biến trạng thái dùng chung (activeFilter,
-     searchQ, currentIdx, gameSlugs, gameIndexById...) bằng
-     let/const ở top-level — các file js/app/*.js load SAU vẫn
-     đọc/ghi được các biến này trực tiếp (không cần window.),
-     vì mọi <script> thường (không type="module") trong cùng
-     trang chia sẻ chung 1 scope top-level. Đây là quy ước đã
-     dùng xuyên suốt dự án (VD: `client`/`currentSession` khai
-     báo ở admin/core/dashboard-auth.js, dùng trực tiếp ở các
-     module admin khác).
-   - Khai báo các helper thuần (không đụng DOM): diffClass,
-     getCategories, rebuildGameIndex, gameIndex, ensureGameIndexBuilt...
+   ⚠️ CẬP NHẬT (fix lỗi "không tra cứu được luật chơi trên điện thoại"):
 
-   Cần: js/shared-utils.js (window.escHtml, window.debounce...),
-   js/data.js (window.GAMES, window.GAMES_READY) — load TRƯỚC file này.
+   NGUYÊN NHÂN: Trên mạng di động, lần fetch Supabase ĐẦU TIÊN khi
+   quét QR mở thẳng #game-{slug} dễ bị timeout/lỗi hơn desktop.
+   window.GAMES_READY vẫn resolve nhưng GAMES rỗng → routeFromHash()
+   chạy lần đầu không tìm thấy slug nào → không mở được trang luật.
+   data.js sau đó tự retry nền và bắn 'tcq:games-updated' khi thành
+   công, NHƯNG listener cũ ở đây chỉ vẽ lại Grid/Daily-pick — quên
+   mất việc phải thử MỞ LẠI đúng trang chi tiết game theo hash cũ
+   (vd người dùng đang đứng ở #game-catan mà chưa thấy nội dung).
+
+   FIX: attachAutoReloadOnGamesUpdate() giờ kiểm tra thêm — nếu
+   location.hash đang là dạng #game-{slug} mà currentIdx vẫn đang là
+   -1 (nghĩa là lần trước KHÔNG mở được game nào), gọi lại
+   routeFromHash() để thử mở lại trang chi tiết đúng game đó, thay
+   vì chỉ render Grid/Daily-pick như cũ.
    ══════════════════════════════════════════════ */
 
 let activeFilter = '🧩 Tất cả', searchQ = '', currentIdx = -1;
@@ -68,16 +68,34 @@ function ensureGameIndexBuiltForce(){
    KHÔNG cần người dùng bấm gì hay reload trang. Chỉ gắn 1 lần duy
    nhất trong suốt vòng đời trang (dù loadPage() gọi lại nhiều lần
    khi chuyển trang).
-   Gọi renderGrid()/renderDailyPick() (định nghĩa ở
-   app-boardgame-list.js / app-daily-pick.js) — an toàn dù các hàm
-   đó nằm ở file khác, vì callback này chỉ chạy SAU khi mọi
-   <script> đã load xong (event bất đồng bộ). */
+
+   ⚠️ FIX MOBILE: nếu người dùng đang ở link luật chơi trực tiếp
+   (#game-{slug}) mà trang chi tiết CHƯA mở được (currentIdx === -1,
+   do lần fetch đầu bị lỗi mạng) → gọi lại routeFromHash() để tự mở
+   đúng trang luật chơi ngay khi dữ liệu vừa tải xong, thay vì chỉ
+   vẽ lại Grid/Daily-pick như trước (khiến người dùng mobile kẹt ở
+   trang trống/"Không tìm thấy"). */
 function attachAutoReloadOnGamesUpdate(){
   if (_gamesUpdateListenerAttached) return;
   _gamesUpdateListenerAttached = true;
 
   window.addEventListener('tcq:games-updated', () => {
     ensureGameIndexBuiltForce();
+
+    const hash = location.hash.replace('#', '');
+    const isPendingGameDeepLink = hash.startsWith('game-') && currentIdx === -1;
+
+    if (isPendingGameDeepLink) {
+      /* Thử mở lại đúng trang luật chơi theo hash hiện tại — quan
+         trọng nhất cho trường hợp quét QR trên mobile khi lần đầu
+         mạng chập chờn. routeFromHash() tự xử lý toàn bộ (load
+         trang boardgame + goDetail đúng slug) nên gọi lại an toàn. */
+      if (typeof window.routeFromHash === 'function') {
+        window.routeFromHash();
+      }
+      return;
+    }
+
     if (document.getElementById('grid')) {
       renderGrid();
     }
