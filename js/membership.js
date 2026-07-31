@@ -9,6 +9,16 @@
    cách initSettings()/initBoardgame() đang hoạt động:
      window.initMembership()
 
+   ⚠️ SỬA (dedupe — chuẩn hoá/validate SĐT VN): hàm normalizePhoneVN()
+   cục bộ từng tự viết lại đã bị XOÁ khỏi file này. Logic chuẩn hoá +
+   validate số điện thoại VN giờ CHỈ còn 1 bản DUY NHẤT trong
+   js/shared-utils.js (window.normalizePhoneVN / window.isValidPhoneVN)
+   — dùng chung với admin (admin/modules/membership/membership-shared.js).
+   Trước đây file này và bản admin tự viết lại y hệt công thức dưới
+   2 cái tên khác nhau, cộng thêm regex validate ^0\d{9,10}$ bị
+   copy-paste độc lập ở 3 nơi — rủi ro lệch validate nếu SĐT VN đổi
+   định dạng (đã từng xảy ra ngoài đời khi đổi đầu số 2018).
+
    ⚠️ Load file này SAU js/shared-config.js + js/shared-utils.js,
       TRƯỚC hoặc SAU js/app.js đều được (không phụ thuộc lẫn nhau),
       miễn là TRƯỚC khi router gọi loadPage('membership') lần đầu.
@@ -16,15 +26,6 @@
    ══════════════════════════════════════════════ */
 
 const escM = window.escHtml;
-
-/* Chuẩn hoá số điện thoại VN: "+84 912 345 678" / "84912345678" /
-   "0912-345-678" → "0912345678". */
-function normalizePhoneVN(raw) {
-  let p = (raw || '').trim().replace(/[\s.\-()]/g, '');
-  if (p.startsWith('+84')) p = '0' + p.slice(3);
-  else if (p.startsWith('84') && p.length > 9) p = '0' + p.slice(2);
-  return p;
-}
 
 function initMembership() {
   const input = document.getElementById('member-phone-input');
@@ -42,11 +43,11 @@ async function lookupMembership() {
   const input  = document.getElementById('member-phone-input');
   const btn    = document.getElementById('member-lookup-btn');
   const result = document.getElementById('member-result');
-  const phone  = normalizePhoneVN(input.value);
+  const phone  = window.normalizePhoneVN(input.value);
 
   if (!phone) { input.focus(); return; }
 
-  if (!/^0\d{9,10}$/.test(phone)) {
+  if (!window.isValidPhoneVN(phone)) {
     result.innerHTML = '<div class="member-not-found">⚠️ Số điện thoại chưa đúng định dạng.<br>Vui lòng nhập dạng: 0912345678</div>';
     input.focus();
     return;
