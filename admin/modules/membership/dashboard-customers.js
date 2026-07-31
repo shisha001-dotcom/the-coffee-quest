@@ -21,9 +21,17 @@
      markQuestProgress) ĐÃ BỎ HẲN theo yêu cầu — không còn ở đâu trong
      lần cập nhật này.
 
+   ⚠️ SỬA (dedupe — validate SĐT VN): saveNewCustomer() KHÔNG còn tự
+   viết regex ^0\d{9,10}$ nữa — gọi window.isValidPhoneVN(phone) dùng
+   chung (js/shared-utils.js), cùng logic với js/membership.js (frontend)
+   và dashboard-orders.js::lookupCustomerForOrder(). Trước đây 3 nơi
+   này tự copy-paste y hệt 1 regex — sửa 1 chỗ quên 2 chỗ còn lại sẽ
+   khiến validate lệch nhau giữa các form.
+
    Cần: client, currentSession, window.AdminPermissions,
    window.Membership (M) — PHẢI load trước file này,
-   window.escHtml, window.showToast, window.showReasonPrompt, window.debounce.
+   window.escHtml, window.showToast, window.showReasonPrompt, window.debounce,
+   window.isValidPhoneVN (js/shared-utils.js).
    ══════════════════════════════════════════════ */
 
 const M = window.Membership;
@@ -269,7 +277,9 @@ async function saveNewCustomer() {
   M.clearFieldError("newCustPhone");
 
   if (!name) { M.showFieldError("newCustName", "Vui lòng nhập tên."); return; }
-  if (!phone || !/^0\d{9,10}$/.test(phone)) {
+  /* ⚠️ SỬA (dedupe): dùng window.isValidPhoneVN() dùng chung thay vì
+     regex ^0\d{9,10}$ viết tay riêng ở đây (js/shared-utils.js). */
+  if (!phone || !window.isValidPhoneVN(phone)) {
     M.showFieldError("newCustPhone", "Số điện thoại không hợp lệ (VD: 0912345678).");
     return;
   }
