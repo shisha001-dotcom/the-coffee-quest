@@ -230,6 +230,12 @@
           const/let khai báo trùng ở top-level → các module phía sau
           (Kho nguyên liệu, Đơn hàng, Thư viện Media, Banners, Quản lý
           tài khoản...) không đăng ký được vào sidebar hoặc mất hẳn.
+
+     ⚠️ ĐÃ XOÁ: thẻ <script> CDN thư viện QRCode
+     (https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js) — tính năng
+     "Mã QR luật chơi" trong admin/modules/games/dashboard-game-detail.js
+     đã được gỡ bỏ hoàn toàn (không còn dùng), nên thư viện này không
+     còn là phụ thuộc bắt buộc của Dashboard nữa.
      ══════════════════════════════════════════════ -->
 <script src="../js/shared-config.js"></script>
 <script src="../js/shared-emoji.js"></script>
@@ -237,7 +243,6 @@
 <script src="../js/shared-utils.js"></script>
 <script src="./core/dashboard-permissions.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="./core/dashboard-auth.js"></script>
 
