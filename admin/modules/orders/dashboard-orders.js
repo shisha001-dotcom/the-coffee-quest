@@ -19,9 +19,17 @@
      chọn sản phẩm → submit.
    - Tra cứu SĐT/tên khách nằm ở khối "📅 Lịch sử đơn hàng".
 
+   ⚠️ SỬA (dedupe — validate SĐT VN): lookupCustomerForOrder() KHÔNG
+   còn tự viết regex ^0\d{9,10}$ nữa — gọi window.isValidPhoneVN(phone)
+   dùng chung (js/shared-utils.js), cùng logic với js/membership.js
+   (frontend) và dashboard-customers.js::saveNewCustomer(). Trước đây
+   3 nơi này tự copy-paste y hệt 1 regex — sửa 1 chỗ quên 2 chỗ còn
+   lại sẽ khiến validate lệch nhau giữa các form.
+
    Cần: client, currentSession, window.Membership (M),
    window.Inventory (INV), window.AdminPermissions, window.XLSX
-   (CDN SheetJS — load TRƯỚC file này trong dashboard.html).
+   (CDN SheetJS — load TRƯỚC file này trong dashboard.html),
+   window.isValidPhoneVN (js/shared-utils.js).
    ══════════════════════════════════════════════ */
 
 const M_O = window.Membership;
@@ -388,7 +396,11 @@ async function lookupCustomerForOrder() {
   const phone = M_O.normalizePhone(document.getElementById("ordLookupPhone").value);
   const notFoundBox = document.getElementById("ordCustomerNotFound");
 
-  if (!/^0\d{9,10}$/.test(phone)) { window.showToast("⚠️ SĐT không hợp lệ.", "#e17055"); return; }
+  /* ⚠️ SỬA (dedupe): dùng window.isValidPhoneVN() dùng chung
+     (js/shared-utils.js) thay vì regex ^0\d{9,10}$ viết tay riêng
+     ở đây — cùng logic với js/membership.js và
+     dashboard-customers.js::saveNewCustomer(). */
+  if (!window.isValidPhoneVN(phone)) { window.showToast("⚠️ SĐT không hợp lệ.", "#e17055"); return; }
 
   const { data, error } = await client
     .from("customers").select("*").eq("phone", phone).is("deleted_at", null).maybeSingle();
