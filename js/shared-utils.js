@@ -14,6 +14,30 @@
      window.formatDateVN(dateStr)
      window.showToast(msg, bg)
      window.slugify(s)
+     window.normalizePhoneVN(raw)    — ⚠️ MỚI (dedupe): chuẩn hoá số
+                                        điện thoại VN. Nơi DUY NHẤT chứa
+                                        logic này — dùng chung bởi
+                                        js/membership.js (frontend) và
+                                        admin/modules/membership/membership-shared.js
+                                        (window.Membership.normalizePhone
+                                        giờ chỉ là alias trỏ về đây).
+                                        Trước đây 2 file tự viết lại y
+                                        hệt công thức này dưới 2 cái tên
+                                        khác nhau.
+     window.isValidPhoneVN(phone)    — ⚠️ MỚI (dedupe): validate định
+                                        dạng SĐT VN đã chuẩn hoá
+                                        (0xxxxxxxxx, 10-11 số) — dùng
+                                        chung thay cho regex
+                                        ^0\d{9,10}$ từng bị copy-paste
+                                        độc lập ở 3 nơi khác nhau
+                                        (js/membership.js,
+                                        dashboard-customers.js,
+                                        dashboard-orders.js). Sửa 1 chỗ
+                                        ở đây là áp dụng cho toàn bộ dự
+                                        án, không còn nguy cơ lệch nhau
+                                        giữa các form nếu SĐT VN đổi
+                                        định dạng trong tương lai.
+     window.debounce(fn, delay)
      window.buildGameSlugMap(games)
      window.showConfirm(opts)        — modal xác nhận (Đồng ý/Huỷ)
      window.showReasonPrompt(opts)   — modal xác nhận CÓ Ô NHẬP LÝ DO bắt buộc
@@ -55,6 +79,37 @@ window.slugify = function (s) {
   return s.toString().trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+};
+
+/* ══════════════════════════════════════════════
+   SỐ ĐIỆN THOẠI VN — nơi DUY NHẤT chứa logic này
+   ─────────────────────────────────────────────
+   ⚠️ DEDUPE (audit): trước đây có 2 hàm chuẩn hoá khác tên nhưng
+   cùng 1 công thức —
+     - normalizePhoneVN() trong js/membership.js (bản frontend)
+     - normalizePhone() trong
+       admin/modules/membership/membership-shared.js (bản admin)
+   — cộng thêm regex validate ^0\d{9,10}$ bị copy-paste độc lập ở
+   3 nơi khác nhau (js/membership.js, dashboard-customers.js,
+   dashboard-orders.js). Rủi ro thật: SĐT Việt Nam từng đổi định
+   dạng ngoài đời (đổi đầu số 2018) — sửa 1 chỗ quên 3 chỗ còn lại
+   sẽ khiến các form validate lệch nhau. Giờ CHỈ sửa ở đây; mọi nơi
+   khác chỉ GỌI LẠI 2 hàm này, không tự viết lại công thức.
+
+   window.normalizePhoneVN(raw)
+     "+84 912 345 678" / "84912345678" / "0912-345-678" → "0912345678"
+   window.isValidPhoneVN(phone)
+     true nếu phone (đã normalize) khớp định dạng 0xxxxxxxxx (10-11 số)
+   ══════════════════════════════════════════════ */
+window.normalizePhoneVN = function (raw) {
+  let p = (raw || '').trim().replace(/[\s.\-()]/g, '');
+  if (p.startsWith('+84')) p = '0' + p.slice(3);
+  else if (p.startsWith('84') && p.length > 9) p = '0' + p.slice(2);
+  return p;
+};
+
+window.isValidPhoneVN = function (phone) {
+  return /^0\d{9,10}$/.test(phone || '');
 };
 
 /* ── DEBOUNCE ── */
