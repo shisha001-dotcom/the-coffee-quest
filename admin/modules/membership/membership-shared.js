@@ -17,12 +17,25 @@
    - Bỏ hoàn toàn: customer_checkins, customer_transactions (2 bảng
      đã bị DROP) — không còn helper nào tham chiếu chúng.
 
+   ⚠️ SỬA (dedupe — chuẩn hoá SĐT VN): normalizePhone() KHÔNG còn tự
+   viết lại công thức chuẩn hoá số điện thoại nữa. Logic DUY NHẤT giờ
+   nằm ở js/shared-utils.js (window.normalizePhoneVN) — hàm ở đây chỉ
+   còn là ALIAS trỏ thẳng về đó. Lý do: trước đây js/membership.js
+   (frontend) và file này (admin) tự viết lại y hệt 1 công thức bằng
+   2 cái tên khác nhau — sửa 1 chỗ dễ quên chỗ còn lại nếu SĐT Việt
+   Nam đổi định dạng trong tương lai (đã từng xảy ra ngoài đời khi đổi
+   đầu số 2018). API `window.Membership.normalizePhone` vẫn giữ
+   nguyên tên/chữ ký để dashboard-customers.js / dashboard-orders.js
+   KHÔNG cần sửa cách gọi.
+
    Hàm THUẦN (không đụng DOM) dùng chung giữa 3 file con của domain
    Membership: dashboard-customers.js / dashboard-quests.js /
    dashboard-levels.js.
 
    ⚠️ Load file này TRƯỚC 3 file kia, NGAY SAU
       core/dashboard-auth.js + core/dashboard-page-registry.js.
+      (Cần js/shared-utils.js đã load TRƯỚC file này — nơi định
+      nghĩa window.normalizePhoneVN mà file này alias tới.)
 
    Exports (window.Membership.*):
      state           — kho dữ liệu dùng chung (customers/levels/quests)
@@ -31,7 +44,9 @@
      getCheckinQuest()    — MỚI: trả về quest hệ thống is_checkin=true
      formatVND(n)
      getISOWeek(d) / periodKeyFor(type)
-     normalizePhone(raw)
+     normalizePhone(raw)  — ⚠️ alias của window.normalizePhoneVN
+                            (js/shared-utils.js) — xem ghi chú dedupe
+                            ở trên, không còn logic riêng ở đây
      clearFieldError(id) / showFieldError(id, msg)
      loadCustomers() / loadLevels() / loadQuests()
    ══════════════════════════════════════════════ */
@@ -83,13 +98,12 @@ window.Membership = (function () {
     if (type === "weekly") return getISOWeek(new Date());
     return "once";
   }
-  /* Chuẩn hoá SĐT VN: "+84 912 345 678" / "0912-345-678" → "0912345678" */
-  function normalizePhone(raw) {
-    let p = (raw || "").trim().replace(/[\s.\-()]/g, "");
-    if (p.startsWith("+84")) p = "0" + p.slice(3);
-    else if (p.startsWith("84") && p.length > 9) p = "0" + p.slice(2);
-    return p;
-  }
+  /* ⚠️ SỬA (dedupe): KHÔNG tự viết lại công thức chuẩn hoá SĐT nữa —
+     chỉ alias thẳng về window.normalizePhoneVN (js/shared-utils.js),
+     nơi DUY NHẤT chứa logic này trong toàn bộ dự án. Giữ tên
+     `normalizePhone` để dashboard-customers.js / dashboard-orders.js
+     không phải sửa cách gọi (M.normalizePhone / M_O.normalizePhone). */
+  const normalizePhone = window.normalizePhoneVN;
 
   /* ── VALIDATE FIELD ERROR ── */
   function clearFieldError(id) {
