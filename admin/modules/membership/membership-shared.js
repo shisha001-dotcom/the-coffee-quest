@@ -3,51 +3,33 @@
    ─────────────────────────────────────────────
    ⚠️ CẬP NHẬT THEO SCHEMA SQL V1 (2026-07-16):
    - customers: bỏ `age`/`last_checkin` → dùng `date_of_birth`/
-     `last_checkin_date`; thêm `total_profit`; lọc `deleted_at IS NULL`
-     (soft delete) ở loadCustomers().
-   - quests: thêm `code`, `is_checkin`, `deleted_at` → loadQuests()
-     lọc deleted_at IS NULL. Thêm helper getCheckinQuest() để các
-     module khác (dashboard-customers.js) biết quest nào là quest
-     check-in hệ thống (không cho sửa/xoá/tick tay).
-   - customer_quests: đã đổi field `completed`→`is_completed`,
-     thêm `xp_awarded`, `related_order_id`. KHÔNG còn state riêng ở
-     đây vì dữ liệu này gắn theo từng khách hàng (đã fetch riêng
-     trong dashboard-customers.js::openCustomerDetail() — không đổi
-     vị trí, chỉ đổi tên field khi dùng).
-   - Bỏ hoàn toàn: customer_checkins, customer_transactions (2 bảng
-     đã bị DROP) — không còn helper nào tham chiếu chúng.
+     `last_checkin_date`; thêm `total_profit`; lọc `deleted_at IS NULL`.
+   - quests: thêm `code`, `is_checkin`, `deleted_at`. Thêm helper
+     getCheckinQuest().
+   - Bỏ hoàn toàn: customer_checkins, customer_transactions.
 
-   ⚠️ SỬA (dedupe — chuẩn hoá SĐT VN): normalizePhone() KHÔNG còn tự
-   viết lại công thức chuẩn hoá số điện thoại nữa. Logic DUY NHẤT giờ
-   nằm ở js/shared-utils.js (window.normalizePhoneVN) — hàm ở đây chỉ
-   còn là ALIAS trỏ thẳng về đó. Lý do: trước đây js/membership.js
-   (frontend) và file này (admin) tự viết lại y hệt 1 công thức bằng
-   2 cái tên khác nhau — sửa 1 chỗ dễ quên chỗ còn lại nếu SĐT Việt
-   Nam đổi định dạng trong tương lai (đã từng xảy ra ngoài đời khi đổi
-   đầu số 2018). API `window.Membership.normalizePhone` vẫn giữ
-   nguyên tên/chữ ký để dashboard-customers.js / dashboard-orders.js
-   KHÔNG cần sửa cách gọi.
+   ⚠️ SỬA (dedupe — chuẩn hoá SĐT VN): normalizePhone() alias thẳng
+   về window.normalizePhoneVN (js/shared-utils.js).
 
-   Hàm THUẦN (không đụng DOM) dùng chung giữa 3 file con của domain
-   Membership: dashboard-customers.js / dashboard-quests.js /
-   dashboard-levels.js.
+   ⚠️ DEDUPE (mới): clearFieldError/showFieldError cục bộ đã bị xoá
+   — expose ở đây giờ chỉ alias thẳng về window.clearFieldError /
+   window.showFieldError (js/shared-utils.js), dùng chung với
+   dashboard-games.js, dashboard-game-detail.js, dashboard-accounts.js,
+   dashboard-drinks.js. Tên gọi qua M.clearFieldError()/M.showFieldError()
+   ở dashboard-customers.js/dashboard-quests.js KHÔNG cần đổi.
 
    ⚠️ Load file này TRƯỚC 3 file kia, NGAY SAU
       core/dashboard-auth.js + core/dashboard-page-registry.js.
-      (Cần js/shared-utils.js đã load TRƯỚC file này — nơi định
-      nghĩa window.normalizePhoneVN mà file này alias tới.)
+      (Cần js/shared-utils.js đã load TRƯỚC file này.)
 
    Exports (window.Membership.*):
-     state           — kho dữ liệu dùng chung (customers/levels/quests)
-     isSuperAdmin
+     state, isSuperAdmin
      getLevelForXp(xp) / getLevelInfo(level) / getNextLevelInfo(level)
-     getCheckinQuest()    — MỚI: trả về quest hệ thống is_checkin=true
+     getCheckinQuest()
      formatVND(n)
      getISOWeek(d) / periodKeyFor(type)
-     normalizePhone(raw)  — ⚠️ alias của window.normalizePhoneVN
-                            (js/shared-utils.js) — xem ghi chú dedupe
-                            ở trên, không còn logic riêng ở đây
-     clearFieldError(id) / showFieldError(id, msg)
+     normalizePhone(raw)
+     clearFieldError(id) / showFieldError(id, msg, opts?)
      loadCustomers() / loadLevels() / loadQuests()
    ══════════════════════════════════════════════ */
 
@@ -74,11 +56,6 @@ window.Membership = (function () {
   function getNextLevelInfo(level) {
     return state.levels.find(l => l.level === level + 1) || null;
   }
-  /* MỚI: quest hệ thống check-in — chỉ có đúng 1 dòng is_checkin=true
-     (đảm bảo bởi unique index ở DB). Dùng để: (1) ẩn nút tick tay
-     "+1 tiến độ" cho quest này trong modal chi tiết khách (check-in
-     giờ HOÀN TOÀN tự động theo đơn hàng đầu ngày), (2) chặn sửa/xoá
-     trong tab Nhiệm vụ. */
   function getCheckinQuest() {
     return state.quests.find(q => q.is_checkin) || null;
   }
@@ -98,36 +75,7 @@ window.Membership = (function () {
     if (type === "weekly") return getISOWeek(new Date());
     return "once";
   }
-  /* ⚠️ SỬA (dedupe): KHÔNG tự viết lại công thức chuẩn hoá SĐT nữa —
-     chỉ alias thẳng về window.normalizePhoneVN (js/shared-utils.js),
-     nơi DUY NHẤT chứa logic này trong toàn bộ dự án. Giữ tên
-     `normalizePhone` để dashboard-customers.js / dashboard-orders.js
-     không phải sửa cách gọi (M.normalizePhone / M_O.normalizePhone). */
   const normalizePhone = window.normalizePhoneVN;
-
-  /* ── VALIDATE FIELD ERROR ── */
-  function clearFieldError(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.borderColor = "";
-    document.getElementById(id + "Error")?.remove();
-  }
-  function showFieldError(id, msg) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.borderColor = "var(--danger)";
-    el.focus();
-    let err = document.getElementById(id + "Error");
-    if (!err) {
-      err = document.createElement("div");
-      err.id = id + "Error";
-      err.setAttribute("role", "alert");
-      err.style.cssText = "color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;";
-      el.insertAdjacentElement("afterend", err);
-    }
-    err.textContent = msg;
-    el.addEventListener("input", () => clearFieldError(id), { once: true });
-  }
 
   /* ── FETCH — cập nhật state, các module con tự render sau khi await ── */
   async function loadCustomers() {
@@ -135,7 +83,7 @@ window.Membership = (function () {
     const { data, error } = await client
       .from("customers")
       .select("*")
-      .is("deleted_at", null)             // ⚠️ MỚI: soft-delete filter
+      .is("deleted_at", null)
       .order("xp", { ascending: false });
     if (error) { console.error(error); throw error; }
     state.customers = data || [];
@@ -153,7 +101,7 @@ window.Membership = (function () {
     const { data, error } = await client
       .from("quests")
       .select("*")
-      .is("deleted_at", null)             // ⚠️ MỚI: soft-delete filter
+      .is("deleted_at", null)
       .order("id", { ascending: true });
     if (error) { console.error(error); throw error; }
     state.quests = data || [];
@@ -164,7 +112,7 @@ window.Membership = (function () {
     isSuperAdmin, state,
     getLevelForXp, getLevelInfo, getNextLevelInfo, getCheckinQuest,
     formatVND, getISOWeek, periodKeyFor, normalizePhone,
-    clearFieldError, showFieldError,
+    clearFieldError: window.clearFieldError, showFieldError: window.showFieldError,
     loadCustomers, loadLevels, loadQuests,
   };
 })();
