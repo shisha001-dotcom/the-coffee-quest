@@ -8,6 +8,10 @@
      dữ liệu Supabase trả về (.select()), thay vì loadGames() gọi
      lại toàn bảng — giảm 1 round-trip mạng không cần thiết mỗi
      lần lưu/xoá 1 game.
+   - ⚠️ DEDUPE: clearFieldError/showFieldError cục bộ đã bị xoá —
+     dùng thẳng window.clearFieldError/window.showFieldError
+     (js/shared-utils.js), dùng chung với dashboard-game-detail.js,
+     dashboard-accounts.js, dashboard-drinks.js, membership-shared.js.
    ══════════════════════════════════════════════ */
 
 const isGamesReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
@@ -297,32 +301,6 @@ function setImages(id, arr) {
 }
 
 /* ══════════════════════════════════════════════
-   VALIDATE FIELD ERROR
-   ══════════════════════════════════════════════ */
-function clearFieldError(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.borderColor = "";
-  document.getElementById(id + "Error")?.remove();
-}
-function showFieldError(id, msg) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.borderColor = "var(--danger)";
-  el.focus();
-  let err = document.getElementById(id + "Error");
-  if (!err) {
-    err = document.createElement("div");
-    err.id = id + "Error";
-    err.setAttribute("role", "alert");
-    err.style.cssText = "color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;grid-column:1/-1;";
-    el.closest(".form-group")?.insertAdjacentElement("afterend", err) ?? el.insertAdjacentElement("afterend", err);
-  }
-  err.textContent = msg;
-  el.addEventListener("input", () => clearFieldError(id), { once: true });
-}
-
-/* ══════════════════════════════════════════════
    LOAD GAMES
    ══════════════════════════════════════════════ */
 async function loadGames() {
@@ -406,8 +384,7 @@ function renderGames(data) {
 }
 
 /* ══════════════════════════════════════════════
-   SEARCH — ⚠️ TỐI ƯU: dùng window.debounce() dùng chung
-   (shared-utils.js) thay vì tự viết clearTimeout/setTimeout
+   SEARCH
    ══════════════════════════════════════════════ */
 searchInput?.addEventListener("input", window.debounce(e => {
   const v = e.target.value.toLowerCase();
@@ -431,9 +408,7 @@ closeModalBtn?.addEventListener("click", () => modal.classList.add("hidden"));
 modal?.addEventListener("keydown", e => { if (e.key === "Escape") modal.classList.add("hidden"); });
 
 /* ══════════════════════════════════════════════
-   SAVE — ⚠️ TỐI ƯU: PATCH mảng `games` tại chỗ bằng dữ liệu
-   Supabase trả về (.select()), thay vì gọi lại loadGames() —
-   trước đây mỗi lần lưu 1 game là refetch TOÀN BỘ bảng.
+   SAVE
    ══════════════════════════════════════════════ */
 async function saveGame() {
   if (isGamesReadOnly) return;
@@ -442,8 +417,8 @@ async function saveGame() {
   const id    = rawId ? Number(rawId) : null;
   const name  = document.getElementById("nameInput").value.trim();
 
-  if (!name) { showFieldError("nameInput", "Vui lòng nhập tên game."); return; }
-  clearFieldError("nameInput");
+  if (!name) { window.showFieldError("nameInput", "Vui lòng nhập tên game.", { fullWidth: true }); return; }
+  window.clearFieldError("nameInput");
 
   const colorVal   = colorInput?.value.trim() || "#6c5ce7";
   const categories = window.getSelectedCategories(categoryPicker);
@@ -477,7 +452,6 @@ async function saveGame() {
       if (error) throw error;
       if (!data?.length) throw new Error(`UPDATE không ảnh hưởng dòng nào (id=${id}).`);
 
-      /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadGames() refetch toàn bảng */
       const idx = games.findIndex(g => g.id === id);
       if (idx !== -1) games[idx] = data[0];
       else games.push(data[0]);
@@ -486,7 +460,6 @@ async function saveGame() {
       const { data, error } = await client.from("games").insert(payload).select();
       if (error) throw error;
 
-      /* ⚠️ TỐI ƯU: thêm trực tiếp vào mảng thay vì refetch */
       if (data?.[0]) games.push(data[0]);
       games.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     }
@@ -505,8 +478,7 @@ async function saveGame() {
 saveBtn?.addEventListener("click", saveGame);
 
 /* ══════════════════════════════════════════════
-   DELETE — ⚠️ TỐI ƯU: xoá tại chỗ trong mảng `games` thay vì
-   loadGames() refetch toàn bảng.
+   DELETE
    ══════════════════════════════════════════════ */
 async function deleteGame() {
   if (isGamesReadOnly) return;
@@ -531,7 +503,6 @@ async function deleteGame() {
     const { error } = await client.from("games").delete().eq("id", id);
     if (error) throw error;
 
-    /* ⚠️ TỐI ƯU: xoá tại chỗ thay vì loadGames() refetch toàn bảng */
     games = games.filter(g => String(g.id) !== String(id));
 
     modal.classList.add("hidden");
@@ -557,7 +528,7 @@ function clearForm() {
     "winInput","setupInput","turnInput","tipsInput","imagesInput","sortInput"
   ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
 
-  clearFieldError("nameInput");
+  window.clearFieldError("nameInput");
 
   if (colorInput)  colorInput.value  = "#6c5ce7";
   if (colorPicker) colorPicker.value = "#6c5ce7";
