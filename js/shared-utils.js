@@ -14,40 +14,29 @@
      window.formatDateVN(dateStr)
      window.showToast(msg, bg)
      window.slugify(s)
-     window.normalizePhoneVN(raw)    — ⚠️ MỚI (dedupe): chuẩn hoá số
-                                        điện thoại VN. Nơi DUY NHẤT chứa
-                                        logic này — dùng chung bởi
-                                        js/membership.js (frontend) và
-                                        admin/modules/membership/membership-shared.js
-                                        (window.Membership.normalizePhone
-                                        giờ chỉ là alias trỏ về đây).
-                                        Trước đây 2 file tự viết lại y
-                                        hệt công thức này dưới 2 cái tên
-                                        khác nhau.
-     window.isValidPhoneVN(phone)    — ⚠️ MỚI (dedupe): validate định
-                                        dạng SĐT VN đã chuẩn hoá
-                                        (0xxxxxxxxx, 10-11 số) — dùng
-                                        chung thay cho regex
-                                        ^0\d{9,10}$ từng bị copy-paste
-                                        độc lập ở 3 nơi khác nhau
-                                        (js/membership.js,
-                                        dashboard-customers.js,
-                                        dashboard-orders.js). Sửa 1 chỗ
-                                        ở đây là áp dụng cho toàn bộ dự
-                                        án, không còn nguy cơ lệch nhau
-                                        giữa các form nếu SĐT VN đổi
-                                        định dạng trong tương lai.
+     window.normalizePhoneVN(raw)
+     window.isValidPhoneVN(phone)
      window.debounce(fn, delay)
      window.buildGameSlugMap(games)
      window.showConfirm(opts)        — modal xác nhận (Đồng ý/Huỷ)
      window.showReasonPrompt(opts)   — modal xác nhận CÓ Ô NHẬP LÝ DO bắt buộc
-     window.getYoutubeId(url)        — MỚI: parse ID từ 4 dạng URL YouTube,
-                                        dùng chung bởi js/app.js (frontend)
-                                        và admin/modules/games/dashboard-game-detail.js
-     window.extractGDriveFileId(url) — MỚI: trích fileId từ mọi dạng link
-                                        Google Drive, dùng chung bởi
-                                        gdrivePreviewUrl() (PDF) và
-                                        dashboard-media.js::convertGDriveUrl()
+     window.getYoutubeId(url)
+     window.extractGDriveFileId(url)
+     window.clearFieldError(id)      — ⚠️ MỚI (dedupe): xoá lỗi field
+     window.showFieldError(id, msg, opts?) — ⚠️ MỚI (dedupe): hiện lỗi field
+                                        Nơi DUY NHẤT chứa logic này — trước
+                                        đây bị copy-paste 5 lần dưới các tên
+                                        khác nhau (dashboard-games.js,
+                                        dashboard-game-detail.js,
+                                        dashboard-accounts.js,
+                                        dashboard-drinks.js,
+                                        membership-shared.js).
+     window.showInlineMsg(elId, text, type, duration) — ⚠️ MỚI (dedupe):
+                                        khối thông báo cố định trong trang
+                                        (khác showToast là toast nổi góc
+                                        màn hình). Trước đây bị copy-paste
+                                        ở dashboard-banners.js và
+                                        dashboard-media.js.
    ══════════════════════════════════════════════ */
 
 /* ── ESCAPE HTML ── */
@@ -83,23 +72,6 @@ window.slugify = function (s) {
 
 /* ══════════════════════════════════════════════
    SỐ ĐIỆN THOẠI VN — nơi DUY NHẤT chứa logic này
-   ─────────────────────────────────────────────
-   ⚠️ DEDUPE (audit): trước đây có 2 hàm chuẩn hoá khác tên nhưng
-   cùng 1 công thức —
-     - normalizePhoneVN() trong js/membership.js (bản frontend)
-     - normalizePhone() trong
-       admin/modules/membership/membership-shared.js (bản admin)
-   — cộng thêm regex validate ^0\d{9,10}$ bị copy-paste độc lập ở
-   3 nơi khác nhau (js/membership.js, dashboard-customers.js,
-   dashboard-orders.js). Rủi ro thật: SĐT Việt Nam từng đổi định
-   dạng ngoài đời (đổi đầu số 2018) — sửa 1 chỗ quên 3 chỗ còn lại
-   sẽ khiến các form validate lệch nhau. Giờ CHỈ sửa ở đây; mọi nơi
-   khác chỉ GỌI LẠI 2 hàm này, không tự viết lại công thức.
-
-   window.normalizePhoneVN(raw)
-     "+84 912 345 678" / "84912345678" / "0912-345-678" → "0912345678"
-   window.isValidPhoneVN(phone)
-     true nếu phone (đã normalize) khớp định dạng 0xxxxxxxxx (10-11 số)
    ══════════════════════════════════════════════ */
 window.normalizePhoneVN = function (raw) {
   let p = (raw || '').trim().replace(/[\s.\-()]/g, '');
@@ -267,24 +239,6 @@ window.showToast = function (msg, bg = '#00b894') {
 
 /* ══════════════════════════════════════════════
    SHOW REASON PROMPT — MỚI (migration V3)
-   ─────────────────────────────────────────────
-   Giống showConfirm() nhưng có THÊM Ô NHẬP LÝ DO bắt buộc. Dùng
-   cho mọi thao tác "xoá" giờ là soft-delete/vô hiệu hoá (không mất
-   dữ liệu) và cần ghi lại vì sao — khách hàng, nhiệm vụ, đồ uống,
-   nguyên liệu, tài khoản nhân viên...
-
-   Dùng:
-     const reason = await window.showReasonPrompt({
-       title: "Xoá khách hàng này?",
-       message: "Khách hàng sẽ bị ẩn khỏi danh sách nhưng vẫn giữ lịch sử.",
-       reasonLabel: "Lý do xoá *",
-       reasonPlaceholder: "VD: trùng số điện thoại...",
-       confirmText: "🗑️ Xoá",
-       cancelText: "Hủy",
-     });
-     if (reason === null) return; // người dùng bấm Huỷ / Escape
-     // reason là chuỗi lý do đã nhập (không rỗng) — dùng để lưu vào
-     // deleted_reason / void_reason / deactivated_reason...
    ══════════════════════════════════════════════ */
 (function setupReasonPromptDialog() {
   let resolvePromise = null;
@@ -447,11 +401,77 @@ window.showToast = function (msg, bg = '#00b894') {
   };
 })();
 
-/* ── YOUTUBE ID ──
-   Parse ID từ 4 dạng URL YouTube (watch?v=, youtu.be/, embed/, shorts/).
-   Dùng chung bởi js/app.js (trang chi tiết game — frontend) và
-   admin/modules/games/dashboard-game-detail.js (preview thumbnail khi
-   admin nhập link) — trước đây mỗi nơi tự viết lại y hệt logic này. */
+/* ══════════════════════════════════════════════
+   FIELD ERROR HELPERS — dùng chung cho MỌI modal/form admin
+   ─────────────────────────────────────────────
+   ⚠️ DEDUPE: trước đây có 5 bản gần như y hệt nhau nằm rải rác
+   (dashboard-games.js, dashboard-game-detail.js,
+   dashboard-accounts.js, dashboard-drinks.js, membership-shared.js)
+   — chỉ khác tên hàm và đôi khi khác nhỏ ở chỗ chèn DOM. Giờ CHỈ
+   còn 1 bản ở đây; các file kia gọi lại 2 hàm này (hoặc alias).
+
+   window.clearFieldError(id)
+   window.showFieldError(id, msg, opts?)
+     opts.fullWidth      true → lỗi tràn hết 2 cột trong .form-grid
+                          (chèn sau .closest('.form-group') thay vì
+                          sau chính input) — dùng cho modal 2 cột
+                          như #gameModal/#drinkModal/#gameDetailPage
+     opts.scrollIntoView true → tự cuộn tới field lỗi (dùng cho
+                          trang dài như Chi tiết Boardgame)
+   ══════════════════════════════════════════════ */
+window.clearFieldError = function (id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = '';
+  document.getElementById(id + 'Error')?.remove();
+};
+
+window.showFieldError = function (id, msg, opts = {}) {
+  const { fullWidth = false, scrollIntoView = false } = opts;
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = 'var(--danger)';
+  el.focus();
+  if (scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  let err = document.getElementById(id + 'Error');
+  if (!err) {
+    err = document.createElement('div');
+    err.id = id + 'Error';
+    err.setAttribute('role', 'alert');
+    err.style.cssText = 'color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;'
+      + (fullWidth ? 'grid-column:1/-1;' : '');
+    const anchor = fullWidth ? (el.closest('.form-group') ?? el) : el;
+    anchor.insertAdjacentElement('afterend', err);
+  }
+  err.textContent = msg;
+  el.addEventListener('input', () => window.clearFieldError(id), { once: true });
+};
+
+/* ══════════════════════════════════════════════
+   INLINE MESSAGE BOX — khối thông báo cố định trong trang
+   (khác window.showToast là toast nổi góc màn hình)
+   ─────────────────────────────────────────────
+   ⚠️ DEDUPE: trước đây dashboard-banners.js (#bannerMsg) và
+   dashboard-media.js (#mediaMsg) tự viết lại y hệt hàm này.
+
+   window.showInlineMsg(elId, text, type='success', duration=4000)
+   ══════════════════════════════════════════════ */
+window.showInlineMsg = function (elId, text, type = 'success', duration = 4000) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent = text;
+  el.style.display = 'block';
+  if (type === 'success') {
+    el.style.background = '#e6f9f5'; el.style.color = '#00b894'; el.style.border = '1px solid #00b89444';
+  } else {
+    el.style.background = '#fff5f5'; el.style.color = '#e17055'; el.style.border = '1px solid #e1705544';
+  }
+  clearTimeout(el._msgTimer);
+  el._msgTimer = setTimeout(() => { el.style.display = 'none'; }, duration);
+};
+
+/* ── YOUTUBE ID ── */
 window.getYoutubeId = function (url) {
   if (!url || url.includes('/None')) return null;
   const patterns = [
@@ -464,12 +484,7 @@ window.getYoutubeId = function (url) {
   return null;
 };
 
-/* ── GOOGLE DRIVE FILE ID ──
-   Trích fileId từ mọi dạng link chia sẻ Google Drive gặp trong dự án
-   (/file/d/{id}/, ?id={id}, open?id={id}, uc?...&id={id}). Dùng chung
-   bởi gdrivePreviewUrl() (PDF luật chơi) và
-   admin/modules/media/dashboard-media.js::convertGDriveUrl() (ảnh) —
-   trước đây mỗi nơi tự viết lại 1 chuỗi regex gần giống hệt nhau. */
+/* ── GOOGLE DRIVE FILE ID ── */
 window.extractGDriveFileId = function (url) {
   if (!url) return null;
   url = url.trim();
