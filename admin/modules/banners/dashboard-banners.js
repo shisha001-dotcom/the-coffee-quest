@@ -3,8 +3,10 @@
    ─────────────────────────────────────────────
    THAY ĐỔI so với bản trước:
    - Thêm guard + early-return dựa trên window.AdminPermissions
-     để chặn role "Bar Staff" xem trang này (không hiện menu item,
-     không inject page HTML).
+     để chặn role "Bar Staff" xem trang này.
+   - ⚠️ DEDUPE (mới): showBannerMsg() cục bộ đã bị xoá — dùng thẳng
+     window.showInlineMsg(elId, text, type) (js/shared-utils.js),
+     dùng chung với dashboard-media.js.
    ══════════════════════════════════════════════ */
 
 const canAccessBannersPage = window.AdminPermissions.can(currentSession.role, "bannersPage");
@@ -201,24 +203,10 @@ window.saveBanners = async function () {
     }));
     const { error } = await client.from('site_settings').upsert(rows, { onConflict: 'key' });
     if (error) throw error;
-    showBannerMsg('✅ Đã lưu cài đặt banner!', 'success');
+    window.showInlineMsg('bannerMsg', '✅ Đã lưu cài đặt banner!', 'success');
   } catch (err) {
-    showBannerMsg('❌ Lỗi: ' + err.message, 'error');
+    window.showInlineMsg('bannerMsg', '❌ Lỗi: ' + err.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '💾 Lưu thay đổi'; }
   }
 };
-
-function showBannerMsg(text, type) {
-  const el = document.getElementById('bannerMsg');
-  if (!el) return;
-  el.textContent = text;
-  el.style.display = 'block';
-  if (type === 'success') {
-    el.style.background = '#e6f9f5'; el.style.color = '#00b894'; el.style.border = '1px solid #00b89444';
-  } else {
-    el.style.background = '#fff5f5'; el.style.color = '#e17055'; el.style.border = '1px solid #e1705544';
-  }
-  clearTimeout(el._timer);
-  el._timer = setTimeout(() => { el.style.display = 'none'; }, 4000);
-}
