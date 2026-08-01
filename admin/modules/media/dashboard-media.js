@@ -3,14 +3,15 @@
    ─────────────────────────────────────────────
    THAY ĐỔI so với bản trước:
    - isSuperAdminMedia đọc từ window.AdminPermissions.isSuperAdmin()
-     thay vì so sánh chuỗi thủ công (chỉ Super Admin mới xóa được ảnh).
    - Thêm guard + early-return dựa trên window.AdminPermissions.can()
      để chặn role "Bar Staff" xem toàn bộ trang này.
-
-   ⚠️ SỬA (ponytail dedupe): convertGDriveUrl() giờ dùng
-   window.extractGDriveFileId() (js/shared-utils.js) thay vì tự lặp
-   lại chuỗi regex trích fileId — cùng logic dùng bởi
-   window.gdrivePreviewUrl() (PDF luật chơi ở trang chi tiết game).
+   - ⚠️ DEDUPE (ponytail): convertGDriveUrl() dùng
+     window.extractGDriveFileId() (js/shared-utils.js).
+   - ⚠️ DEDUPE (mới): showMediaMsg() cục bộ đã bị xoá — dùng thẳng
+     window.showInlineMsg(elId, text, type) (js/shared-utils.js),
+     dùng chung với dashboard-banners.js.
+   - ⚠️ SỬA: deleteMedia() đổi confirm() native → window.showConfirm()
+     để đồng bộ quy ước "không dùng dialog native" của dự án.
    ══════════════════════════════════════════════ */
 
 const isSuperAdminMedia  = window.AdminPermissions.isSuperAdmin(currentSession.role);
@@ -83,7 +84,7 @@ window.AdminDashboard.registerPage({
   label: "Thư viện Media",
   group: 0,
   insertBeforeMenuId: "chatMenuItem",
-  guard: () => canAccessMediaPage,   // ← dùng lại const, không gọi can() lần nữa
+  guard: () => canAccessMediaPage,
 });
 
 (function injectMediaPage() {
@@ -273,8 +274,6 @@ const mediaSizeCache = new Map();
 function isGDriveUrl(url) { return /drive\.google\.com|googleusercontent\.com/i.test(url || ''); }
 function isDirectGDriveUrl(url) { return /^https:\/\/lh3\.googleusercontent\.com\/d\//i.test(url || ''); }
 
-/* ⚠️ TỐI ƯU (ponytail dedupe): trích fileId qua window.extractGDriveFileId()
-   dùng chung (shared-utils.js) thay vì tự lặp lại 4 nhánh regex ở đây. */
 function convertGDriveUrl(url) {
   if (!url) return null;
   url = url.trim();
@@ -316,7 +315,7 @@ async function loadMedia() {
   } catch (err) {
     console.warn('loadMedia:', err.message);
     mediaList = [];
-    showMediaMsg('❌ Không tải được thư viện: ' + err.message, 'error');
+    window.showInlineMsg('mediaMsg', '❌ Không tải được thư viện: ' + err.message, 'error');
   }
   updateMediaStats();
   renderTagFilters();
@@ -490,13 +489,13 @@ window.addMedia = async function () {
   const label = labelInput.value.trim();
   const tags  = parseMediaTags(tagsInput.value);
 
-  if (!url) { showMediaMsg('⚠️ Vui lòng nhập URL ảnh', 'error'); urlInput.focus(); return; }
+  if (!url) { window.showInlineMsg('mediaMsg', '⚠️ Vui lòng nhập URL ảnh', 'error'); urlInput.focus(); return; }
 
   const converted = convertGDriveUrl(url);
   const wasGDriveConverted = converted && converted !== url;
   if (converted) url = converted;
 
-  try { new URL(url); } catch { showMediaMsg('⚠️ URL không hợp lệ', 'error'); urlInput.focus(); return; }
+  try { new URL(url); } catch { window.showInlineMsg('mediaMsg', '⚠️ URL không hợp lệ', 'error'); urlInput.focus(); return; }
 
   btn.disabled = true; btn.textContent = 'Đang thêm...';
   try {
@@ -507,7 +506,7 @@ window.addMedia = async function () {
     if (error) throw error;
 
     closeMediaModal();
-    showMediaMsg(
+    window.showInlineMsg('mediaMsg',
       wasGDriveConverted
         ? '✅ Đã thêm ảnh! (Link Google Drive đã được tự động chuyển sang link ảnh trực tiếp)'
         : '✅ Đã thêm ảnh vào thư viện!',
@@ -515,7 +514,7 @@ window.addMedia = async function () {
     );
     await loadMedia();
   } catch (err) {
-    showMediaMsg('❌ Lỗi: ' + err.message, 'error');
+    window.showInlineMsg('mediaMsg', '❌ Lỗi: ' + err.message, 'error');
   } finally {
     btn.disabled = false; btn.textContent = '➕ Thêm vào thư viện';
   }
@@ -527,23 +526,31 @@ function parseMediaTags(raw) {
 }
 
 async function deleteMedia(id) {
-  if (!isSuperAdminMedia) { showMediaMsg('⛔ Chỉ Super Admin mới có quyền xóa', 'error'); return; }
-  if (!confirm('Xóa ảnh này khỏi thư viện? Hành động không thể hoàn tác.')) return;
+  if (!isSuperAdminMedia) { window.showInlineMsg('mediaMsg', '⛔ Chỉ Super Admin mới có quyền xóa', 'error'); return; }
+
+  const ok = await window.showConfirm({
+    title: 'Xóa ảnh này khỏi thư viện?',
+    message: 'Hành động này không thể hoàn tác.',
+    confirmText: '🗑️ Xóa',
+    cancelText: 'Hủy',
+    danger: true,
+  });
+  if (!ok) return;
 
   try {
     const { error } = await client.from('media_library').delete().eq('id', id);
     if (error) throw error;
-    showMediaMsg('🗑️ Đã xóa ảnh khỏi thư viện', 'success');
+    window.showInlineMsg('mediaMsg', '🗑️ Đã xóa ảnh khỏi thư viện', 'success');
     await loadMedia();
   } catch (err) {
-    showMediaMsg('❌ Lỗi khi xóa: ' + err.message, 'error');
+    window.showInlineMsg('mediaMsg', '❌ Lỗi khi xóa: ' + err.message, 'error');
   }
 }
 
 async function copyMediaLink(url) {
   try {
     await navigator.clipboard.writeText(url);
-    showMediaMsg('📋 Đã copy link ảnh!', 'success');
+    window.showInlineMsg('mediaMsg', '📋 Đã copy link ảnh!', 'success');
   } catch {
     const ta = document.createElement('textarea');
     ta.value = url;
@@ -551,7 +558,7 @@ async function copyMediaLink(url) {
     ta.select();
     document.execCommand('copy');
     ta.remove();
-    showMediaMsg('📋 Đã copy link ảnh!', 'success');
+    window.showInlineMsg('mediaMsg', '📋 Đã copy link ảnh!', 'success');
   }
 }
 
@@ -569,25 +576,11 @@ async function downloadMedia(url, label) {
     a.click();
     a.remove();
     URL.revokeObjectURL(blobUrl);
-    showMediaMsg('⬇️ Đã tải ảnh xuống!', 'success');
+    window.showInlineMsg('mediaMsg', '⬇️ Đã tải ảnh xuống!', 'success');
   } catch (err) {
     window.open(url, '_blank');
-    showMediaMsg('⚠️ Không tải trực tiếp được (ảnh chặn CORS) — đã mở ảnh ở tab mới, bấm chuột phải → "Lưu ảnh"', 'error');
+    window.showInlineMsg('mediaMsg', '⚠️ Không tải trực tiếp được (ảnh chặn CORS) — đã mở ảnh ở tab mới, bấm chuột phải → "Lưu ảnh"', 'error');
   }
-}
-
-function showMediaMsg(text, type) {
-  const el = document.getElementById('mediaMsg');
-  if (!el) return;
-  el.textContent = text;
-  el.style.display = 'block';
-  if (type === 'success') {
-    el.style.background = '#e6f9f5'; el.style.color = '#00b894'; el.style.border = '1px solid #00b89444';
-  } else {
-    el.style.background = '#fff5f5'; el.style.color = '#e17055'; el.style.border = '1px solid #e1705544';
-  }
-  clearTimeout(el._timer);
-  el._timer = setTimeout(() => { el.style.display = 'none'; }, 4500);
 }
 
 function formatMediaDate(iso) {
