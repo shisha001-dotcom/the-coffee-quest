@@ -3,22 +3,23 @@
    ─────────────────────────────────────────────
    ⚠️ CẬP NHẬT THEO MIGRATION V3 (2026-07-17) — THAY ĐỔI QUAN TRỌNG:
    - TRƯỚC ĐÂY: deleteAccount() gọi DELETE FROM admin_users thật sự
-     — mất VĨNH VIỄN thông tin tài khoản, không truy soát lại được
-     ai đã tạo/sửa game, media, chat... (các bảng khác lưu tên nhân
-     viên dạng text qua created_by/staff_name, không phải FK, nên
-     xoá tài khoản gốc sẽ làm mất "nguồn" nhưng vẫn còn record —
-     nhưng tự thân việc mất hẳn tài khoản vẫn là rủi ro không đáng).
+     — mất VĨNH VIỄN thông tin tài khoản.
    - GIỜ: đổi hẳn sang VÔ HIỆU HOÁ (is_active = FALSE) — giữ nguyên
-     dữ liệu, không cho đăng nhập nữa (chặn ở login.html), có thể
-     "Kích hoạt lại" bất cứ lúc nào. Bắt buộc nhập lý do vô hiệu hoá
-     qua window.showReasonPrompt() (shared-utils.js).
-   - Không tự xoá được tài khoản đang đăng nhập (giữ nguyên rule cũ).
+     dữ liệu, không cho đăng nhập nữa, có thể "Kích hoạt lại" bất cứ
+     lúc nào. Bắt buộc nhập lý do vô hiệu hoá qua
+     window.showReasonPrompt() (shared-utils.js).
+   - Không tự xoá được tài khoản đang đăng nhập.
 
    ⚠️ TỐI ƯU (giữ nguyên từ bản trước):
    - bindSearch(): dùng window.debounce().
    - saveAccount()/deactivateAccount()/reactivateAccount(): PATCH
      trực tiếp mảng `accounts` từ dữ liệu Supabase trả về, không
-     refetch toàn bảng mỗi lần.
+     refetch toàn bảng.
+
+   ⚠️ DEDUPE: clearAccFieldError/showAccFieldError cục bộ đã bị
+   xoá — dùng thẳng window.clearFieldError/window.showFieldError
+   (js/shared-utils.js), dùng chung với dashboard-games.js,
+   dashboard-game-detail.js, dashboard-drinks.js, membership-shared.js.
    ══════════════════════════════════════════════ */
 
 const isSuperAdmin = window.AdminPermissions.isSuperAdmin(currentSession.role);
@@ -130,32 +131,6 @@ window.AdminDashboard.registerPage({
 
 let accounts = [];
 
-/* ══════════════════════════════════════════════
-   VALIDATE FIELD ERROR
-   ══════════════════════════════════════════════ */
-function clearAccFieldError(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.borderColor = "";
-  document.getElementById(id + "Error")?.remove();
-}
-function showAccFieldError(id, msg) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.borderColor = "var(--danger)";
-  el.focus();
-  let err = document.getElementById(id + "Error");
-  if (!err) {
-    err = document.createElement("div");
-    err.id = id + "Error";
-    err.setAttribute("role", "alert");
-    err.style.cssText = "color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;";
-    el.insertAdjacentElement("afterend", err);
-  }
-  err.textContent = msg;
-  el.addEventListener("input", () => clearAccFieldError(id), { once: true });
-}
-
 async function loadAccounts() {
   const loadingMsg = document.getElementById('accountsLoadingMsg');
   const errorMsg   = document.getElementById('accountsErrorMsg');
@@ -260,8 +235,8 @@ function clearAccountForm() {
   document.getElementById('accountPassword').value = '';
   document.getElementById('accountRole').value = 'editor';
   document.getElementById('accountInactiveNotice').style.display = 'none';
-  clearAccFieldError('accountUsername');
-  clearAccFieldError('accountPassword');
+  window.clearFieldError('accountUsername');
+  window.clearFieldError('accountPassword');
 }
 
 function openAddAccount() {
@@ -315,10 +290,10 @@ async function saveAccount() {
   const password    = document.getElementById('accountPassword').value;
   const role        = document.getElementById('accountRole').value;
 
-  if (!id && !username) { showAccFieldError('accountUsername', 'Vui lòng nhập tên đăng nhập.'); return; }
-  if (!id && !password) { showAccFieldError('accountPassword', 'Vui lòng nhập mật khẩu cho tài khoản mới.'); return; }
-  clearAccFieldError('accountUsername');
-  clearAccFieldError('accountPassword');
+  if (!id && !username) { window.showFieldError('accountUsername', 'Vui lòng nhập tên đăng nhập.'); return; }
+  if (!id && !password) { window.showFieldError('accountPassword', 'Vui lòng nhập mật khẩu cho tài khoản mới.'); return; }
+  window.clearFieldError('accountUsername');
+  window.clearFieldError('accountPassword');
 
   const saveBtn = document.getElementById('saveAccountBtn');
   saveBtn.disabled = true;
@@ -328,7 +303,7 @@ async function saveAccount() {
     if (!id) {
       const { data: existing } = await client
         .from('admin_users').select('id').eq('username', username).maybeSingle();
-      if (existing) { showAccFieldError('accountUsername', 'Tên đăng nhập đã tồn tại.'); throw new Error('__handled__'); }
+      if (existing) { window.showFieldError('accountUsername', 'Tên đăng nhập đã tồn tại.'); throw new Error('__handled__'); }
 
       const payload = {
         username,
@@ -365,8 +340,7 @@ async function saveAccount() {
 }
 
 /* ══════════════════════════════════════════════
-   VÔ HIỆU HOÁ TÀI KHOẢN — ⚠️ THAY CHO XOÁ CỨNG (migration V3).
-   Chặn đăng nhập ở login.html qua is_active, KHÔNG mất dữ liệu.
+   VÔ HIỆU HOÁ TÀI KHOẢN
    ══════════════════════════════════════════════ */
 async function deactivateAccount() {
   const id = document.getElementById('accountId').value;
@@ -417,7 +391,7 @@ async function deactivateAccount() {
 }
 
 /* ══════════════════════════════════════════════
-   KÍCH HOẠT LẠI — MỚI (migration V3)
+   KÍCH HOẠT LẠI
    ══════════════════════════════════════════════ */
 async function reactivateAccount(id) {
   const acc = accounts.find(a => a.id === id);
