@@ -3,22 +3,19 @@
    ─────────────────────────────────────────────
    ⚠️ VIẾT LẠI THEO SCHEMA SQL V1 (2026-07-16):
    - `category` (text tự do) → `category_id` (FK → drink_categories).
-     Filter tab + dropdown trong modal giờ render động từ
-     window.Inventory.state.categories thay vì hard-code.
    - Thêm `price` (giá bán) — bắt buộc, dùng snapshot khi tạo đơn hàng.
-   - Thêm `is_active` — đồ uống ngừng bán không hiện ở tab lọc bán hàng
-     nhưng vẫn giữ trong danh sách quản trị (để soft delete không mất
-     lịch sử).
-   - `ingredients` (textarea tự do) → ĐÃ ĐỔI TÊN CỘT DB thành
-     `ingredients_legacy` (không dùng nữa). Công thức THẬT giờ nằm ở
-     bảng `drink_ingredients` (N-N với bảng `ingredients` — có giá/đơn
-     vị) → modal giờ có "Recipe builder": chọn nguyên liệu có sẵn
-     trong kho + số lượng/ly, thay vì gõ text tự do. Giá thành 1 ly
-     được preview trực tiếp trong modal (INV.computeRecipeCost).
-   - Xoá đồ uống = SOFT DELETE (`deleted_at` + `is_active=false`) vì
-     `customer_order_items.drink_id` và `drink_ingredients.drink_id`
-     có ràng buộc khoá ngoại — xoá cứng sẽ lỗi nếu đồ uống đã từng
-     được bán hoặc đã có công thức.
+   - Thêm `is_active`.
+   - `ingredients` (textarea tự do) → `drink_ingredients` (recipe builder
+     thật) — chọn nguyên liệu có sẵn trong kho + số lượng/ly, preview
+     giá thành 1 ly trực tiếp trong modal (INV.computeRecipeCost).
+   - Xoá đồ uống = SOFT DELETE (`deleted_at` + `is_active=false`).
+
+   ⚠️ DEDUPE: clearDrinkFieldError/showDrinkFieldError cục bộ đã bị
+   xoá — dùng thẳng window.clearFieldError/window.showFieldError
+   (js/shared-utils.js) với opts.fullWidth vì #drinkModal cũng dùng
+   .form-grid 2 cột giống #gameModal (trước đây bản cũ KHÔNG có
+   grid-column:1/-1 nên lỗi bị bó hẹp 1 cột — nay đã khớp behaviour
+   với dashboard-games.js).
 
    Cần: `client`, `currentSession`, window.AdminPermissions,
    window.Inventory (inventory-shared.js — PHẢI load TRƯỚC file này),
@@ -190,7 +187,7 @@ async function loadDrinks() {
    ══════════════════════════════════════════════ */
 function renderDrinkTabs() {
   const wrap = document.getElementById('drinkTabsWrap');
-  if (!wrap) return; // an toàn nếu dashboard.html chưa cập nhật vùng chứa
+  if (!wrap) return;
 
   const cats = INVD.state.categories;
   wrap.innerHTML = `
@@ -284,29 +281,6 @@ function setDrinkModalReadOnly(readonly) {
   modal.querySelectorAll('.recipe-row-remove').forEach(b => b.disabled = readonly);
 }
 
-function clearDrinkFieldError(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.borderColor = '';
-  document.getElementById(id + 'Error')?.remove();
-}
-function showDrinkFieldError(id, msg) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.borderColor = 'var(--danger)';
-  el.focus();
-  let err = document.getElementById(id + 'Error');
-  if (!err) {
-    err = document.createElement('div');
-    err.id = id + 'Error';
-    err.setAttribute('role', 'alert');
-    err.style.cssText = 'color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;';
-    el.insertAdjacentElement('afterend', err);
-  }
-  err.textContent = msg;
-  el.addEventListener('input', () => clearDrinkFieldError(id), { once: true });
-}
-
 /* ══════════════════════════════════════════════
    RECIPE BUILDER — dòng công thức (drink_ingredients)
    ══════════════════════════════════════════════ */
@@ -396,7 +370,7 @@ function openAddDrink() {
   document.getElementById('drinkSteps').value = '';
   document.getElementById('drinkTips').value  = '';
   document.getElementById('drinkImage').value = '';
-  clearDrinkFieldError('drinkName');
+  window.clearFieldError('drinkName');
   clearRecipeRows();
   addRecipeRow();
   updateDrinkCostPreview();
@@ -423,7 +397,7 @@ async function editDrink(id) {
   document.getElementById('drinkSteps').value     = Array.isArray(d.steps) ? d.steps.join('\n') : '';
   document.getElementById('drinkTips').value      = Array.isArray(d.tips) ? d.tips.join('\n') : '';
   document.getElementById('drinkImage').value     = d.image_url || '';
-  clearDrinkFieldError('drinkName');
+  window.clearFieldError('drinkName');
 
   clearRecipeRows();
   try {
@@ -456,8 +430,6 @@ function parseDrinkLines(id) {
 
 /* ══════════════════════════════════════════════
    SAVE — upsert `drinks` rồi đồng bộ lại toàn bộ `drink_ingredients`
-   (xoá hết dòng cũ của drink_id này rồi insert lại dòng mới — đơn
-   giản và đủ dùng vì tần suất sửa công thức của admin thấp).
    ══════════════════════════════════════════════ */
 async function saveDrink() {
   if (isDrinksReadOnly) return;
@@ -468,12 +440,12 @@ async function saveDrink() {
   const categoryId = Number(document.getElementById('drinkCategory').value) || null;
   const price = Number(document.getElementById('drinkPrice').value);
 
-  if (!name) { showDrinkFieldError('drinkName', 'Vui lòng nhập tên đồ uống.'); return; }
-  clearDrinkFieldError('drinkName');
-  if (!categoryId) { showDrinkFieldError('drinkCategory', 'Vui lòng chọn loại đồ uống.'); return; }
-  clearDrinkFieldError('drinkCategory');
-  if (!price || price <= 0) { showDrinkFieldError('drinkPrice', 'Vui lòng nhập giá bán hợp lệ.'); return; }
-  clearDrinkFieldError('drinkPrice');
+  if (!name) { window.showFieldError('drinkName', 'Vui lòng nhập tên đồ uống.', { fullWidth: true }); return; }
+  window.clearFieldError('drinkName');
+  if (!categoryId) { window.showFieldError('drinkCategory', 'Vui lòng chọn loại đồ uống.', { fullWidth: true }); return; }
+  window.clearFieldError('drinkCategory');
+  if (!price || price <= 0) { window.showFieldError('drinkPrice', 'Vui lòng nhập giá bán hợp lệ.', { fullWidth: true }); return; }
+  window.clearFieldError('drinkPrice');
 
   const recipeRows = readRecipeRows();
 
@@ -512,7 +484,6 @@ async function saveDrink() {
     }
     allDrinks.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-    /* ── Đồng bộ công thức: xoá hết dòng cũ rồi insert lại dòng mới ── */
     if (drinkId) {
       const { error: delErr } = await client.from('drink_ingredients').delete().eq('drink_id', drinkId);
       if (delErr) throw delErr;
@@ -538,8 +509,7 @@ async function saveDrink() {
 }
 
 /* ══════════════════════════════════════════════
-   DELETE — SOFT DELETE (customer_order_items.drink_id +
-   drink_ingredients.drink_id có ràng buộc khoá ngoại)
+   DELETE — SOFT DELETE
    ══════════════════════════════════════════════ */
 async function deleteDrink() {
   if (isDrinksReadOnly) return;
