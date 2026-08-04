@@ -26,19 +26,28 @@
    ⚠️ QUAN TRỌNG: vì vậy, `admin/dashboard.html` giờ CHỈ còn cần
    các <script> "hạ tầng" (shared-config, shared-emoji, shared-
    categories, shared-utils, dashboard-permissions, Supabase SDK,
-   QRCode SDK) và DUY NHẤT 1 dòng
+   xlsx SDK) và DUY NHẤT 1 dòng
    <script src="./core/dashboard-auth.js"></script> — KHÔNG còn
    bất kỳ <script> nào khác phía sau nó trong HTML nữa. Toàn bộ
    phần còn lại (page-registry, inventory, games, drinks,
-   membership, orders, nav, chat, analytics, banners, media,
-   accounts, mobile-menu) được chính file này tải bằng JS theo
-   đúng thứ tự cũ (xem SCRIPT_SEQUENCE / MODULE_SEQUENCE bên dưới).
+   membership, orders, kiểm kê tồn kho, nav, chat, analytics,
+   banners, media, accounts, mobile-menu) được chính file này tải
+   bằng JS theo đúng thứ tự cũ (xem SCRIPT_SEQUENCE / MODULE_SEQUENCE
+   bên dưới).
 
    ⚠️ SỬA (bổ sung — fix "Đơn hàng" không hoạt động + nút "Chi tiết"
    khách hàng không mở được trang): SCRIPT_SEQUENCE trước đây bị
    THIẾU "./modules/orders/dashboard-orders.js" và
    "./modules/membership/dashboard-customer-detail.js" — đã bổ sung
    lại đúng vị trí bên dưới.
+
+   ⚠️ MỚI: bổ sung "./modules/inventory/dashboard-inventory-count.js"
+   (tính năng "📋 Kiểm kê tồn kho") vào cuối nhóm script domain
+   Inventory — cần load SAU inventory-shared.js (dùng window.Inventory
+   để lấy danh sách nguyên liệu) và sau dashboard-ingredients.js (cùng
+   domain, logic liên quan tồn kho). Vị trí trong SIDEBAR (ngay dưới
+   "Đơn hàng") KHÔNG phụ thuộc vào thứ tự load script này — được đảm
+   bảo bởi placeholderId tĩnh đã đặt sẵn trong dashboard.html.
    ══════════════════════════════════════════════ */
 
 /* Khai báo ở scope ngoài cùng (không bọc trong function) để các
@@ -69,6 +78,7 @@ const SCRIPT_SEQUENCE = [
   "./modules/orders/dashboard-orders.js",
 
   "./modules/inventory/dashboard-ingredients.js",
+  "./modules/inventory/dashboard-inventory-count.js",
 
   "./core/dashboard-nav.js",
 ];
