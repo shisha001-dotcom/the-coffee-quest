@@ -49,6 +49,13 @@
         <!-- Nâng cấp bởi dashboard-orders.js qua registerPage() -->
         <a class="menu-item" id="ordersMenuItemPlaceholder"><span aria-hidden="true">🧾</span> Đơn hàng</a>
 
+        <!-- ⚠️ MỚI: nâng cấp bởi dashboard-inventory-count.js qua
+             registerPage({ placeholderId }). Đặt NGAY DƯỚI "Đơn hàng"
+             theo yêu cầu. Ẩn khỏi Editor (module JS tự remove() phần
+             tử này nếu currentSession.role === "editor") — chỉ
+             Bar Staff + Super Admin thấy được. -->
+        <a class="menu-item" id="inventoryCountMenuItemPlaceholder"><span aria-hidden="true">📋</span> Kiểm kê tồn kho</a>
+
         <!-- Nâng cấp bởi dashboard-chat.js qua registerPage({ placeholderId }) -->
         <a class="menu-item" id="chatMenuItemPlaceholder"><span aria-hidden="true">💬</span> Cộng đồng</a>
       </div>
@@ -190,9 +197,10 @@
 
     </div>
 
-    <!-- ── ORDERS PAGE (🧾 Đơn hàng), CUSTOMER DETAIL PAGE (👤 Chi tiết khách),
-         GAME DETAIL PAGE (📄 Chi tiết Boardgame), CUSTOMERS PAGE (🎮 Khách hàng)
-         và mọi page động khác (chat/analytics/banners/media/accounts/ingredients)
+    <!-- ── ORDERS PAGE (🧾 Đơn hàng), INVENTORY COUNT PAGE (📋 Kiểm kê tồn kho),
+         CUSTOMER DETAIL PAGE (👤 Chi tiết khách), GAME DETAIL PAGE
+         (📄 Chi tiết Boardgame), CUSTOMERS PAGE (🎮 Khách hàng) và mọi page
+         động khác (chat/analytics/banners/media/accounts/ingredients)
          ĐỀU được inject bởi module JS tương ứng — KHÔNG có gì tĩnh thêm ở đây. -->
 
   </main>
