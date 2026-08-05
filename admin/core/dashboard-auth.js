@@ -62,25 +62,20 @@ let currentSession;
    ══════════════════════════════════════════════ */
 const SCRIPT_SEQUENCE = [
   "./core/dashboard-page-registry.js",
-
   "./modules/inventory/inventory-shared.js",
-
   "./modules/games/dashboard-games.js",
   "./modules/drinks/dashboard-drinks.js",
   "./modules/games/dashboard-game-detail.js",
-
   "./modules/membership/membership-shared.js",
   "./modules/membership/dashboard-customers.js",
   "./modules/membership/dashboard-customer-detail.js",
   "./modules/membership/dashboard-quests.js",
   "./modules/membership/dashboard-levels.js",
-
   "./modules/orders/dashboard-orders.js",
-
   "./modules/inventory/dashboard-ingredients.js",
   "./modules/inventory/dashboard-inventory-count.js",
-
   "./core/dashboard-nav.js",
+  "./dashboard-mobile-tables.js",
 ];
 
 /* Các module ES (type="module") — không bắt buộc thứ tự nghiêm
