@@ -8,10 +8,25 @@
      dữ liệu Supabase trả về (.select()), thay vì loadGames() gọi
      lại toàn bảng — giảm 1 round-trip mạng không cần thiết mỗi
      lần lưu/xoá 1 game.
-   - ⚠️ DEDUPE: clearFieldError/showFieldError cục bộ đã bị xoá —
-     dùng thẳng window.clearFieldError/window.showFieldError
-     (js/shared-utils.js), dùng chung với dashboard-game-detail.js,
-     dashboard-accounts.js, dashboard-drinks.js, membership-shared.js.
+
+   ⚠️ MỚI — PHÂN TRANG + BỘ LỌC NÂNG CAO:
+   - Bảng game giờ hiển thị 10 game/trang (BG_PAGE_SIZE), có nút
+     điều hướng trang (‹ Trước / số trang / Sau ›) ở cuối bảng —
+     tránh dàn trải toàn bộ danh sách khi catalog lớn dần.
+   - Khung "🔎 Bộ lọc nâng cao" (thu gọn mặc định, bấm để mở rộng)
+     ngay trên bảng, gồm: lọc theo thể loại, lọc theo độ khó, và
+     nhóm checkbox "Thiếu nội dung" (MISSING_CONTENT_CHECKS) để tìm
+     nhanh game còn thiếu PDF luật chơi / video YouTube / ảnh nền /
+     ảnh hướng dẫn / mục tiêu / điều kiện thắng / bước chuẩn bị /
+     bước lượt chơi / mẹo chơi — mục đích: rà soát nội dung còn
+     thiếu để bổ sung, không phải dò tay từng game.
+   - Tick nhiều checkbox "Thiếu nội dung" cùng lúc = lọc OR (game
+     thiếu BẤT KỲ mục nào được tick, không cần thiếu tất cả).
+   - Toàn bộ pipeline lọc (tìm kiếm tên + thể loại + độ khó + thiếu
+     nội dung) gộp lại trong getBgFilteredGames(), rồi mới cắt trang
+     trong renderGames() — đổi bất kỳ bộ lọc/ô tìm kiếm nào đều tự
+     reset về trang 1; chỉ giữ nguyên trang hiện tại khi
+     refresh/lưu/xoá (không làm phiền người dùng đang ở trang giữa).
    ══════════════════════════════════════════════ */
 
 const isGamesReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
@@ -185,6 +200,30 @@ window.getGameById = id => games.find(g => g.id === id);
 
 if (isGamesReadOnly && addGameBtn) addGameBtn.style.display = "none";
 
+/* ══════════════════════════════════════════════
+   ⚠️ MỚI — STATE: PHÂN TRANG + BỘ LỌC NÂNG CAO
+   ══════════════════════════════════════════════ */
+const BG_PAGE_SIZE = 10;
+let bgActivePage       = 1;
+let bgFilterCategory   = "";
+let bgFilterDifficulty = "";
+const bgActiveMissingChecks = new Set();
+
+/* Danh sách các "kiểm tra thiếu nội dung" — mỗi mục là 1 checkbox
+   độc lập trong khung Bộ lọc nâng cao. Thêm/bớt mục mới chỉ cần sửa
+   mảng này, UI + logic lọc tự động cập nhật theo. */
+const MISSING_CONTENT_CHECKS = [
+  { key: "no_pdf",       label: "📄 Chưa có link PDF luật chơi", test: g => !g.rules_pdf_url },
+  { key: "no_youtube",   label: "▶️ Chưa có video YouTube",       test: g => !g.youtube_url },
+  { key: "no_hero",      label: "🖼️ Chưa có ảnh nền (hero)",      test: g => !g.hero_bg },
+  { key: "no_images",    label: "🖼️ Chưa có ảnh hướng dẫn",       test: g => !(Array.isArray(g.images) && g.images.length) },
+  { key: "no_objective", label: "🎯 Chưa có mục tiêu",             test: g => !g.objective },
+  { key: "no_win",       label: "🥇 Chưa có điều kiện thắng",      test: g => !g.win },
+  { key: "no_setup",     label: "🔧 Chưa có bước chuẩn bị",        test: g => !(Array.isArray(g.setup) && g.setup.length) },
+  { key: "no_turn",      label: "🔄 Chưa có bước lượt chơi",       test: g => !(Array.isArray(g.turn) && g.turn.length) },
+  { key: "no_tips",      label: "💡 Chưa có mẹo chơi",             test: g => !(Array.isArray(g.tips) && g.tips.length) },
+];
+
 /* ── Sync 2 ô màu (color text ⇄ color picker) — thay cho oninput="" inline ── */
 function bindColorPickerSync() {
   colorPicker?.addEventListener("input", () => { colorInput.value = colorPicker.value; });
@@ -301,6 +340,32 @@ function setImages(id, arr) {
 }
 
 /* ══════════════════════════════════════════════
+   VALIDATE FIELD ERROR
+   ══════════════════════════════════════════════ */
+function clearFieldError(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = "";
+  document.getElementById(id + "Error")?.remove();
+}
+function showFieldError(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = "var(--danger)";
+  el.focus();
+  let err = document.getElementById(id + "Error");
+  if (!err) {
+    err = document.createElement("div");
+    err.id = id + "Error";
+    err.setAttribute("role", "alert");
+    err.style.cssText = "color:var(--danger);font-size:12px;font-weight:600;margin-top:-6px;grid-column:1/-1;";
+    el.closest(".form-group")?.insertAdjacentElement("afterend", err) ?? el.insertAdjacentElement("afterend", err);
+  }
+  err.textContent = msg;
+  el.addEventListener("input", () => clearFieldError(id), { once: true });
+}
+
+/* ══════════════════════════════════════════════
    LOAD GAMES
    ══════════════════════════════════════════════ */
 async function loadGames() {
@@ -319,7 +384,7 @@ async function loadGames() {
 
   games = data || [];
   gameTable.classList.remove("hidden");
-  renderGames(games);
+  applyGamesFilters(true); // ⚠️ MỚI: qua bộ lọc + phân trang thay vì renderGames(games) thẳng
   updateStats(games);
 }
 
@@ -342,53 +407,221 @@ function difficultyClass(value) {
     : "medium";
 }
 
-function renderGames(data) {
-  if (!data.length) {
-    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Không tìm thấy game nào.</td></tr>`;
-    return;
-  }
-  const actionLabel = isGamesReadOnly ? "👁️ Xem" : "✏️ Sửa";
+/* ══════════════════════════════════════════════
+   ⚠️ MỚI — LỌC + PHÂN TRANG
+   ─────────────────────────────────────────────
+   getBgFilteredGames(): áp toàn bộ bộ lọc (tìm tên + thể loại +
+   độ khó + thiếu nội dung) lên mảng `games` gốc, trả về mảng ĐÃ LỌC
+   (chưa cắt trang).
 
-  tableBody.innerHTML = data.map(game => {
-    const name   = window.escHtml(game.name || "(không tên)");
-    const emoji  = game.emoji  || "🎲";
-    const diff   = window.escHtml(game.difficulty || "Medium");
-    const cats   = Array.isArray(game.categories) ? game.categories : [];
-    const imgSrc = window.escHtml(game.hero_bg || "https://placehold.co/48x48");
-    const color  = game.color
-      ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${game.color};margin-right:4px;vertical-align:middle" aria-hidden="true"></span>`
-      : "";
-    return `<tr>
-      <td>
-        <div class="game-info">
-          <img class="game-image" src="${imgSrc}" alt="Ảnh minh hoạ ${name}" onerror="this.src='https://placehold.co/48x48'">
-          <div>
-            <div class="game-name">${emoji} ${name}</div>
-            <div class="game-id">${color}ID: ${game.id} · Order: ${game.sort_order ?? '—'}</div>
+   applyGamesFilters(resetPage): điểm vào DUY NHẤT mà mọi nơi thay
+   đổi bộ lọc/tìm kiếm nên gọi — resetPage=true khi người dùng vừa
+   đổi 1 điều kiện lọc (quay về trang 1 cho khỏi lạc); resetPage=false
+   khi chỉ refresh/lưu/xoá dữ liệu (giữ nguyên trang đang xem).
+   ══════════════════════════════════════════════ */
+function getBgFilteredGames() {
+  const q = (searchInput?.value || "").trim().toLowerCase();
+  return games.filter(g => {
+    if (q && !(g.name || "").toLowerCase().includes(q)) return false;
+
+    if (bgFilterCategory) {
+      const cats = Array.isArray(g.categories) ? g.categories : [];
+      if (!cats.includes(bgFilterCategory)) return false;
+    }
+
+    if (bgFilterDifficulty && (g.difficulty || "") !== bgFilterDifficulty) return false;
+
+    if (bgActiveMissingChecks.size) {
+      const missesAny = MISSING_CONTENT_CHECKS.some(c => bgActiveMissingChecks.has(c.key) && c.test(g));
+      if (!missesAny) return false;
+    }
+
+    return true;
+  });
+}
+
+function applyGamesFilters(resetPage = false) {
+  if (resetPage) bgActivePage = 1;
+  renderGames(getBgFilteredGames());
+}
+
+function renderGames(filtered) {
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / BG_PAGE_SIZE));
+  if (bgActivePage > totalPages) bgActivePage = totalPages;
+  if (bgActivePage < 1) bgActivePage = 1;
+
+  const startIdx = (bgActivePage - 1) * BG_PAGE_SIZE;
+  const pageItems = filtered.slice(startIdx, startIdx + BG_PAGE_SIZE);
+
+  if (!total) {
+    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Không tìm thấy game nào.</td></tr>`;
+  } else {
+    const actionLabel = isGamesReadOnly ? "👁️ Xem" : "✏️ Sửa";
+
+    tableBody.innerHTML = pageItems.map(game => {
+      const name   = window.escHtml(game.name || "(không tên)");
+      const emoji  = game.emoji  || "🎲";
+      const diff   = window.escHtml(game.difficulty || "Medium");
+      const cats   = Array.isArray(game.categories) ? game.categories : [];
+      const imgSrc = window.escHtml(game.hero_bg || "https://placehold.co/48x48");
+      const color  = game.color
+        ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${game.color};margin-right:4px;vertical-align:middle" aria-hidden="true"></span>`
+        : "";
+      return `<tr>
+        <td>
+          <div class="game-info">
+            <img class="game-image" src="${imgSrc}" alt="Ảnh minh hoạ ${name}" onerror="this.src='https://placehold.co/48x48'">
+            <div>
+              <div class="game-name">${emoji} ${name}</div>
+              <div class="game-id">${color}ID: ${game.id} · Order: ${game.sort_order ?? '—'}</div>
+            </div>
           </div>
-        </div>
-      </td>
-      <td>${window.escHtml(game.players) || "—"}</td>
-      <td>${window.escHtml(game.time) || "—"}</td>
-      <td><div class="difficulty ${difficultyClass(game.difficulty)}">${diff}</div></td>
-      <td>${cats.map(c => `<div class="badge" style="margin-bottom:3px">${window.escHtml(c)}</div>`).join("") || '<div class="badge">Boardgame</div>'}</td>
-      <td>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-primary edit-btn" data-id="${game.id}">${actionLabel}</button>
-          <button class="btn btn-secondary detail-btn" data-id="${game.id}"
-            style="font-size:12px;padding:6px 10px;" title="Trang chi tiết" aria-label="Xem trang chi tiết ${name}">📄 Chi tiết</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
+        </td>
+        <td>${window.escHtml(game.players) || "—"}</td>
+        <td>${window.escHtml(game.time) || "—"}</td>
+        <td><div class="difficulty ${difficultyClass(game.difficulty)}">${diff}</div></td>
+        <td>${cats.map(c => `<div class="badge" style="margin-bottom:3px">${window.escHtml(c)}</div>`).join("") || '<div class="badge">Boardgame</div>'}</td>
+        <td>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-primary edit-btn" data-id="${game.id}">${actionLabel}</button>
+            <button class="btn btn-secondary detail-btn" data-id="${game.id}"
+              style="font-size:12px;padding:6px 10px;" title="Trang chi tiết" aria-label="Xem trang chi tiết ${name}">📄 Chi tiết</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  renderGamesPagination(total, totalPages);
+  updateBgFilterResultCount(total);
+}
+
+/* ── Render dải nút phân trang (‹ Trước / số trang / Sau ›) ── */
+function renderGamesPagination(total, totalPages) {
+  const wrap = document.getElementById("bgPagination");
+  if (!wrap) return;
+
+  if (totalPages <= 1) { wrap.innerHTML = ""; return; }
+
+  const pageBtn = (label, page, opts = {}) => `
+    <button type="button" class="btn ${opts.active ? "btn-primary" : "btn-secondary"}"
+      data-bg-page="${page}" ${opts.disabled ? "disabled" : ""}
+      style="min-width:38px;height:36px;padding:0 10px;font-size:13px;${opts.disabled ? "opacity:.4;cursor:not-allowed;" : ""}">${label}</button>`;
+
+  let pagesHtml = "";
+  const MAX_BUTTONS = 7;
+  if (totalPages <= MAX_BUTTONS) {
+    for (let p = 1; p <= totalPages; p++) pagesHtml += pageBtn(p, p, { active: p === bgActivePage });
+  } else {
+    const keep = new Set([1, totalPages, bgActivePage, bgActivePage - 1, bgActivePage + 1]);
+    const sorted = [...keep].filter(p => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+    let prev = 0;
+    sorted.forEach(p => {
+      if (p - prev > 1) pagesHtml += `<span style="padding:0 4px;color:var(--text-muted);">…</span>`;
+      pagesHtml += pageBtn(p, p, { active: p === bgActivePage });
+      prev = p;
+    });
+  }
+
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;padding-top:18px;">
+      ${pageBtn("‹ Trước", bgActivePage - 1, { disabled: bgActivePage === 1 })}
+      ${pagesHtml}
+      ${pageBtn("Sau ›", bgActivePage + 1, { disabled: bgActivePage === totalPages })}
+    </div>
+    <div style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:6px;padding-bottom:4px;">Trang ${bgActivePage}/${totalPages} — ${total} game</div>
+  `;
+
+  wrap.querySelectorAll("[data-bg-page]").forEach(b => {
+    b.addEventListener("click", () => {
+      const p = Number(b.dataset.bgPage);
+      if (!p || p < 1 || p > totalPages || p === bgActivePage) return;
+      bgActivePage = p;
+      applyGamesFilters(false);
+      gameTable?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+}
+
+function updateBgFilterResultCount(total) {
+  const el = document.getElementById("bgFilterResultCount");
+  if (el) el.textContent = `Đang lọc: ${total} / ${games.length} game`;
 }
 
 /* ══════════════════════════════════════════════
-   SEARCH
+   ⚠️ MỚI — KHUNG "BỘ LỌC NÂNG CAO": populate select + render checkbox + bind
    ══════════════════════════════════════════════ */
-searchInput?.addEventListener("input", window.debounce(e => {
-  const v = e.target.value.toLowerCase();
-  renderGames(games.filter(g => (g.name || "").toLowerCase().includes(v)));
+function populateBgFilterSelects() {
+  const catSel = document.getElementById("bgFilterCategory");
+  if (catSel && window.GAME_CATEGORIES) {
+    catSel.innerHTML = '<option value="">-- Tất cả thể loại --</option>' +
+      window.GAME_CATEGORIES.map(c => `<option value="${window.escHtml(c)}">${window.escHtml(c)}</option>`).join("");
+  }
+  const diffSel = document.getElementById("bgFilterDifficulty");
+  if (diffSel && window.DIFFICULTY_LEVELS) {
+    diffSel.innerHTML = '<option value="">-- Tất cả độ khó --</option>' +
+      window.DIFFICULTY_LEVELS.map(d => `<option value="${window.escHtml(d)}">${window.escHtml(d)}</option>`).join("");
+  }
+}
+
+function renderBgMissingChecks() {
+  const wrap = document.getElementById("bgFilterMissingWrap");
+  if (!wrap) return;
+  wrap.innerHTML = MISSING_CONTENT_CHECKS.map(c => `
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;">
+      <input type="checkbox" class="bg-missing-check" data-key="${c.key}" ${bgActiveMissingChecks.has(c.key) ? "checked" : ""} style="width:16px;height:16px;flex-shrink:0;">
+      ${c.label}
+    </label>
+  `).join("");
+
+  wrap.querySelectorAll(".bg-missing-check").forEach(cb => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) bgActiveMissingChecks.add(cb.dataset.key);
+      else bgActiveMissingChecks.delete(cb.dataset.key);
+      applyGamesFilters(true);
+    });
+  });
+}
+
+function bindBgFilterPanelEvents() {
+  document.getElementById("bgFilterCategory")?.addEventListener("change", e => {
+    bgFilterCategory = e.target.value;
+    applyGamesFilters(true);
+  });
+  document.getElementById("bgFilterDifficulty")?.addEventListener("change", e => {
+    bgFilterDifficulty = e.target.value;
+    applyGamesFilters(true);
+  });
+  document.getElementById("bgFilterClearBtn")?.addEventListener("click", () => {
+    bgFilterCategory = "";
+    bgFilterDifficulty = "";
+    bgActiveMissingChecks.clear();
+    const catSel = document.getElementById("bgFilterCategory");
+    const diffSel = document.getElementById("bgFilterDifficulty");
+    if (catSel) catSel.value = "";
+    if (diffSel) diffSel.value = "";
+    renderBgMissingChecks();
+    applyGamesFilters(true);
+  });
+  document.getElementById("bgFilterToggle")?.addEventListener("click", () => {
+    const body = document.getElementById("bgFilterBody");
+    const icon = document.getElementById("bgFilterToggleIcon");
+    if (!body || !icon) return;
+    const isOpen = body.style.display !== "none";
+    body.style.display = isOpen ? "none" : "block";
+    icon.textContent = isOpen ? "▾ Mở rộng" : "▴ Thu gọn";
+  });
+}
+
+/* ══════════════════════════════════════════════
+   SEARCH — ⚠️ TỐI ƯU: dùng window.debounce() dùng chung
+   (shared-utils.js) thay vì tự viết clearTimeout/setTimeout.
+   ⚠️ MỚI: giờ chạy qua applyGamesFilters() (gộp chung với lọc
+   thể loại/độ khó/thiếu nội dung) thay vì tự filter theo tên riêng.
+   ══════════════════════════════════════════════ */
+searchInput?.addEventListener("input", window.debounce(() => {
+  applyGamesFilters(true);
 }, 200));
 
 /* ══════════════════════════════════════════════
@@ -408,7 +641,9 @@ closeModalBtn?.addEventListener("click", () => modal.classList.add("hidden"));
 modal?.addEventListener("keydown", e => { if (e.key === "Escape") modal.classList.add("hidden"); });
 
 /* ══════════════════════════════════════════════
-   SAVE
+   SAVE — ⚠️ TỐI ƯU: PATCH mảng `games` tại chỗ bằng dữ liệu
+   Supabase trả về (.select()), thay vì gọi lại loadGames() —
+   trước đây mỗi lần lưu 1 game là refetch TOÀN BỘ bảng.
    ══════════════════════════════════════════════ */
 async function saveGame() {
   if (isGamesReadOnly) return;
@@ -417,8 +652,8 @@ async function saveGame() {
   const id    = rawId ? Number(rawId) : null;
   const name  = document.getElementById("nameInput").value.trim();
 
-  if (!name) { window.showFieldError("nameInput", "Vui lòng nhập tên game.", { fullWidth: true }); return; }
-  window.clearFieldError("nameInput");
+  if (!name) { showFieldError("nameInput", "Vui lòng nhập tên game."); return; }
+  clearFieldError("nameInput");
 
   const colorVal   = colorInput?.value.trim() || "#6c5ce7";
   const categories = window.getSelectedCategories(categoryPicker);
@@ -452,6 +687,7 @@ async function saveGame() {
       if (error) throw error;
       if (!data?.length) throw new Error(`UPDATE không ảnh hưởng dòng nào (id=${id}).`);
 
+      /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadGames() refetch toàn bảng */
       const idx = games.findIndex(g => g.id === id);
       if (idx !== -1) games[idx] = data[0];
       else games.push(data[0]);
@@ -460,12 +696,13 @@ async function saveGame() {
       const { data, error } = await client.from("games").insert(payload).select();
       if (error) throw error;
 
+      /* ⚠️ TỐI ƯU: thêm trực tiếp vào mảng thay vì refetch */
       if (data?.[0]) games.push(data[0]);
       games.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     }
 
     modal.classList.add("hidden");
-    renderGames(games);
+    applyGamesFilters(false); // ⚠️ MỚI: giữ nguyên trang đang xem, không nhảy về trang 1
     updateStats(games);
     window.showToast("✅ Đã lưu thành công!");
   } catch(err) {
@@ -478,7 +715,8 @@ async function saveGame() {
 saveBtn?.addEventListener("click", saveGame);
 
 /* ══════════════════════════════════════════════
-   DELETE
+   DELETE — ⚠️ TỐI ƯU: xoá tại chỗ trong mảng `games` thay vì
+   loadGames() refetch toàn bảng.
    ══════════════════════════════════════════════ */
 async function deleteGame() {
   if (isGamesReadOnly) return;
@@ -503,10 +741,11 @@ async function deleteGame() {
     const { error } = await client.from("games").delete().eq("id", id);
     if (error) throw error;
 
+    /* ⚠️ TỐI ƯU: xoá tại chỗ thay vì loadGames() refetch toàn bảng */
     games = games.filter(g => String(g.id) !== String(id));
 
     modal.classList.add("hidden");
-    renderGames(games);
+    applyGamesFilters(false); // ⚠️ MỚI: renderGames() tự lùi trang nếu trang hiện tại rỗng sau khi xoá
     updateStats(games);
     window.showToast("🗑️ Đã xóa thành công!", "#e17055");
   } catch(err) {
@@ -528,7 +767,7 @@ function clearForm() {
     "winInput","setupInput","turnInput","tipsInput","imagesInput","sortInput"
   ].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
 
-  window.clearFieldError("nameInput");
+  clearFieldError("nameInput");
 
   if (colorInput)  colorInput.value  = "#6c5ce7";
   if (colorPicker) colorPicker.value = "#6c5ce7";
@@ -620,4 +859,7 @@ window.loadGames = loadGames;
 /* ══════════════════════════════════════════════
    INIT
    ══════════════════════════════════════════════ */
+populateBgFilterSelects();
+renderBgMissingChecks();
+bindBgFilterPanelEvents();
 loadGames();
