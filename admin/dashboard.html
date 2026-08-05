@@ -49,11 +49,9 @@
         <!-- Nâng cấp bởi dashboard-orders.js qua registerPage() -->
         <a class="menu-item" id="ordersMenuItemPlaceholder"><span aria-hidden="true">🧾</span> Đơn hàng</a>
 
-        <!-- ⚠️ MỚI: nâng cấp bởi dashboard-inventory-count.js qua
-             registerPage({ placeholderId }). Đặt NGAY DƯỚI "Đơn hàng"
-             theo yêu cầu. Ẩn khỏi Editor (module JS tự remove() phần
-             tử này nếu currentSession.role === "editor") — chỉ
-             Bar Staff + Super Admin thấy được. -->
+        <!-- Nâng cấp bởi dashboard-inventory-count.js qua registerPage({ placeholderId }).
+             Ẩn khỏi Editor (module JS tự remove() phần tử này nếu
+             currentSession.role === "editor") — chỉ Bar Staff + Super Admin thấy được. -->
         <a class="menu-item" id="inventoryCountMenuItemPlaceholder"><span aria-hidden="true">📋</span> Kiểm kê tồn kho</a>
 
         <!-- Nâng cấp bởi dashboard-chat.js qua registerPage({ placeholderId }) -->
@@ -132,7 +130,12 @@
 
     <!-- ── BOARDGAMES PAGE ──
          Modal #gameModal KHÔNG còn ở đây — được inject bởi
-         admin/modules/games/dashboard-games.js -->
+         admin/modules/games/dashboard-games.js.
+
+         ⚠️ MỚI: khung "🔎 Bộ lọc nâng cao" (#bgFilterPanel, thu gọn
+         mặc định) + khu vực phân trang (#bgPagination, render bởi
+         dashboard-games.js::renderGamesPagination()) — 10 game/trang
+         thay vì hiện hết toàn bộ danh sách 1 lần. -->
     <div id="boardgamesPage" style="display:none;">
 
       <div class="page-header">
@@ -151,6 +154,37 @@
         <input type="text" id="searchInput" placeholder="🔍 Tìm boardgame..." class="search-input">
       </div>
 
+      <!-- ⚠️ MỚI: Bộ lọc nâng cao — thu gọn mặc định, bấm tiêu đề để mở rộng -->
+      <div class="table-card" id="bgFilterPanel" style="padding:18px 22px;margin-bottom:20px;">
+        <div id="bgFilterToggle" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">🔎 Bộ lọc nâng cao</div>
+          <span id="bgFilterToggleIcon" style="font-size:12px;color:var(--text-muted);">▾ Mở rộng</span>
+        </div>
+
+        <div id="bgFilterBody" style="display:none;margin-top:16px;">
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px;margin-bottom:6px;">
+            <div class="form-group">
+              <label for="bgFilterCategory">Thể loại</label>
+              <select id="bgFilterCategory"><option value="">-- Tất cả thể loại --</option></select>
+            </div>
+            <div class="form-group">
+              <label for="bgFilterDifficulty">Độ khó</label>
+              <select id="bgFilterDifficulty"><option value="">-- Tất cả độ khó --</option></select>
+            </div>
+          </div>
+
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px;">
+            ⚠️ Thiếu nội dung (tick 1 hoặc nhiều mục — game thiếu BẤT KỲ mục nào được tick sẽ hiện ra)
+          </div>
+          <div id="bgFilterMissingWrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 16px;"></div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+            <span id="bgFilterResultCount" style="font-size:12px;color:var(--text-muted);"></span>
+            <button class="btn btn-secondary" id="bgFilterClearBtn" style="font-size:13px;padding:8px 16px;">↺ Xoá bộ lọc</button>
+          </div>
+        </div>
+      </div>
+
       <div class="table-card">
         <div id="loadingMsg" class="loading-msg">⏳ Đang tải dữ liệu...</div>
         <div id="errorMsg" class="error-msg hidden" role="alert"></div>
@@ -163,6 +197,7 @@
           </thead>
           <tbody id="gameTableBody"></tbody>
         </table>
+        <div id="bgPagination"></div>
       </div>
 
     </div>
@@ -223,10 +258,10 @@
 
      Lý do: dashboard-auth.js tự động tải toàn bộ phần còn lại
      (page-registry, inventory, games, drinks, membership, orders,
-     nav, chat, analytics, banners, media, accounts, mobile-menu)
-     bằng JavaScript SAU KHI xác thực xong (session Supabase Auth +
-     hồ sơ admin_users đã sẵn sàng) — xem SCRIPT_SEQUENCE /
-     MODULE_SEQUENCE trong admin/core/dashboard-auth.js.
+     kiểm kê tồn kho, nav, chat, analytics, banners, media, accounts,
+     mobile-menu) bằng JavaScript SAU KHI xác thực xong (session
+     Supabase Auth + hồ sơ admin_users đã sẵn sàng) — xem
+     SCRIPT_SEQUENCE / MODULE_SEQUENCE trong admin/core/dashboard-auth.js.
 
      TRƯỚC ĐÂY các script đó bị khai báo TĨNH ở file này ĐỒNG THỜI
      cũng được dashboard-auth.js tải lại bằng JS lần thứ 2 → gây 2 lỗi:
