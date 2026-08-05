@@ -1,0 +1,475 @@
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN DASHBOARD — MOBILE OPTIMIZATION — admin/dashboard-mobile.css
+   ─────────────────────────────────────────────────────────────────
+   v2 — đã soát lại lần 2. So với v1, thay đổi QUAN TRỌNG NHẤT: mục
+   2.4 (bảng → card) được THIẾT KẾ LẠI TỪ ĐẦU vì cách cũ (nhãn trái /
+   giá trị phải bằng flex + justify-content:space-between) BỊ VỠ ở
+   mọi ô có từ 2 phần tử con trở lên (VD: ô "Khách hàng" có cả
+   <div>tên</div> lẫn <div>SĐT</div>; ô "Nhiệm vụ" có tiêu đề + mã +
+   mô tả; ô "Thể loại" có nhiều badge...) — flexbox coi MỌI phần tử
+   con trực tiếp (kể cả text node rời) là 1 flex-item riêng nên bị
+   space-between đẩy dạt ra thay vì xếp chồng lên nhau. Bản v2 đổi
+   sang "nhãn ở trên, giá trị ngay dưới" (khối dọc bình thường) —
+   không thể vỡ dù ô chứa bao nhiêu phần tử con, đổi lại card cao
+   hơn 1 chút. Cũng bổ sung: fix Banners, fix khung ngày tuỳ chọn
+   Thống kê, wrap dòng trong panel mở rộng đơn hàng, role/aria-label
+   qua JS (vì <thead> bị ẩn bằng display:none cũng ẩn luôn với
+   trình đọc màn hình), và prefers-reduced-motion.
+
+   KHÔNG đụng gì tới desktop — mọi rule đều nằm trong @media, hoặc
+   dùng !important có chủ đích để đè lên inline style do JS sinh ra
+   (vốn không đổi được nếu không sửa hàng chục file .js khác nhau).
+
+   ⚠️ CÁCH GẮN VÀO DỰ ÁN (3 bước, không sửa logic gì cả):
+   1) Thêm 1 dòng <link> trong <head> của admin/dashboard.html, NGAY
+      SAU dashboard-shared.css:
+        <link rel="stylesheet" href="./dashboard-mobile.css">
+   2) Thêm viewport-fit=cover vào thẻ <meta name="viewport"> có sẵn
+      trong admin/dashboard.html — thiếu dòng này thì mọi
+      env(safe-area-inset-*) dùng ở file này sẽ luôn = 0 (vô tác
+      dụng trên iPhone có "tai thỏ" / thanh home-indicator):
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+   3) File admin/dashboard-mobile-tables.js (đi kèm) cần được nạp
+      qua SCRIPT_SEQUENCE trong admin/core/dashboard-auth.js — xem
+      chú thích đầu file đó. KHÔNG thêm <script> tĩnh vào
+      dashboard.html (đúng nguyên tắc đã ghi trong README Mục 20).
+
+   ⚠️ KHÔNG cần sửa bất kỳ file nào trong admin/modules/* để tương
+      thích với file này. Toàn bộ kỹ thuật dưới đây được chọn CÓ CHỦ
+      ĐÍCH để không phải đụng vào HTML do JS sinh ra:
+        - Khối grid ĐÃ có class riêng (.recipe-row, .order-draft-row,
+          .ic-create-row, .form-grid, .stats-grid, .banner-body) →
+          override thẳng bằng !important.
+        - Khối grid KHÔNG có class (lưới 2 biểu đồ trang Thống kê,
+          layout form+sidebar ở trang Chi tiết Boardgame) → "bắt"
+          đúng div cha bằng vị trí nth-child đã xác minh khớp với
+          đúng bản HTML hiện tại của 2 file JS đó. Nếu sau này đổi
+          thứ tự các div con, tìm đoạn ghi "⚠️ PHỤ THUỘC THỨ TỰ HTML"
+          bên dưới để chỉnh lại.
+        - Bảng dữ liệu (<table class="game-table">) → chuyển thành
+          dạng "card" nhờ thuộc tính data-label mà admin/dashboard-
+          mobile-tables.js tự gắn vào <td> (đọc tên cột từ <th>).
+          Thiếu file JS đó thì bảng vẫn dùng được (rơi về cuộn ngang
+          trong khung), chỉ là không đẹp bằng dạng card.
+
+   ⚠️ Có dùng CSS :has() (Chrome/Edge/Safari/Firefox bản mới đều hỗ
+      trợ từ 2023-2024). Trình duyệt cũ không hiểu thì rule đó tự bị
+      bỏ qua — KHÔNG gây lỗi, chỉ đơn giản phần đó không tối ưu thêm.
+   ══════════════════════════════════════════════════════════════════ */
+
+
+/* ══════════════════════════════════════════════════════════════════
+   1. CHUNG CHO TABLET + ĐIỆN THOẠI — ≤ 900px
+   ─────────────────────────────────────────────────────────────────
+   Cùng ngưỡng với breakpoint sidebar → drawer đã có sẵn trong
+   dashboard.css, để cảm giác responsive luôn "khớp nhịp" với nhau.
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+
+  /* ── Input/select/textarea ≥16px — tránh Safari iOS tự động zoom
+     trang khi focus vào field có font-size <16px. Rất nhiều field
+     trong dự án set font-size 13-14px qua inline style nên bắt
+     buộc phải !important ở đây mới đè được. ── */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* ── Sidebar: ưu tiên dvh (dynamic viewport height) khi trình
+     duyệt hỗ trợ, để không bị hụt/che phía dưới bởi thanh địa chỉ
+     Safari iOS. Trình duyệt không hiểu 100dvh sẽ bỏ qua dòng này và
+     giữ nguyên 100vh đã có sẵn trong dashboard.css — không lỗi. ── */
+  .sidebar {
+    height: 100dvh;
+  }
+
+  /* ── Chừa khoảng trống an toàn phía dưới cho thanh home-indicator
+     iPhone, tránh nội dung/nút cuối trang bị che khuất. ── */
+  .main-content {
+    padding-bottom: calc(28px + env(safe-area-inset-bottom));
+  }
+
+  /* ── Nhóm nút góc phải page-header (🔄 Refresh, + Thêm...) — cho
+     xuống dòng thay vì tràn ngang khi không đủ chỗ. ── */
+  .header-actions {
+    flex-wrap: wrap;
+  }
+  .header-actions .btn {
+    flex: 1 1 auto;
+  }
+
+  /* ── Vùng chạm tối thiểu cho mọi nút (kể cả nút nhỏ trong bảng) ── */
+  .btn {
+    min-height: 40px;
+  }
+
+  /* ── Ô ngày/tháng trong các bộ lọc (Đơn hàng / Kiểm kê tồn kho /
+     Thống kê) — cao và rộng hơn ô mặc định của trình duyệt. ── */
+  input[type="date"] {
+    min-height: 40px;
+    flex: 1 1 140px;
+  }
+
+  /* ── Trang Cộng đồng (Chat) — bổ sung nhỏ cho phần mobile đã có
+     sẵn trong dashboard.css (@media max-width:860px). ── */
+  .chat-input-bar {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   2. ĐIỆN THOẠI — ≤ 640px
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+
+  /* ─────────────────────────────────────────────
+     2.1 LƯỚI THỐNG KÊ (.stats-grid) + FORM 2 CỘT (.form-grid)
+     ─────────────────────────────────────────────
+     ⚠️ Cả 2 class này thỉnh thoảng bị 1 dòng inline style ghi đè số
+     cột (VD: trang Kho nguyên liệu set .stats-grid style="grid-
+     template-columns:repeat(3,1fr)"; modal Kiểm kê tồn kho set
+     .form-grid style="grid-template-columns:1fr 1fr"). Inline style
+     luôn thắng CSS ngoài nếu không có !important, nên 2 rule dưới
+     đây BẮT BUỘC !important để áp dụng đúng cho MỌI chỗ, không chỉ
+     chỗ đang dùng giá trị mặc định của class.
+     ───────────────────────────────────────────── */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ─────────────────────────────────────────────
+     2.2 MODAL — dạng "bottom sheet", header/footer luôn dính
+     ─────────────────────────────────────────────
+     Modal chiếm gần trọn màn hình, dính mép dưới; tiêu đề + nút
+     đóng luôn hiện (sticky top); khối nút Lưu/Xoá luôn hiện (sticky
+     bottom) — không phải cuộn hết 1 form dài mới bấm được Lưu.
+     ───────────────────────────────────────────── */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .modal-box {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 92vh;
+    max-height: 92dvh;
+    padding: 20px 16px;
+    border-radius: 20px 20px 0 0;
+  }
+  .modal-header {
+    position: sticky;
+    top: -20px;
+    margin: -20px -16px 16px;
+    padding: 20px 16px 14px;
+    background: var(--card);
+    z-index: 3;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-actions {
+    position: sticky;
+    bottom: -20px;
+    margin: 20px -16px -20px;
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+    background: var(--card);
+    z-index: 3;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .modal-actions .btn {
+    flex: 1 1 auto;
+    min-width: 130px;
+  }
+
+  /* ⚠️ Riêng #orderCreateModal: nút "✅ Tạo đơn hàng" (#ordSubmitBtn)
+     KHÔNG nằm trong .modal-actions (form 3 bước, mỗi bước có hành
+     động riêng ở cuối bước đó) nên không có hiệu ứng dính đáy ở
+     trên — vẫn hoạt động bình thường, chỉ cần cuộn xuống cuối bước
+     3 để thấy, đúng hành vi hiện có trên desktop. Cho nút full-width
+     để ít nhất dễ bấm hơn khi tới được đó. */
+  #ordSubmitBtn {
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  /* ─────────────────────────────────────────────
+     2.3 EMOJI PICKER — vừa khung hình, không tràn ngang màn hình
+     ───────────────────────────────────────────── */
+  .emoji-picker {
+    width: min(300px, calc(100vw - 48px)) !important;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* ─────────────────────────────────────────────
+     2.4 BẢNG DỮ LIỆU → DẠNG "CARD"
+     ─────────────────────────────────────────────
+     Mỗi <tr> = 1 thẻ; mỗi <td> = 1 khối "NHÃN nhỏ/in hoa/xám" rồi
+     TỚI GIÁ TRỊ NGAY DƯỚI (xếp DỌC, không xếp trái/phải bằng flex)
+     — cố tình chọn kiểu này vì kiểu "trái/phải" sẽ vỡ ngay khi 1 ô
+     có từ 2 phần tử con trở lên (rất phổ biến trong dự án: ô "Khách
+     hàng" có cả tên lẫn SĐT, ô "Nhiệm vụ" có tiêu đề+mã+mô tả, ô
+     "Thể loại" có nhiều badge...). Xếp dọc thì dù ô chứa bao nhiêu
+     phần tử/badge/dòng text cũng luôn xếp chồng đúng thứ tự, không
+     thể vỡ layout.
+
+     Cần đi kèm admin/dashboard-mobile-tables.js để content:
+     attr(data-label) bên dưới có dữ liệu mà đọc, VÀ để gắn
+     role/aria-label bù lại phần <thead> bị ẩn khỏi trình đọc màn
+     hình (display:none ẩn cả với accessibility, không riêng thị
+     giác) — xem chú thích đầu file JS đó. Áp dụng cho mọi
+     <table class="game-table"> + bảng riêng của trang Thống kê
+     (#anDetailTable, không dùng class game-table nên liệt kê thêm).
+     ───────────────────────────────────────────── */
+  .table-card {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table.game-table,
+  #anDetailTable table {
+    display: block;
+    width: 100%;
+  }
+  table.game-table thead,
+  #anDetailTable table thead {
+    display: none;
+  }
+  table.game-table tbody,
+  #anDetailTable table tbody {
+    display: block;
+    width: 100%;
+  }
+  table.game-table tbody > tr,
+  #anDetailTable table tbody > tr {
+    display: block;
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px 14px;
+    margin-bottom: 10px;
+  }
+  /* Dòng chi tiết dạng accordion (.hidden, chưa bấm mở ▸) đã có sẵn
+     display:none !important trong dashboard.css → vẫn ẩn đúng,
+     không cần thêm rule riêng ở đây. */
+
+  table.game-table tbody > tr > td,
+  #anDetailTable table tbody > tr > td {
+    display: block;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+    word-break: break-word;
+  }
+  table.game-table tbody > tr > td:last-child,
+  #anDetailTable table tbody > tr > td:last-child {
+    border-bottom: none;
+  }
+  /* Chỉ hiện nhãn cho ô CÓ data-label (JS chỉ gắn khi <th> tương
+     ứng có text) — ô caret (▸) hoặc ô colspan không có thuộc tính
+     này nên tự động không hiện nhãn trống, không cần loại trừ riêng. */
+  table.game-table tbody > tr > td[data-label]::before,
+  #anDetailTable table tbody > tr > td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  /* Ô chứa nút hành động (Sửa/Xoá/Chi tiết...) — xếp ngang, tự
+     xuống dòng, ẩn nhãn (nút đã tự giải thích, không cần nhãn
+     "Hành động" phía trên). */
+  table.game-table tbody > tr > td:has(button) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  table.game-table tbody > tr > td:has(button)::before {
+    display: none;
+  }
+  table.game-table tbody > tr > td:has(button) .btn,
+  table.game-table tbody > tr > td:has(button) button {
+    min-height: 40px;
+    flex: 1 1 auto;
+  }
+
+  /* Input/select nằm ngay trong ô bảng (VD: bảng Cấp độ cho sửa
+     trực tiếp XP/tên rank/% giảm giá) — giãn hết chiều ngang thay
+     vì giữ nguyên width cố định nhỏ (90px/120px/160px...) mà JS
+     đặt qua inline style, rất khó bấm/gõ trên mobile. */
+  table.game-table tbody > tr > td input,
+  table.game-table tbody > tr > td select {
+    width: 100% !important;
+  }
+
+  /* Bên trong ô "mở rộng chi tiết" (colspan, khi bấm ▸ 1 dòng đơn
+     hàng/kiểm kê) — mỗi dòng sản phẩm/nguyên liệu bên trong tự có
+     inline display:flex;justify-content:space-between nhưng KHÔNG
+     có flex-wrap; tên sản phẩm dài + nút "Huỷ dòng" cạnh nhau có
+     thể tràn trên máy rất hẹp — bổ sung wrap cho an toàn. */
+  table.game-table tbody > tr > td[colspan] > div {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  /* ─────────────────────────────────────────────
+     2.5 CÁC DÒNG ĐỘNG DÙNG CSS GRID (JS tự thêm/bớt dòng)
+     ─────────────────────────────────────────────
+     3 chỗ trong dự án tự thêm 1 dòng bằng JS, mỗi dòng gán inline
+     style="display:grid;grid-template-columns:...". Cả 3 đều CÓ
+     class riêng nên override thẳng bằng !important, xếp lại thành
+     "ô chọn full-width ở trên, các ô còn lại + nút xoá ở dưới" —
+     dễ bấm hơn nhiều so với nhồi 3-5 cột trên 1 hàng ngang hẹp.
+     ───────────────────────────────────────────── */
+
+  /* Đơn hàng — 1 dòng sản phẩm trong popup "Tạo đơn hàng mới" */
+  .order-draft-row {
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas: "select select" "qty remove" !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .order-draft-row .order-drink-select { grid-area: select; }
+  .order-draft-row .order-qty-input   { grid-area: qty; width: 100%; }
+  .order-draft-row .order-row-remove  { grid-area: remove; }
+
+  /* Đồ uống — 1 dòng nguyên liệu trong công thức pha chế */
+  .recipe-row {
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-areas: "ing ing" "qty unit" "rate remove" !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .recipe-row .recipe-ingredient  { grid-area: ing; }
+  .recipe-row .recipe-qty         { grid-area: qty; }
+  .recipe-row .recipe-unit        { grid-area: unit; }
+  .recipe-row .recipe-rate        { grid-area: rate; }
+  .recipe-row .recipe-row-remove  { grid-area: remove; width: 100%; }
+
+  /* Kiểm kê tồn kho — 1 dòng nguyên liệu khi tạo phiếu mới */
+  .ic-create-row {
+    grid-template-columns: auto 1fr auto !important;
+    grid-template-areas: "ing ing ing" "unit qty remove" !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .ic-create-row .ic-row-ingredient { grid-area: ing; }
+  .ic-create-row .ic-row-unit       { grid-area: unit; }
+  .ic-create-row .ic-row-opening    { grid-area: qty; }
+  .ic-create-row .ic-row-remove     { grid-area: remove; }
+
+  /* "🎫 Thành viên" / "🚶 Khách vãng lai" — bước 1 popup tạo đơn
+     hàng. 2 nút này không có wrapper class riêng nên bắt qua :has()
+     (div nào có con trực tiếp .ord-type-btn chính là lưới cần sửa). */
+  div:has(> .ord-type-btn) {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ─────────────────────────────────────────────
+     2.6 TRANG THỐNG KÊ
+     ─────────────────────────────────────────────
+     ⚠️ PHỤ THUỘC THỨ TỰ HTML: lưới 2 biểu đồ trong
+     admin/modules/analytics/dashboard-analytics.js không có
+     class/ID riêng, chỉ xác định được qua vị trí — div con thứ 3
+     trong #analyticsPage (1: hàng tiêu đề + bộ lọc ngày,
+     2: #anSummaryCards, 3: LƯỚI 2 BIỂU ĐỒ, 4: bảng chi tiết). Nếu
+     sau này thêm/bớt 1 khối trước nó trong file đó, đổi lại số 3
+     cho khớp.
+     ───────────────────────────────────────────── */
+  #analyticsPage > div:nth-child(3) {
+    grid-template-columns: 1fr !important;
+  }
+  #anGameChartWrap, #anHourlyChartWrap {
+    height: 220px !important;
+  }
+  /* Khung "Từ ngày → Đến ngày + nút Xem" khi bấm tab "Tuỳ chọn" —
+     có gap nhưng thiếu flex-wrap trong bản gốc, dễ tràn ngang. */
+  #anCustomRange {
+    flex-wrap: wrap;
+  }
+
+  /* ─────────────────────────────────────────────
+     2.7 TRANG CHI TIẾT BOARDGAME — form + sidebar QR xếp dọc
+     ─────────────────────────────────────────────
+     ⚠️ PHỤ THUỘC THỨ TỰ HTML: tương tự mục 2.6 — div con thứ 3 của
+     #gameDetailPage (1: page-header, 2: input ẩn #gdId, 3: LƯỚI
+     form + sidebar QR).
+     ───────────────────────────────────────────── */
+  #gameDetailPage > div:nth-child(3) {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ─────────────────────────────────────────────
+     2.8 LƯỚI AUTO-FILL (Đồ uống / Thư viện Media) — ép về 1 cột để
+     chắc chắn thẻ không bị bóp méo trên máy rất hẹp
+     ───────────────────────────────────────────── */
+  #drinkGrid, #mediaGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ─────────────────────────────────────────────
+     2.9 TRANG BANNERS — URL ảnh + khung xem trước xếp dọc
+     ─────────────────────────────────────────────
+     Mỗi banner card có 1 hàng grid-template-columns:1fr auto
+     (input URL cạnh khung preview 180x90px) — trên máy hẹp, input
+     bị bóp lại rất hẹp cạnh khung preview cố định. Div này CÓ class
+     .banner-body nên override thẳng được, không cần :has().
+     ───────────────────────────────────────────── */
+  .banner-body {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ─────────────────────────────────────────────
+     2.10 WIDGET "NGƯỜI DÙNG ĐANG ONLINE" trên Dashboard
+     ───────────────────────────────────────────── */
+  .online-widget {
+    padding: 20px;
+  }
+  .online-big-num {
+    font-size: 48px;
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   3. MÀN HÌNH RẤT HẸP — ≤ 420px (điện thoại nhỏ/đời cũ)
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 420px) {
+  .modal-box    { padding: 16px 12px; }
+  .modal-header { top: -16px; margin: -16px -12px 14px; padding: 16px 12px 12px; }
+  .modal-actions{ bottom: -16px; margin: 16px -12px -16px; padding: 12px 12px calc(14px + env(safe-area-inset-bottom)); }
+
+  table.game-table tbody > tr,
+  #anDetailTable table tbody > tr {
+    padding: 4px 12px;
+  }
+
+  .stat-card       { padding: 16px 18px; }
+  .online-big-num  { font-size: 40px; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   4. TÔN TRỌNG "prefers-reduced-motion" (mọi kích thước màn hình)
+   ─────────────────────────────────────────────────────────────────
+   Frontend (css/base/reset.css) đã có rule này nhưng Admin Dashboard
+   thì chưa — bổ sung cho nhất quán. Người dùng bật "giảm hiệu ứng
+   chuyển động" (thường do say sóng/chóng mặt khi cuộn/hiệu ứng trên
+   di động) sẽ không phải chịu animation modal/sidebar/spinner/pulse.
+   Không ảnh hưởng gì tới người KHÔNG bật tuỳ chọn này ở hệ điều hành.
+   ══════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
