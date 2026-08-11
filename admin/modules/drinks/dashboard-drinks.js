@@ -17,6 +17,18 @@
    grid-column:1/-1 nên lỗi bị bó hẹp 1 cột — nay đã khớp behaviour
    với dashboard-games.js).
 
+   ⚠️ MỚI (đồng bộ với Settings → 📦 Sản phẩm): đã KIỂM TRA LẠI logic
+   tính giá thành hiện có — computeRecipeCost() = qty_per_serving ×
+   conversion_rate × unit_cost là ĐÚNG và tương thích ngay với 2 cột
+   package_qty/package_unit mới thêm ở `ingredients` (VD: 1 Hộp =
+   500g, unit_cost = giá/Hộp → conversion_rate = 1/500 quy đổi đúng
+   sang giá/gam). KHÔNG đổi công thức — chỉ cải thiện addRecipeRow():
+   khi chọn nguyên liệu có khai báo quy đổi đóng gói, tự điền sẵn
+   "Đơn vị" = đơn vị đóng gói (VD "g") + "Hệ số" = 1/package_qty
+   (VD 0.002) thay vì phải tính tay; vẫn sửa tay lại được bình thường.
+   ingredientOptionsHtml() cũng hiện thêm quy đổi đóng gói (nếu có)
+   ngay trong dropdown để dễ đối chiếu lúc chọn.
+
    Cần: `client`, `currentSession`, window.AdminPermissions,
    window.Inventory (inventory-shared.js — PHẢI load TRƯỚC file này),
    window.showConfirm/showToast (shared-utils.js).
@@ -28,6 +40,11 @@ let recipeRowSeq = 0; // id tạm cho mỗi dòng recipe trong modal (chưa lưu
 
 const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
 const INVD = window.Inventory;
+
+/* ⚠️ MỚI: làm tròn 6 chữ số cho hệ số quy đổi tự điền (1/500=0.002,
+   1/300=0.003333...) — tránh số thập phân dài vô ích, vẫn sửa tay
+   được bình thường nếu cần chính xác hơn. */
+function round6(n) { return Math.round(n * 1e6) / 1e6; }
 
 /* ══════════════════════════════════════════════
    INJECT MODAL HTML — 1 lần duy nhất lúc file load
@@ -98,7 +115,7 @@ const INVD = window.Inventory;
             <span id="drinkCostPreview" style="font-size:16px;font-weight:700;color:var(--primary);">0 đ</span>
           </div>
           <div id="drinkProfitPreview" style="margin-top:6px;font-size:12px;color:var(--text-muted);"></div>
-          <div class="hint">Chưa có nguyên liệu nào trong kho? Vào trang <b>📦 Kho nguyên liệu</b> để thêm trước.</div>
+          <div class="hint">Chưa có nguyên liệu nào trong kho? Vào <b>⚙️ Settings → 📦 Sản phẩm</b> để khai báo trước.</div>
         </div>
 
         <div class="section-divider"><span>📝 Hướng dẫn pha chế</span></div>
@@ -286,9 +303,12 @@ function setDrinkModalReadOnly(readonly) {
    ══════════════════════════════════════════════ */
 function ingredientOptionsHtml(selectedId) {
   const active = INVD.state.ingredients.filter(i => i.is_active);
-  return '<option value="">-- Chọn nguyên liệu --</option>' + active.map(i =>
-    `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>${window.escHtml(i.name)} (${window.escHtml(i.unit)} — ${Number(i.unit_cost).toLocaleString('vi-VN')}đ)</option>`
-  ).join('');
+  return '<option value="">-- Chọn nguyên liệu --</option>' + active.map(i => {
+    const pkg = i.package_unit
+      ? ` · 1 ${window.escHtml(i.unit)} = ${Number(i.package_qty).toLocaleString('vi-VN')}${window.escHtml(i.package_unit)}`
+      : '';
+    return `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>${window.escHtml(i.name)} (${window.escHtml(i.unit)} — ${Number(i.unit_cost).toLocaleString('vi-VN')}đ${pkg})</option>`;
+  }).join('');
 }
 
 function addRecipeRow(row = {}) {
@@ -304,16 +324,31 @@ function addRecipeRow(row = {}) {
     </select>
     <input type="number" class="recipe-qty" placeholder="Số lượng/ly" min="0" step="0.01" value="${row.qty_per_serving ?? ''}" style="height:40px;border:1px solid var(--border);border-radius:8px;padding:0 8px;font-size:13px;">
     <input type="text" class="recipe-unit" placeholder="Đơn vị" value="${window.escHtml(row.unit || '')}" style="height:40px;border:1px solid var(--border);border-radius:8px;padding:0 8px;font-size:13px;">
-    <input type="number" class="recipe-rate" placeholder="Hệ số" min="0" step="0.000001" value="${row.conversion_rate ?? 1}" title="Hệ số quy đổi về đơn vị kho (VD: công thức dùng ml, kho lưu lít → 0.001)" style="height:40px;border:1px solid var(--border);border-radius:8px;padding:0 8px;font-size:13px;">
+    <input type="number" class="recipe-rate" placeholder="Hệ số" min="0" step="0.000001" value="${row.conversion_rate ?? 1}" title="Hệ số quy đổi về đơn vị tính của sản phẩm — tự điền theo quy đổi đóng gói khai báo ở Settings → 📦 Sản phẩm (VD: 1 Hộp=500g → 0.002 cho công thức tính theo g), vẫn sửa tay được." style="height:40px;border:1px solid var(--border);border-radius:8px;padding:0 8px;font-size:13px;">
     <button type="button" class="close-btn recipe-row-remove" title="Xoá dòng" style="width:36px;height:36px;">✕</button>
   `;
   wrap.appendChild(div);
 
   const ingSelect = div.querySelector('.recipe-ingredient');
   const unitInput = div.querySelector('.recipe-unit');
+  const rateInput = div.querySelector('.recipe-rate');
   ingSelect.addEventListener('change', () => {
     const ing = INVD.getIngredientById(Number(ingSelect.value));
-    if (ing && !unitInput.value) unitInput.value = ing.unit;
+    if (ing) {
+      /* ⚠️ MỚI: nếu sản phẩm có khai báo quy đổi đóng gói (Settings →
+         📦 Sản phẩm, VD "1 Hộp = 500 g") → tự điền đơn vị công thức +
+         hệ số quy đổi theo đúng tỷ lệ đó, thay vì mặc định điền đơn vị
+         TÍNH (Hộp) như trước — vì công thức luôn cần viết theo đơn vị
+         nhỏ (g/ml), không phải đơn vị đóng gói lớn. KHÔNG đổi công
+         thức tính giá thành (qty × rate × unit_cost) — chỉ tự điền
+         sẵn giá trị đúng để đỡ phải tính tay. Vẫn sửa tay được sau đó. */
+      if (!unitInput.value) {
+        unitInput.value = ing.package_unit || ing.unit;
+      }
+      if ((!rateInput.value || Number(rateInput.value) === 1) && ing.package_unit && Number(ing.package_qty) > 0) {
+        rateInput.value = round6(1 / Number(ing.package_qty));
+      }
+    }
     updateDrinkCostPreview();
   });
   div.querySelectorAll('.recipe-qty, .recipe-rate').forEach(inp => inp.addEventListener('input', updateDrinkCostPreview));
@@ -549,7 +584,8 @@ async function deleteDrink() {
   }
 }
 
-/* Expose cho nav.js / dashboard-customers.js (chọn đồ uống khi tạo đơn) */
+/* Expose cho nav.js / dashboard-customers.js (chọn đồ uống khi tạo đơn)
+   / dashboard-settings.js (tab 🧪 Công thức — mở đúng modal này) */
 window.loadDrinks      = loadDrinks;
 window.renderDrinkGrid = renderDrinkGrid;
 window.openAddDrink    = openAddDrink;
