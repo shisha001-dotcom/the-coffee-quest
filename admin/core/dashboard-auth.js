@@ -19,7 +19,7 @@
    TẢI các <script> còn lại của Dashboard bằng JavaScript
    (createElement + appendChild theo đúng thứ tự tuần tự) — chỉ
    sau khi xác thực xong. Nhờ vậy không còn phụ thuộc vào việc
-   trình duyệt tự sắp thứ tự thực thi giữa module và script
+   trình duyệt tự sắp thứ tự thực thi module và script
    thường nữa; toàn bộ nằm trong 1 luồng JS do chính ta điều
    khiển.
 
@@ -30,10 +30,10 @@
    <script src="./core/dashboard-auth.js"></script> — KHÔNG còn
    bất kỳ <script> nào khác phía sau nó trong HTML nữa. Toàn bộ
    phần còn lại (page-registry, inventory, games, drinks,
-   membership, orders, kiểm kê tồn kho, nav, chat, analytics,
-   banners, media, accounts, mobile-menu) được chính file này tải
-   bằng JS theo đúng thứ tự cũ (xem SCRIPT_SEQUENCE / MODULE_SEQUENCE
-   bên dưới).
+   membership, orders, kiểm kê tồn kho, settings, nav, chat,
+   analytics, banners, media, accounts, mobile-menu) được chính
+   file này tải bằng JS theo đúng thứ tự cũ (xem SCRIPT_SEQUENCE /
+   MODULE_SEQUENCE bên dưới).
 
    ⚠️ SỬA (bổ sung — fix "Đơn hàng" không hoạt động + nút "Chi tiết"
    khách hàng không mở được trang): SCRIPT_SEQUENCE trước đây bị
@@ -41,13 +41,23 @@
    "./modules/membership/dashboard-customer-detail.js" — đã bổ sung
    lại đúng vị trí bên dưới.
 
-   ⚠️ MỚI: bổ sung "./modules/inventory/dashboard-inventory-count.js"
+   ⚠️ bổ sung "./modules/inventory/dashboard-inventory-count.js"
    (tính năng "📋 Kiểm kê tồn kho") vào cuối nhóm script domain
    Inventory — cần load SAU inventory-shared.js (dùng window.Inventory
    để lấy danh sách nguyên liệu) và sau dashboard-ingredients.js (cùng
    domain, logic liên quan tồn kho). Vị trí trong SIDEBAR (ngay dưới
    "Đơn hàng") KHÔNG phụ thuộc vào thứ tự load script này — được đảm
    bảo bởi placeholderId tĩnh đã đặt sẵn trong dashboard.html.
+
+   ⚠️ MỚI: bổ sung "./modules/settings/dashboard-settings.js" —
+   biến mục "⚙️ Settings" tĩnh (trước đây chưa gắn chức năng gì)
+   thành trang thật (🏬 Kho / 📦 Sản phẩm / 🧪 Công thức). Đặt SAU
+   inventory-shared.js (cần window.Inventory), dashboard-drinks.js
+   (cần window.editDrink để mở modal công thức có sẵn), và
+   dashboard-inventory-count.js (cần window.Branches) — nên nằm
+   NGAY SAU dashboard-inventory-count.js trong mảng dưới đây. File
+   này tự nhận diện lại đúng link "Settings" tĩnh có sẵn trong HTML
+   (không cần sửa dashboard.html).
    ══════════════════════════════════════════════ */
 
 /* Khai báo ở scope ngoài cùng (không bọc trong function) để các
@@ -74,6 +84,7 @@ const SCRIPT_SEQUENCE = [
   "./modules/orders/dashboard-orders.js",
   "./modules/inventory/dashboard-ingredients.js",
   "./modules/inventory/dashboard-inventory-count.js",
+  "./modules/settings/dashboard-settings.js",
   "./core/dashboard-nav.js",
   "./dashboard-mobile-tables.js",
 ];
