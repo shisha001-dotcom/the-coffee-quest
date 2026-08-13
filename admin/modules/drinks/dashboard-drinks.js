@@ -29,6 +29,17 @@
    ingredientOptionsHtml() cũng hiện thêm quy đổi đóng gói (nếu có)
    ngay trong dropdown để dễ đối chiếu lúc chọn.
 
+   ⚠️ MỚI (2026-08-12 — "khởi tạo mã sản phẩm" là bước bắt buộc trước
+   khi có công thức, đồng bộ với admin/modules/settings/dashboard-
+   settings.js và admin/modules/inventory/dashboard-ingredients.js):
+   ingredientOptionsHtml() giờ CHỈ liệt kê nguyên liệu ĐÃ có Mã sản
+   phẩm (`ingredient.code`) — nguyên liệu chưa "khởi tạo mã" sẽ không
+   chọn được vào công thức. Có đúng 1 ngoại lệ: nguyên liệu ĐANG được
+   chọn sẵn ở dòng công thức đó (dữ liệu công thức cũ, lưu từ trước
+   khi yêu cầu này có hiệu lực) — vẫn hiện để không làm mất/ẩn lựa
+   chọn đã lưu, nhưng có đánh dấu cảnh báo ngay trong tên option để
+   admin biết cần bổ sung mã cho nguyên liệu đó.
+
    Cần: `client`, `currentSession`, window.AdminPermissions,
    window.Inventory (inventory-shared.js — PHẢI load TRƯỚC file này),
    window.showConfirm/showToast (shared-utils.js).
@@ -115,7 +126,7 @@ function round6(n) { return Math.round(n * 1e6) / 1e6; }
             <span id="drinkCostPreview" style="font-size:16px;font-weight:700;color:var(--primary);">0 đ</span>
           </div>
           <div id="drinkProfitPreview" style="margin-top:6px;font-size:12px;color:var(--text-muted);"></div>
-          <div class="hint">Chưa có nguyên liệu nào trong kho? Vào <b>⚙️ Settings → 📦 Sản phẩm</b> để khai báo trước.</div>
+          <div class="hint">Chưa có nguyên liệu nào trong kho, hoặc không thấy nguyên liệu cần tìm trong danh sách? Vào <b>⚙️ Settings → 📦 Sản phẩm</b> để khai báo trước — nguyên liệu phải có <b>Mã sản phẩm</b> (bước "khởi tạo") mới hiện được ở đây.</div>
         </div>
 
         <div class="section-divider"><span>📝 Hướng dẫn pha chế</span></div>
@@ -302,12 +313,19 @@ function setDrinkModalReadOnly(readonly) {
    RECIPE BUILDER — dòng công thức (drink_ingredients)
    ══════════════════════════════════════════════ */
 function ingredientOptionsHtml(selectedId) {
-  const active = INVD.state.ingredients.filter(i => i.is_active);
+  /* ⚠️ MỚI (2026-08-12): chỉ liệt kê nguyên liệu ĐÃ có Mã sản phẩm
+     (đã "khởi tạo" tại Settings → 📦 Sản phẩm hoặc Kho nguyên liệu).
+     Ngoại lệ DUY NHẤT: nguyên liệu đang được chọn sẵn ở dòng này
+     (selectedId, dữ liệu công thức cũ) — vẫn hiện để không làm mất/
+     ẩn lựa chọn đã lưu trước đây dù nó thiếu mã, nhưng đánh dấu cảnh
+     báo ngay trong tên để admin biết cần bổ sung mã. */
+  const active = INVD.state.ingredients.filter(i => i.is_active && (i.code || i.id === selectedId));
   return '<option value="">-- Chọn nguyên liệu --</option>' + active.map(i => {
     const pkg = i.package_unit
       ? ` · 1 ${window.escHtml(i.unit)} = ${Number(i.package_qty).toLocaleString('vi-VN')}${window.escHtml(i.package_unit)}`
       : '';
-    return `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>${window.escHtml(i.name)} (${window.escHtml(i.unit)} — ${Number(i.unit_cost).toLocaleString('vi-VN')}đ${pkg})</option>`;
+    const warn = !i.code ? ' — ⚠️ CHƯA CÓ MÃ SẢN PHẨM' : '';
+    return `<option value="${i.id}" ${i.id === selectedId ? 'selected' : ''}>${window.escHtml(i.name)} (${window.escHtml(i.unit)} — ${Number(i.unit_cost).toLocaleString('vi-VN')}đ${pkg})${warn}</option>`;
   }).join('');
 }
 
