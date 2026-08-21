@@ -84,7 +84,7 @@ const SCRIPT_SEQUENCE = [
   "./modules/orders/dashboard-orders.js",
   "./modules/inventory/dashboard-ingredients.js",
   "./modules/inventory/dashboard-inventory-count.js",
-  "./modules/settings/dashboard-settings.js",
+  "./modules/dashboard-settings.js",
   "./core/dashboard-nav.js",
   "./dashboard-mobile-tables.js",
 ];
