@@ -1,39 +1,32 @@
 /* ══════════════════════════════════════════════
    DASHBOARD INGREDIENTS — admin/modules/inventory/dashboard-ingredients.js
    ─────────────────────────────────────────────
-   MỚI (theo schema SQL v1). Quản lý kho nguyên liệu:
-     - CRUD bảng `ingredients` (tên, đơn vị, giá/đơn vị, ngưỡng tồn tối thiểu)
-     - Nhập kho / điều chỉnh tồn kho / hao hụt qua `ingredient_stock_logs`
-       (bảng CHỈ INSERT theo thiết kế DB — không sửa/xoá log cũ, muốn
-       sửa sai thì insert thêm 1 dòng điều chỉnh đối ứng)
-     - Cảnh báo nguyên liệu dưới ngưỡng tồn kho tối thiểu
+   ⚠️ VIẾT LẠI (2026-08-18) — bỏ tạo mới/sửa/xoá sản phẩm ở trang
+   này. Lý do: "Mã sản phẩm" từng bị tạo được ở 2 nơi khác nhau
+   (Settings → 📦 Sản phẩm VÀ Kho nguyên liệu) cùng ghi 1 bảng
+   `ingredients`, nhưng modal ở đây THIẾU 2 trường quy đổi đóng gói
+   (package_qty/package_unit) mà Settings có → tạo nguyên liệu qua
+   đường này bị thiếu dữ liệu, công thức ở Đồ uống không tự điền
+   được hệ số quy đổi.
 
-   Xoá nguyên liệu = SOFT DELETE (set deleted_at + is_active=false) vì
-   `drink_ingredients.ingredient_id` có ON DELETE RESTRICT — xoá cứng
-   sẽ lỗi FK nếu nguyên liệu đã từng được gắn vào công thức nào.
+   GIỜ: trang này CHỈ còn 2 việc:
+     1. Xem danh sách nguyên liệu + tồn kho hiện tại + cảnh báo
+        dưới ngưỡng tối thiểu.
+     2. 📥 Nhập kho / Điều chỉnh tồn kho / Hao hụt (ingredient_stock_logs)
+        — chức năng CHÍNH của trang, không đổi gì so với trước.
 
-   ⚠️ MỚI (đồng bộ với ⚙️ Settings → 📦 Sản phẩm — "khởi tạo mã sản
-   phẩm" là bước bắt buộc trước khi nhập kho): modal Thêm/Sửa nguyên
-   liệu ở TRANG NÀY (khác với modal ở Settings — 2 modal cùng ghi vào
-   1 bảng `ingredients`) trước đây KHÔNG có trường "Mã sản phẩm", nên
-   tạo nguyên liệu qua đường này vẫn lách được yêu cầu "phải khởi tạo
-   mã trước". Đã bổ sung:
-     - Trường "Mã sản phẩm *" trong modal Thêm/Sửa (bắt buộc, có kiểm
-       tra trùng mã phía client).
-     - Cột "Mã SP" trong bảng danh sách — nguyên liệu chưa có mã hiện
-       badge cảnh báo đỏ thay vì để trống.
-     - Nút "📥 Nhập/Điều chỉnh" bị KHOÁ (disabled + tooltip) cho dòng
-       chưa có mã; openStockModal() cũng tự chặn lại 1 lần nữa (phòng
-       trường hợp nút bị bấm bằng cách khác) và báo rõ lý do qua toast.
-   Xem thêm 2 file liên quan cũng được cập nhật cùng đợt:
-   admin/modules/settings/dashboard-settings.js (tab 📦 Sản phẩm) và
-   admin/modules/drinks/dashboard-drinks.js (dropdown công thức).
+   Tạo mới / sửa thông tin / ngừng dùng sản phẩm → ĐÃ CHUYỂN HẲN
+   sang ⚙️ Settings → 📦 Sản phẩm (dashboard-settings.js). Nút
+   "✏️ Sửa" ở đây giờ chỉ là 1 LINK điều hướng sang đúng sản phẩm
+   bên Settings (window.openProductInSettings(id)), không tự mở
+   modal sửa tại chỗ nữa.
 
    Cần: client, currentSession, window.AdminPermissions,
    window.Inventory (inventory-shared.js — PHẢI load trước file này),
    window.escHtml / window.showToast / window.showConfirm / window.debounce
-   (shared-utils.js), window.Membership.formatVND (nếu đã load, để hiển
-   thị tổng giá trị tồn kho — không bắt buộc).
+   (shared-utils.js), window.Membership.formatVND (nếu đã load),
+   window.openProductInSettings (dashboard-settings.js — PHẢI load
+   trước file này, xem SCRIPT_SEQUENCE trong dashboard-auth.js).
    ══════════════════════════════════════════════ */
 
 const INV = window.Inventory;
@@ -59,11 +52,11 @@ window.AdminDashboard.registerPage({
     <div class="page-header">
       <div>
         <h1 class="page-title">📦 Kho nguyên liệu</h1>
-        <p class="page-subtitle">Giá nguyên liệu dùng để tính giá thành đồ uống &amp; lợi nhuận</p>
+        <p class="page-subtitle">Tồn kho hiện tại &amp; nhập/điều chỉnh kho. Tạo mới hoặc sửa thông tin sản phẩm ở ⚙️ Settings → 📦 Sản phẩm.</p>
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary" id="ingRefreshBtn">🔄 Refresh</button>
-        <button class="btn btn-primary" id="ingAddBtn">+ Thêm nguyên liệu</button>
+        <button class="btn btn-primary" id="ingGoToSettingsBtn">📦 Quản lý sản phẩm (Settings)</button>
       </div>
     </div>
 
@@ -95,33 +88,7 @@ window.AdminDashboard.registerPage({
       </table>
     </div>
 
-    <!-- Modal CRUD nguyên liệu -->
-    <div class="modal-overlay hidden" id="ingredientModal" role="dialog" aria-modal="true" aria-labelledby="ingredientModalTitle">
-      <div class="modal-box" style="max-width:460px;">
-        <div class="modal-header">
-          <h2 id="ingredientModalTitle">➕ Thêm nguyên liệu</h2>
-          <button class="close-btn" id="closeIngredientModalBtn" aria-label="Đóng cửa sổ">✕</button>
-        </div>
-        <input type="hidden" id="ingId">
-        <div class="form-grid" style="grid-template-columns:1fr;">
-          <div class="form-group"><label for="ingCode">Mã sản phẩm *</label><input type="text" id="ingCode" placeholder="VD: NL001"></div>
-          <div class="form-group"><label for="ingName">Tên nguyên liệu *</label><input type="text" id="ingName" placeholder="Sữa tươi, Đường, Trân châu..."></div>
-          <div class="form-group"><label for="ingUnit">Đơn vị lưu kho *</label><input type="text" id="ingUnit" placeholder="ml, g, gói, lít..."></div>
-          <div class="form-group"><label for="ingUnitCost">Giá / đơn vị (đ) *</label><input type="number" id="ingUnitCost" min="0" step="0.01" placeholder="150"></div>
-          <div class="form-group"><label for="ingMinStock">Ngưỡng tồn kho tối thiểu</label><input type="number" id="ingMinStock" min="0" step="0.01" placeholder="1000"></div>
-          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;">
-            <input type="checkbox" id="ingIsActive" style="width:18px;height:18px;" checked>
-            <label for="ingIsActive" style="margin:0;">Đang sử dụng</label>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-danger" id="ingDeleteBtn" style="display:none;">🗑️ Ngừng dùng</button>
-          <button class="btn btn-primary" id="ingSaveBtn">💾 Lưu</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal Nhập kho / Điều chỉnh tồn kho -->
+    <!-- Modal Nhập kho / Điều chỉnh tồn kho — DUY NHẤT còn lại ở trang này -->
     <div class="modal-overlay hidden" id="stockModal" role="dialog" aria-modal="true" aria-labelledby="stockModalTitle">
       <div class="modal-box" style="max-width:440px;">
         <div class="modal-header">
@@ -172,10 +139,10 @@ window.AdminDashboard.registerPage({
 
 function bindIngredientEvents() {
   document.getElementById("ingRefreshBtn")?.addEventListener("click", loadAndRenderIngredients);
-  document.getElementById("ingAddBtn")?.addEventListener("click", openAddIngredient);
-  document.getElementById("closeIngredientModalBtn")?.addEventListener("click", () => document.getElementById("ingredientModal").classList.add("hidden"));
-  document.getElementById("ingSaveBtn")?.addEventListener("click", saveIngredient);
-  document.getElementById("ingDeleteBtn")?.addEventListener("click", deleteIngredient);
+
+  /* ⚠️ MỚI: nút header giờ chỉ điều hướng sang Settings, không mở modal tại chỗ */
+  document.getElementById("ingGoToSettingsBtn")?.addEventListener("click", () => window.openProductInSettings());
+
   document.getElementById("closeStockModalBtn")?.addEventListener("click", () => document.getElementById("stockModal").classList.add("hidden"));
   document.getElementById("stockSaveBtn")?.addEventListener("click", saveStockLog);
   document.getElementById("stockLogType")?.addEventListener("change", updateStockModalFields);
@@ -186,13 +153,9 @@ function bindIngredientEvents() {
     renderIngredientsTable();
   }, 200));
 
-  ["ingredientModal", "stockModal"].forEach(id => {
-    const m = document.getElementById(id);
-    m?.addEventListener("click", e => { if (e.target === m) m.classList.add("hidden"); });
-    m?.addEventListener("keydown", e => { if (e.key === "Escape") m.classList.add("hidden"); });
-  });
-
-  if (isIngredientsReadOnly) document.getElementById("ingAddBtn").style.display = "none";
+  const stockModal = document.getElementById("stockModal");
+  stockModal?.addEventListener("click", e => { if (e.target === stockModal) stockModal.classList.add("hidden"); });
+  stockModal?.addEventListener("keydown", e => { if (e.key === "Escape") stockModal.classList.add("hidden"); });
 }
 
 async function loadAndRenderIngredients() {
@@ -212,8 +175,6 @@ function fmtVND(n) {
 function updateIngredientStats() {
   const list = INV.state.ingredients;
   const low = list.filter(i => i.min_stock_qty > 0 && i.current_stock < i.min_stock_qty);
-  /* ⚠️ MỚI: đếm nguyên liệu chưa có Mã sản phẩm — legacy data từ
-     trước khi trường này bắt buộc, hoặc tạo qua nơi khác lỡ bỏ trống. */
   const noCode = list.filter(i => !i.code);
   const totalValue = list.reduce((s, i) => s + i.current_stock * Number(i.unit_cost || 0), 0);
 
@@ -224,7 +185,8 @@ function updateIngredientStats() {
   const banner = document.getElementById("ingLowStockBanner");
   const messages = [];
   if (low.length) messages.push(`⚠️ ${low.length} nguyên liệu sắp hết: ${low.map(i => i.name).join(", ")}`);
-  if (noCode.length) messages.push(`🔖 ${noCode.length} nguyên liệu <b>chưa có Mã sản phẩm</b> (chưa "khởi tạo") — không thể nhập kho cho tới khi bổ sung mã: ${noCode.map(i => i.name).join(", ")}`);
+  /* ⚠️ SỬA: trỏ người dùng sang Settings thay vì "nút Sửa" (đã bỏ khỏi trang này) */
+  if (noCode.length) messages.push(`🔖 ${noCode.length} nguyên liệu <b>chưa có Mã sản phẩm</b> — bổ sung tại ⚙️ Settings → 📦 Sản phẩm trước khi nhập kho: ${noCode.map(i => i.name).join(", ")}`);
 
   if (messages.length) {
     banner.style.display = "block";
@@ -243,7 +205,7 @@ function renderIngredientsTable() {
   );
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">${INV.state.ingredients.length ? "Không tìm thấy nguyên liệu phù hợp." : "Chưa có nguyên liệu nào."}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">${INV.state.ingredients.length ? "Không tìm thấy nguyên liệu phù hợp." : "Chưa có nguyên liệu nào — tạo mới tại ⚙️ Settings → 📦 Sản phẩm."}</td></tr>`;
     return;
   }
 
@@ -258,150 +220,31 @@ function renderIngredientsTable() {
       <td style="font-weight:700;${low ? 'color:var(--danger)' : ''}">${i.current_stock.toLocaleString("vi-VN")} ${window.escHtml(i.unit)} ${low ? '⚠️' : ''}</td>
       <td>${Number(i.min_stock_qty || 0).toLocaleString("vi-VN")}</td>
       <td style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="btn btn-secondary" style="font-size:12px;padding:6px 10px;" data-ing-stock="${i.id}" ${noCode ? 'disabled title="Bổ sung Mã sản phẩm (nút ✏️ Sửa) trước khi nhập/điều chỉnh kho"' : ''}>📥 Nhập/Điều chỉnh</button>
-        <button class="btn btn-primary" style="font-size:12px;padding:6px 10px;" data-ing-edit="${i.id}">✏️ Sửa</button>
+        <button class="btn btn-secondary" style="font-size:12px;padding:6px 10px;" data-ing-stock="${i.id}" ${noCode ? 'disabled title="Bổ sung Mã sản phẩm ở Settings trước khi nhập/điều chỉnh kho"' : ''}>📥 Nhập/Điều chỉnh</button>
+        <button class="btn btn-primary" style="font-size:12px;padding:6px 10px;" data-ing-edit-settings="${i.id}" title="Mở sửa sản phẩm này ở ⚙️ Settings">✏️ Sửa ở Settings</button>
       </td>
     </tr>`;
   }).join("");
 
-  tbody.querySelectorAll("[data-ing-edit]").forEach(b => b.addEventListener("click", () => openEditIngredient(Number(b.dataset.ingEdit))));
-  /* ⚠️ MỚI: :not([disabled]) — nút của dòng chưa có mã đã bị disabled ở
-     trên, không gắn listener cho các nút đó nữa (thêm 1 lớp an toàn,
-     dù disabled=true đã tự chặn click ở tầng trình duyệt). */
-  tbody.querySelectorAll("[data-ing-stock]:not([disabled])").forEach(b => b.addEventListener("click", () => openStockModal(Number(b.dataset.ingStock))));
+  /* ⚠️ MỚI: nút Sửa giờ chỉ điều hướng, không mở modal tại chỗ nữa */
+  tbody.querySelectorAll("[data-ing-edit-settings]").forEach(b =>
+    b.addEventListener("click", () => window.openProductInSettings(Number(b.dataset.ingEditSettings)))
+  );
+  tbody.querySelectorAll("[data-ing-stock]:not([disabled])").forEach(b =>
+    b.addEventListener("click", () => openStockModal(Number(b.dataset.ingStock)))
+  );
 }
 
 /* ══════════════════════════════════════════════
-   CRUD NGUYÊN LIỆU
-   ══════════════════════════════════════════════ */
-function openAddIngredient() {
-  if (isIngredientsReadOnly) return;
-  document.getElementById("ingId").value = "";
-  document.getElementById("ingCode").value = "";
-  document.getElementById("ingName").value = "";
-  document.getElementById("ingUnit").value = "";
-  document.getElementById("ingUnitCost").value = "";
-  document.getElementById("ingMinStock").value = "";
-  document.getElementById("ingIsActive").checked = true;
-  document.getElementById("ingredientModalTitle").textContent = "➕ Thêm nguyên liệu";
-  document.getElementById("ingDeleteBtn").style.display = "none";
-  window.clearFieldError("ingCode");
-  document.getElementById("ingredientModal").classList.remove("hidden");
-  document.getElementById("ingCode").focus();
-}
-
-function openEditIngredient(id) {
-  const ing = INV.getIngredientById(id);
-  if (!ing) return;
-  document.getElementById("ingId").value = ing.id;
-  document.getElementById("ingCode").value = ing.code || "";
-  document.getElementById("ingName").value = ing.name;
-  document.getElementById("ingUnit").value = ing.unit;
-  document.getElementById("ingUnitCost").value = ing.unit_cost;
-  document.getElementById("ingMinStock").value = ing.min_stock_qty ?? "";
-  document.getElementById("ingIsActive").checked = ing.is_active;
-  document.getElementById("ingredientModalTitle").textContent = "✏️ Sửa nguyên liệu";
-  document.getElementById("ingDeleteBtn").style.display = isIngredientsReadOnly ? "none" : "inline-flex";
-  window.clearFieldError("ingCode");
-  document.getElementById("ingredientModal").classList.remove("hidden");
-}
-
-async function saveIngredient() {
-  if (isIngredientsReadOnly) return;
-  const rawId = document.getElementById("ingId").value;
-  const id = rawId ? Number(rawId) : null;
-  const code = document.getElementById("ingCode").value.trim();
-  const name = document.getElementById("ingName").value.trim();
-  const unit = document.getElementById("ingUnit").value.trim();
-  const unit_cost = Number(document.getElementById("ingUnitCost").value);
-  const min_stock_qty = Number(document.getElementById("ingMinStock").value) || 0;
-  const is_active = document.getElementById("ingIsActive").checked;
-
-  /* ⚠️ MỚI: Mã sản phẩm giờ BẮT BUỘC ngay cả khi tạo/sửa nguyên liệu
-     từ trang này (trước đây chỉ modal ở Settings mới có trường này) —
-     đảm bảo KHÔNG có cách nào lách qua bước "khởi tạo mã sản phẩm". */
-  if (!code) { window.showFieldError("ingCode", "Vui lòng nhập mã sản phẩm — bước khởi tạo bắt buộc trước khi nhập kho hoặc lên công thức."); return; }
-  window.clearFieldError("ingCode");
-  if (!name) { window.showToast("⚠️ Vui lòng nhập tên nguyên liệu.", "#e17055"); return; }
-  if (!unit) { window.showToast("⚠️ Vui lòng nhập đơn vị.", "#e17055"); return; }
-  if (!unit_cost || unit_cost < 0) { window.showToast("⚠️ Giá/đơn vị không hợp lệ.", "#e17055"); return; }
-
-  const staff = currentSession.displayName || currentSession.username;
-  const payload = { code, name, unit, unit_cost, min_stock_qty, is_active, updated_by: staff };
-
-  try {
-    /* ⚠️ MỚI: kiểm tra trùng mã sản phẩm phía client — cùng logic với
-       admin/modules/settings/dashboard-settings.js::saveProduct() vì
-       2 nơi này ghi chung 1 bảng `ingredients`. */
-    let dupQuery = client.from("ingredients").select("id").eq("code", code).is("deleted_at", null);
-    if (id) dupQuery = dupQuery.neq("id", id);
-    const { data: dupRow, error: dupErr } = await dupQuery.maybeSingle();
-    if (dupErr) throw dupErr;
-    if (dupRow) { window.showFieldError("ingCode", "Mã sản phẩm này đã tồn tại — vui lòng dùng mã khác."); return; }
-
-    if (id) {
-      const { error } = await client.from("ingredients").update(payload).eq("id", id);
-      if (error) throw error;
-    } else {
-      const { error } = await client.from("ingredients").insert({ ...payload, created_by: staff });
-      if (error) throw error;
-    }
-    document.getElementById("ingredientModal").classList.add("hidden");
-    window.showToast("✅ Đã lưu nguyên liệu!");
-    await loadAndRenderIngredients();
-  } catch (err) {
-    if (err.code === "23505") window.showToast("⚠️ Nguyên liệu này (tên + đơn vị) đã tồn tại.", "#e17055");
-    else window.showToast("❌ Lỗi: " + err.message, "#e17055");
-  }
-}
-
-async function deleteIngredient() {
-  if (isIngredientsReadOnly) return;
-  const id = Number(document.getElementById("ingId").value);
-  if (!id) return;
-  const ing = INV.getIngredientById(id);
-
-  const reason = await window.showReasonPrompt({
-    title: `Ngừng dùng "${ing?.name || ''}"?`,
-    message: "Nguyên liệu sẽ bị ẩn khỏi danh sách chọn công thức nhưng vẫn giữ lịch sử đã dùng trong các công thức/đơn hàng cũ.",
-    reasonLabel: "Lý do ngừng dùng *",
-    reasonPlaceholder: "VD: đổi nhà cung cấp, không còn dùng nguyên liệu này...",
-    confirmText: "🗑️ Ngừng dùng",
-    cancelText: "Huỷ",
-  });
-  if (reason === null) return;
-
-  try {
-    /* ⚠️ SOFT DELETE — drink_ingredients.ingredient_id là ON DELETE
-       RESTRICT, xoá cứng sẽ lỗi FK nếu nguyên liệu đã gắn vào công
-       thức nào. */
-    const { error } = await client.from("ingredients")
-      .update({
-        deleted_at: new Date().toISOString(), is_active: false,
-        deleted_reason: reason, deleted_by: currentSession.displayName || currentSession.username,
-      }).eq("id", id);
-    if (error) throw error;
-    document.getElementById("ingredientModal").classList.add("hidden");
-    window.showToast("🗑️ Đã ngừng dùng nguyên liệu", "#e17055");
-    await loadAndRenderIngredients();
-  } catch (err) {
-    window.showToast("❌ Lỗi: " + err.message, "#e17055");
-  }
-}
-
-/* ══════════════════════════════════════════════
-   NHẬP KHO / ĐIỀU CHỈNH TỒN KHO
+   NHẬP KHO / ĐIỀU CHỈNH TỒN KHO — không đổi so với bản trước
    ══════════════════════════════════════════════ */
 function openStockModal(ingId) {
   if (isIngredientsReadOnly) return;
   const ing = INV.getIngredientById(ingId);
   if (!ing) return;
 
-  /* ⚠️ MỚI: chặn lại 1 lần nữa ở tầng hàm xử lý (không chỉ dựa vào
-     disabled trên nút) — phòng trường hợp state cũ trong bộ nhớ chưa
-     kịp cập nhật, hoặc hàm này bị gọi từ nơi khác trong tương lai. */
   if (!ing.code) {
-    window.showToast("⚠️ Nguyên liệu này chưa có Mã sản phẩm — bổ sung mã (nút ✏️ Sửa, hoặc tại ⚙️ Settings → 📦 Sản phẩm) trước khi nhập/điều chỉnh kho.", "#e17055");
+    window.showToast("⚠️ Nguyên liệu này chưa có Mã sản phẩm — bổ sung tại ⚙️ Settings → 📦 Sản phẩm trước khi nhập/điều chỉnh kho.", "#e17055");
     return;
   }
 
@@ -453,8 +296,6 @@ async function saveStockLog() {
   const ing = INV.getIngredientById(ingId);
   if (!ing) return;
 
-  /* ⚠️ MỚI: chặn lần cuối trước khi ghi log — không tin tưởng hoàn
-     toàn vào việc modal chỉ mở được từ openStockModal() đã kiểm tra. */
   if (!ing.code) {
     window.showToast("⚠️ Nguyên liệu này chưa có Mã sản phẩm — không thể ghi nhận thay đổi tồn kho.", "#e17055");
     return;
