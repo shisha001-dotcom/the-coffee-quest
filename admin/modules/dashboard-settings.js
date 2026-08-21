@@ -592,3 +592,21 @@ function renderRecipeTable(drinks, costMap, countMap) {
     });
   });
 }
+
+/* ══════════════════════════════════════════════
+   ⚠️ MỚI: EXPOSE ĐIỀU HƯỚNG TỪ NƠI KHÁC (Kho nguyên liệu)
+   ─────────────────────────────────────────────
+   Kho nguyên liệu (dashboard-ingredients.js) không còn tự tạo/sửa/
+   xoá sản phẩm nữa — mọi thao tác đó dồn về đây. 2 hàm dưới đây là
+   "cửa vào" duy nhất để trang khác điều hướng sang đúng tab/đúng
+   sản phẩm ở Settings.
+   ══════════════════════════════════════════════ */
+window.switchSettingsTab = switchSettingsTab;
+
+window.openProductInSettings = async function (id) {
+  document.getElementById("settingsMenuItem")?.click(); // trigger showPage() + onShow() có sẵn
+  switchSettingsTab("products");
+  await window.Inventory.loadIngredients();
+  renderProductsTable();
+  if (id) openEditProduct(id);
+};
