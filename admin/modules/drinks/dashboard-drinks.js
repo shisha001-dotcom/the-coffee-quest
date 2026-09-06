@@ -10,35 +10,38 @@
      giá thành 1 ly trực tiếp trong modal (INV.computeRecipeCost).
    - Xoá đồ uống = SOFT DELETE (`deleted_at` + `is_active=false`).
 
+   ⚠️ MỚI (2026-09 — liên kết "thành phẩm" từ ⚙️ Settings → 📦 Sản
+   phẩm, thay cho việc gõ tay tên đồ uống tự do):
+   - `drinks` giờ có thêm cột `product_ingredient_id` (FK →
+     ingredients.id). Khi TẠO MỚI 1 công thức, người dùng BẮT BUỘC
+     chọn 1 "thành phẩm" (ingredients.is_finished_product = true) từ
+     dropdown thay vì gõ tay tên — tên đồ uống tự động lấy đúng theo
+     mã đã khai báo ở Settings, tránh gõ trùng/lệch tên giữa 2 nơi
+     khi tính giá thành sau này (link theo ID thay vì so khớp text).
+   - Dropdown chọn NGUYÊN LIỆU CON trong recipe builder
+     (ingredientOptionsHtml) giờ LOẠI TRỪ các item đã tick thành
+     phẩm — tránh chọn nhầm 1 thành phẩm làm nguyên liệu của món
+     khác.
+   - Dữ liệu `drinks` cũ (tạo trước tính năng này, chưa có
+     product_ingredient_id) vẫn hoạt động bình thường — mở sửa sẽ
+     thấy ghi chú nhắc liên kết, không bị ép buộc ngay.
+
+   ⚠️ SQL CẦN CHẠY TRƯỚC (Supabase SQL Editor, 1 lần):
+     alter table ingredients
+       add column if not exists is_finished_product boolean not null default false;
+     alter table drinks
+       add column if not exists product_ingredient_id bigint references ingredients(id);
+
    ⚠️ DEDUPE: clearDrinkFieldError/showDrinkFieldError cục bộ đã bị
    xoá — dùng thẳng window.clearFieldError/window.showFieldError
    (js/shared-utils.js) với opts.fullWidth vì #drinkModal cũng dùng
-   .form-grid 2 cột giống #gameModal (trước đây bản cũ KHÔNG có
-   grid-column:1/-1 nên lỗi bị bó hẹp 1 cột — nay đã khớp behaviour
-   với dashboard-games.js).
+   .form-grid 2 cột giống #gameModal.
 
-   ⚠️ MỚI (đồng bộ với Settings → 📦 Sản phẩm): đã KIỂM TRA LẠI logic
-   tính giá thành hiện có — computeRecipeCost() = qty_per_serving ×
-   conversion_rate × unit_cost là ĐÚNG và tương thích ngay với 2 cột
-   package_qty/package_unit mới thêm ở `ingredients` (VD: 1 Hộp =
-   500g, unit_cost = giá/Hộp → conversion_rate = 1/500 quy đổi đúng
-   sang giá/gam). KHÔNG đổi công thức — chỉ cải thiện addRecipeRow():
-   khi chọn nguyên liệu có khai báo quy đổi đóng gói, tự điền sẵn
-   "Đơn vị" = đơn vị đóng gói (VD "g") + "Hệ số" = 1/package_qty
-   (VD 0.002) thay vì phải tính tay; vẫn sửa tay lại được bình thường.
-   ingredientOptionsHtml() cũng hiện thêm quy đổi đóng gói (nếu có)
-   ngay trong dropdown để dễ đối chiếu lúc chọn.
-
-   ⚠️ MỚI (2026-08-12 — "khởi tạo mã sản phẩm" là bước bắt buộc trước
-   khi có công thức, đồng bộ với admin/modules/settings/dashboard-
-   settings.js và admin/modules/inventory/dashboard-ingredients.js):
-   ingredientOptionsHtml() giờ CHỈ liệt kê nguyên liệu ĐÃ có Mã sản
-   phẩm (`ingredient.code`) — nguyên liệu chưa "khởi tạo mã" sẽ không
-   chọn được vào công thức. Có đúng 1 ngoại lệ: nguyên liệu ĐANG được
-   chọn sẵn ở dòng công thức đó (dữ liệu công thức cũ, lưu từ trước
-   khi yêu cầu này có hiệu lực) — vẫn hiện để không làm mất/ẩn lựa
-   chọn đã lưu, nhưng có đánh dấu cảnh báo ngay trong tên option để
-   admin biết cần bổ sung mã cho nguyên liệu đó.
+   ⚠️ Đồng bộ với Settings → 📦 Sản phẩm: computeRecipeCost() = qty_
+   per_serving × conversion_rate × unit_cost — KHÔNG đổi công thức —
+   chỉ cải thiện addRecipeRow(): khi chọn nguyên liệu có khai báo
+   quy đổi đóng gói, tự điền sẵn "Đơn vị" + "Hệ số" theo đúng tỷ lệ
+   đóng gói; vẫn sửa tay lại được bình thường.
 
    Cần: `client`, `currentSession`, window.AdminPermissions,
    window.Inventory (inventory-shared.js — PHẢI load TRƯỚC file này),
@@ -77,13 +80,17 @@ function round6(n) { return Math.round(n * 1e6) / 1e6; }
       </div>
 
       <input type="hidden" id="drinkId">
+      <input type="hidden" id="drinkProductIngredientId">
+      <input type="hidden" id="drinkName">
 
       <div class="form-grid">
         <div class="section-divider"><span>📋 Thông tin cơ bản</span></div>
 
-        <div class="form-group">
-          <label for="drinkName">Tên đồ uống *</label>
-          <input type="text" id="drinkName" placeholder="Cà phê sữa đá, Trà đào...">
+        <div class="form-group full-width">
+          <label for="drinkProductSelect">Thành phẩm (sản phẩm bán ra) *</label>
+          <select id="drinkProductSelect"><option value="">-- Chọn thành phẩm --</option></select>
+          <div class="hint">Chỉ hiện sản phẩm đã tick "🥤 Đây là thành phẩm" ở ⚙️ Settings → 📦 Sản phẩm. Chưa thấy sản phẩm cần tìm? Vào đó khai báo trước.</div>
+          <div id="drinkLegacyNote" class="hint" style="display:none;color:var(--danger);"></div>
         </div>
 
         <div class="form-group">
@@ -167,6 +174,18 @@ function round6(n) { return Math.round(n * 1e6) / 1e6; }
   document.getElementById("drinkSaveBtn").addEventListener("click", saveDrink);
   document.getElementById("drinkDeleteBtn").addEventListener("click", deleteDrink);
   document.getElementById("addRecipeRowBtn").addEventListener("click", () => addRecipeRow());
+
+  /* ⚠️ MỚI: chọn thành phẩm → tự điền tên đồ uống (drinkName ẩn) theo
+     đúng dữ liệu đã khai báo ở Settings, không cho gõ tay lệch tên. */
+  document.getElementById("drinkProductSelect").addEventListener("change", function () {
+    const opt = this.selectedOptions[0];
+    document.getElementById("drinkProductIngredientId").value = this.value || "";
+    if (this.value) {
+      document.getElementById("drinkName").value = opt.dataset.name || "";
+      window.clearFieldError("drinkProductSelect");
+      document.getElementById("drinkLegacyNote").style.display = "none";
+    }
+  });
 })();
 
 /* ── Ẩn nút "+ Thêm công thức" nếu chỉ được xem ── */
@@ -304,22 +323,39 @@ function setDrinkModalReadOnly(readonly) {
   const deleteBtn = document.getElementById('drinkDeleteBtn');
   window.AdminPermissions.applyReadOnlyForm(modal, {
     readonly, saveBtn, deleteBtn,
-    extraDisable: [document.getElementById('addRecipeRowBtn')],
+    extraDisable: [document.getElementById('addRecipeRowBtn'), document.getElementById('drinkProductSelect')],
   });
   modal.querySelectorAll('.recipe-row-remove').forEach(b => b.disabled = readonly);
+}
+
+/* ══════════════════════════════════════════════
+   ⚠️ MỚI: DROPDOWN CHỌN THÀNH PHẨM (sản phẩm bán ra)
+   ─────────────────────────────────────────────
+   Chỉ liệt kê ingredients.is_finished_product = true. Ngoại lệ
+   giữ dữ liệu cũ: item đang được chọn sẵn (selectedId) vẫn hiện dù
+   is_active=false hoặc thiếu mã, để không làm mất lựa chọn đã lưu.
+   ══════════════════════════════════════════════ */
+function finishedProductOptionsHtml(selectedId) {
+  const list = INVD.state.ingredients.filter(i =>
+    i.is_finished_product && (i.is_active || i.id === selectedId) && (i.code || i.id === selectedId)
+  );
+  return '<option value="">-- Chọn thành phẩm --</option>' + list.map(i => {
+    const warn = !i.code ? ' — ⚠️ CHƯA CÓ MÃ SẢN PHẨM' : '';
+    return `<option value="${i.id}" data-name="${window.escHtml(i.name)}" ${i.id === selectedId ? 'selected' : ''}>${window.escHtml(i.code || '?')} — ${window.escHtml(i.name)}${warn}</option>`;
+  }).join('');
 }
 
 /* ══════════════════════════════════════════════
    RECIPE BUILDER — dòng công thức (drink_ingredients)
    ══════════════════════════════════════════════ */
 function ingredientOptionsHtml(selectedId) {
-  /* ⚠️ MỚI (2026-08-12): chỉ liệt kê nguyên liệu ĐÃ có Mã sản phẩm
-     (đã "khởi tạo" tại Settings → 📦 Sản phẩm hoặc Kho nguyên liệu).
-     Ngoại lệ DUY NHẤT: nguyên liệu đang được chọn sẵn ở dòng này
-     (selectedId, dữ liệu công thức cũ) — vẫn hiện để không làm mất/
-     ẩn lựa chọn đã lưu trước đây dù nó thiếu mã, nhưng đánh dấu cảnh
-     báo ngay trong tên để admin biết cần bổ sung mã. */
-  const active = INVD.state.ingredients.filter(i => i.is_active && (i.code || i.id === selectedId));
+  /* ⚠️ Chỉ liệt kê nguyên liệu ĐÃ có Mã sản phẩm VÀ KHÔNG phải là
+     thành phẩm (is_finished_product=false) — tránh chọn nhầm 1
+     thành phẩm khác làm nguyên liệu con của món này. Ngoại lệ giữ
+     dữ liệu cũ: item đang chọn sẵn ở dòng này vẫn hiện dù thiếu mã. */
+  const active = INVD.state.ingredients.filter(i =>
+    i.is_active && !i.is_finished_product && (i.code || i.id === selectedId)
+  );
   return '<option value="">-- Chọn nguyên liệu --</option>' + active.map(i => {
     const pkg = i.package_unit
       ? ` · 1 ${window.escHtml(i.unit)} = ${Number(i.package_qty).toLocaleString('vi-VN')}${window.escHtml(i.package_unit)}`
@@ -353,13 +389,10 @@ function addRecipeRow(row = {}) {
   ingSelect.addEventListener('change', () => {
     const ing = INVD.getIngredientById(Number(ingSelect.value));
     if (ing) {
-      /* ⚠️ MỚI: nếu sản phẩm có khai báo quy đổi đóng gói (Settings →
+      /* ⚠️ Nếu sản phẩm có khai báo quy đổi đóng gói (Settings →
          📦 Sản phẩm, VD "1 Hộp = 500 g") → tự điền đơn vị công thức +
-         hệ số quy đổi theo đúng tỷ lệ đó, thay vì mặc định điền đơn vị
-         TÍNH (Hộp) như trước — vì công thức luôn cần viết theo đơn vị
-         nhỏ (g/ml), không phải đơn vị đóng gói lớn. KHÔNG đổi công
-         thức tính giá thành (qty × rate × unit_cost) — chỉ tự điền
-         sẵn giá trị đúng để đỡ phải tính tay. Vẫn sửa tay được sau đó. */
+         hệ số quy đổi theo đúng tỷ lệ đó. KHÔNG đổi công thức tính
+         giá thành — chỉ tự điền sẵn giá trị đúng. Vẫn sửa tay được. */
       if (!unitInput.value) {
         unitInput.value = ing.package_unit || ing.unit;
       }
@@ -413,7 +446,12 @@ function openAddDrink() {
   if (isDrinksReadOnly) return;
 
   document.getElementById('drinkId').value   = '';
+  document.getElementById('drinkProductIngredientId').value = '';
   document.getElementById('drinkName').value = '';
+  document.getElementById('drinkProductSelect').innerHTML = finishedProductOptionsHtml();
+  document.getElementById('drinkLegacyNote').style.display = 'none';
+  window.clearFieldError('drinkProductSelect');
+
   document.getElementById('drinkCategory').value = '';
   document.getElementById('drinkEmoji').value = '';
   document.getElementById('drinkPrice').value = '';
@@ -423,7 +461,6 @@ function openAddDrink() {
   document.getElementById('drinkSteps').value = '';
   document.getElementById('drinkTips').value  = '';
   document.getElementById('drinkImage').value = '';
-  window.clearFieldError('drinkName');
   clearRecipeRows();
   addRecipeRow();
   updateDrinkCostPreview();
@@ -433,14 +470,27 @@ function openAddDrink() {
   document.getElementById('drinkDeleteBtn').dataset.wasVisible = '0';
   setDrinkModalReadOnly(false);
   document.getElementById('drinkModal').classList.remove('hidden');
-  document.getElementById('drinkName').focus();
+  document.getElementById('drinkProductSelect').focus();
 }
 
 async function editDrink(id) {
   const d = allDrinks.find(x => x.id === id);
   if (!d) return;
   document.getElementById('drinkId').value        = d.id;
-  document.getElementById('drinkName').value      = d.name || '';
+
+  document.getElementById('drinkProductIngredientId').value = d.product_ingredient_id || '';
+  document.getElementById('drinkProductSelect').innerHTML = finishedProductOptionsHtml(d.product_ingredient_id);
+  document.getElementById('drinkName').value = d.name || '';
+  window.clearFieldError('drinkProductSelect');
+
+  const legacyNote = document.getElementById('drinkLegacyNote');
+  if (!d.product_ingredient_id) {
+    legacyNote.style.display = 'block';
+    legacyNote.textContent = `⚠️ Đồ uống này được tạo trước khi có tính năng liên kết mã sản phẩm — tên hiện tại: "${d.name}". Chọn 1 thành phẩm ở trên để liên kết chính thức (sẽ đổi tên theo đúng mã đã khai báo), hoặc bỏ qua để giữ nguyên như cũ.`;
+  } else {
+    legacyNote.style.display = 'none';
+  }
+
   document.getElementById('drinkCategory').value  = d.category_id || '';
   document.getElementById('drinkEmoji').value     = d.emoji || '';
   document.getElementById('drinkPrice').value     = d.price ?? '';
@@ -450,7 +500,6 @@ async function editDrink(id) {
   document.getElementById('drinkSteps').value     = Array.isArray(d.steps) ? d.steps.join('\n') : '';
   document.getElementById('drinkTips').value      = Array.isArray(d.tips) ? d.tips.join('\n') : '';
   document.getElementById('drinkImage').value     = d.image_url || '';
-  window.clearFieldError('drinkName');
 
   clearRecipeRows();
   try {
@@ -489,12 +538,28 @@ async function saveDrink() {
 
   const rawId = document.getElementById('drinkId').value;
   const id    = rawId ? Number(rawId) : null;
-  const name  = document.getElementById('drinkName').value.trim();
+
+  const name = document.getElementById('drinkName').value.trim();
+  const productIngredientId = Number(document.getElementById('drinkProductIngredientId').value) || null;
+  const isNewDrink = !id;
+
+  /* ⚠️ MỚI: bắt buộc chọn thành phẩm khi TẠO MỚI. Khi sửa 1 đồ uống
+     cũ chưa liên kết (product_ingredient_id null), vẫn cho lưu các
+     thay đổi khác mà không ép liên kết ngay — nhưng nếu tên trống
+     hẳn (trường hợp bất thường) thì vẫn chặn để không lưu rác. */
+  if (isNewDrink && !productIngredientId) {
+    window.showFieldError('drinkProductSelect', 'Vui lòng chọn thành phẩm trước khi tạo công thức.', { fullWidth: true });
+    return;
+  }
+  if (!name) {
+    window.showFieldError('drinkProductSelect', 'Không xác định được tên — chọn lại thành phẩm.', { fullWidth: true });
+    return;
+  }
+  window.clearFieldError('drinkProductSelect');
+
   const categoryId = Number(document.getElementById('drinkCategory').value) || null;
   const price = Number(document.getElementById('drinkPrice').value);
 
-  if (!name) { window.showFieldError('drinkName', 'Vui lòng nhập tên đồ uống.', { fullWidth: true }); return; }
-  window.clearFieldError('drinkName');
   if (!categoryId) { window.showFieldError('drinkCategory', 'Vui lòng chọn loại đồ uống.', { fullWidth: true }); return; }
   window.clearFieldError('drinkCategory');
   if (!price || price <= 0) { window.showFieldError('drinkPrice', 'Vui lòng nhập giá bán hợp lệ.', { fullWidth: true }); return; }
@@ -504,6 +569,7 @@ async function saveDrink() {
 
   const payload = {
     name,
+    product_ingredient_id: productIngredientId,   // ⚠️ MỚI
     category_id: categoryId,
     emoji:       document.getElementById('drinkEmoji').value.trim() || '☕',
     price,
