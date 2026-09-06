@@ -10,34 +10,43 @@
                     tồn kho") nhưng trước giờ CHƯA có màn hình tạo/
                     sửa — chỉ đọc qua window.Branches.loadBranches().
                     Lưu ở đây tự refresh lại window.Branches để
-                    "Kiểm kê tồn kho" thấy ngay kho mới (trước đây
-                    branches trống thì tính năng đó không tạo phiếu
-                    được vì không có kho nào để chọn).
+                    "Kiểm kê tồn kho" thấy ngay kho mới.
 
      📦 Sản phẩm  — vẫn là bảng `ingredients` NHƯ CŨ (không tạo bảng
-                    mới), chỉ bổ sung mã sản phẩm, quy cách, và quy
-                    đổi đóng gói (VD: 1 Hộp = 500 g) — 4 cột mới:
-                    code/spec/package_qty/package_unit. Ghi/đọc qua
-                    window.Inventory nên đồng bộ 100% với "📦 Kho
-                    nguyên liệu" (nhập/điều chỉnh tồn kho vẫn thao
-                    tác ở trang đó như cũ) và công thức pha chế bên
-                    "☕ Đồ uống".
+                    mới), gồm mã sản phẩm, quy cách, quy đổi đóng
+                    gói (VD: 1 Hộp = 500 g).
+
+                    ⚠️ MỚI (2026-09 — gộp khai báo nguyên liệu VÀ
+                    thành phẩm trong CÙNG 1 bảng/form, chỉ phân biệt
+                    bằng 1 tick "🥤 Đây là thành phẩm" —
+                    is_finished_product):
+                      - Thành phẩm (VD: Trà sữa truyền thống) vẫn
+                        theo dõi tồn kho ĐẦY ĐỦ như nguyên liệu
+                        thường — KHÔNG ẩn field nào trong form.
+                      - Ở trang ☕ Đồ uống, khi tạo/sửa công thức
+                        bán hàng, người dùng CHỌN từ dropdown các
+                        item đã tick "Là thành phẩm" (thay vì gõ
+                        tay tên đồ uống tự do) — tên tự động khớp
+                        đúng mã đã khai báo ở đây, tránh gõ trùng/
+                        lệch tên giữa 2 nơi.
+                      - Dropdown chọn NGUYÊN LIỆU CON trong recipe
+                        builder (dashboard-drinks.js) tự động loại
+                        trừ các item đã tick thành phẩm, tránh chọn
+                        nhầm 1 thành phẩm làm nguyên liệu của món
+                        khác.
 
      🧪 Công thức — bảng tổng hợp toàn bộ đồ uống + số nguyên liệu +
                     giá vốn/lợi nhuận, bấm "✏️ Sửa công thức" mở
                     ĐÚNG modal công thức có sẵn ở trang "☕ Đồ uống"
                     (window.editDrink()) — KHÔNG xây lại UI công
-                    thức lần 2 để tránh 2 nơi lệch dữ liệu. Đã kiểm
-                    tra logic tính giá thành hiện tại
-                    (qty_per_serving × conversion_rate × unit_cost
-                    trong INV.computeRecipeCost()) — ĐÚNG, giữ
-                    nguyên. Chỉ cải thiện UX chọn nguyên liệu trong
-                    dashboard-drinks.js để tự tính hệ số quy đổi từ
-                    quy cách đóng gói khai báo ở tab Sản phẩm.
+                    thức lần 2 để tránh 2 nơi lệch dữ liệu.
 
-   ⚠️ SQL CẦN CHẠY TRƯỚC (Supabase SQL Editor, 1 lần) — xem file
-      migration.sql đi kèm. Chỉ ALTER TABLE ADD COLUMN IF NOT EXISTS,
-      KHÔNG tạo bảng mới.
+   ⚠️ SQL CẦN CHẠY TRƯỚC (Supabase SQL Editor, 1 lần):
+
+     alter table ingredients
+       add column if not exists is_finished_product boolean not null default false;
+     alter table drinks
+       add column if not exists product_ingredient_id bigint references ingredients(id);
 
    ⚠️ Load SAU: core/dashboard-page-registry.js,
       modules/drinks/dashboard-drinks.js (window.editDrink),
@@ -94,7 +103,7 @@ window.AdminDashboard.registerPage({
     <div class="page-header">
       <div>
         <h1 class="page-title">⚙️ Settings</h1>
-        <p class="page-subtitle">Khai báo kho, sản phẩm &amp; xem tổng hợp công thức pha chế</p>
+        <p class="page-subtitle">Khai báo kho, sản phẩm (nguyên liệu &amp; thành phẩm) &amp; xem tổng hợp công thức pha chế</p>
       </div>
     </div>
 
@@ -118,16 +127,19 @@ window.AdminDashboard.registerPage({
       </div>
     </div>
 
-    <!-- ═══ TAB: SẢN PHẨM ═══ -->
+    <!-- ═══ TAB: SẢN PHẨM (nguyên liệu + thành phẩm, phân biệt bằng tick) ═══ -->
     <div id="stTabProducts" style="display:none;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">
+        🧂 <b>Nguyên liệu</b> = dùng trong công thức pha chế. 🥤 <b>Thành phẩm</b> = sản phẩm bán ra (VD: Trà sữa truyền thống) — chọn được ở trang ☕ Đồ uống khi tạo công thức bán hàng. Cả hai loại đều theo dõi tồn kho như nhau, chỉ khác ở tick "Là thành phẩm" bên dưới.
+      </div>
       <div class="search-bar"><input type="text" id="prodSearchInput" class="search-input" placeholder="🔍 Tìm theo mã hoặc tên sản phẩm..."></div>
       <div class="table-card">
         <div style="padding:16px 24px 0;display:flex;justify-content:flex-end;">
           <button class="btn btn-primary" id="prodAddBtn">+ Thêm sản phẩm</button>
         </div>
         <table class="game-table">
-          <thead><tr><th>Mã</th><th>Sản phẩm</th><th>Quy cách</th><th>Đơn vị tính</th><th>Quy đổi đóng gói</th><th>Giá/đơn vị</th><th>Hành động</th></tr></thead>
-          <tbody id="prodTableBody"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Đang tải...</td></tr></tbody>
+          <thead><tr><th>Mã</th><th>Sản phẩm</th><th>Loại</th><th>Quy cách</th><th>Đơn vị tính</th><th>Quy đổi đóng gói</th><th>Giá/đơn vị</th><th>Hành động</th></tr></thead>
+          <tbody id="prodTableBody"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Đang tải...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -177,11 +189,16 @@ window.AdminDashboard.registerPage({
         <input type="hidden" id="prodId">
         <div class="form-grid">
           <div class="form-group"><label for="prodCode">Mã sản phẩm</label><input type="text" id="prodCode" placeholder="VD: NL001"></div>
-          <div class="form-group"><label for="prodName">Tên sản phẩm *</label><input type="text" id="prodName" placeholder="Nước cam, Sữa tươi..."></div>
+          <div class="form-group"><label for="prodName">Tên sản phẩm *</label><input type="text" id="prodName" placeholder="Nước cam, Sữa tươi, Trà sữa truyền thống..."></div>
+
+          <div class="form-group full-width" style="flex-direction:row;align-items:center;gap:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 14px;">
+            <input type="checkbox" id="prodIsFinished" style="width:18px;height:18px;flex-shrink:0;">
+            <label for="prodIsFinished" style="margin:0;font-weight:700;">🥤 Đây là thành phẩm (sản phẩm bán ra — sẽ chọn được khi tạo công thức bán hàng ở ☕ Đồ uống)</label>
+          </div>
 
           <div class="form-group full-width"><label for="prodSpec">Quy cách</label><input type="text" id="prodSpec" placeholder="VD: Hộp giấy nguyên hộp"></div>
 
-          <div class="form-group"><label for="prodUnit">Đơn vị tính *</label><input type="text" id="prodUnit" placeholder="Hộp, Can, Thùng, Chai..."></div>
+          <div class="form-group"><label for="prodUnit">Đơn vị tính *</label><input type="text" id="prodUnit" placeholder="Hộp, Can, Thùng, Chai, Ly..."></div>
           <div class="form-group"><label for="prodUnitCost">Giá / đơn vị tính (đ) *</label><input type="number" id="prodUnitCost" min="0" step="0.01" placeholder="35000"></div>
 
           <div class="section-divider"><span>📐 Quy đổi đóng gói</span></div>
@@ -353,7 +370,9 @@ async function saveWarehouse() {
 }
 
 /* ══════════════════════════════════════════════
-   TAB 2 — SẢN PHẨM (ingredients + quy cách đóng gói)
+   TAB 2 — SẢN PHẨM (ingredients + quy cách đóng gói +
+   ⚠️ MỚI: is_finished_product — gộp chung nguyên liệu & thành
+   phẩm trong 1 bảng/form, chỉ phân biệt bằng tick)
    ══════════════════════════════════════════════ */
 async function loadProducts() {
   await window.Inventory.loadIngredients();
@@ -365,6 +384,12 @@ function packageDisplay(p) {
   return `1 ${window.escHtml(p.unit || "đv")} = ${Number(p.package_qty).toLocaleString("vi-VN")} ${window.escHtml(p.package_unit)}`;
 }
 
+function productTypeBadge(p) {
+  return p.is_finished_product
+    ? '<span class="badge" style="background:#e0f2ff;color:#0984e3;">🥤 Thành phẩm</span>'
+    : '<span class="badge">🧂 Nguyên liệu</span>';
+}
+
 function renderProductsTable() {
   const tbody = document.getElementById("prodTableBody");
   if (!tbody) return;
@@ -374,7 +399,7 @@ function renderProductsTable() {
   );
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">${window.Inventory.state.ingredients.length ? "Không tìm thấy sản phẩm phù hợp." : "Chưa có sản phẩm nào."}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">${window.Inventory.state.ingredients.length ? "Không tìm thấy sản phẩm phù hợp." : "Chưa có sản phẩm nào."}</td></tr>`;
     return;
   }
 
@@ -382,6 +407,7 @@ function renderProductsTable() {
     <tr style="${p.is_active === false ? 'opacity:.55;' : ''}">
       <td>${window.escHtml(p.code || "—")}</td>
       <td><div class="game-name">${window.escHtml(p.name)}</div>${p.is_active === false ? '<div class="game-id" style="color:var(--danger)">Ngừng dùng</div>' : ''}</td>
+      <td>${productTypeBadge(p)}</td>
       <td>${window.escHtml(p.spec || "—")}</td>
       <td>${window.escHtml(p.unit || "—")}</td>
       <td>${packageDisplay(p)}</td>
@@ -409,6 +435,7 @@ function openAddProduct() {
   document.getElementById("prodId").value = "";
   document.getElementById("prodCode").value = "";
   document.getElementById("prodName").value = "";
+  document.getElementById("prodIsFinished").checked = false;
   document.getElementById("prodSpec").value = "";
   document.getElementById("prodUnit").value = "";
   document.getElementById("prodUnitEcho").textContent = "đơn vị";
@@ -432,6 +459,7 @@ function openEditProduct(id) {
   document.getElementById("prodId").value = p.id;
   document.getElementById("prodCode").value = p.code || "";
   document.getElementById("prodName").value = p.name || "";
+  document.getElementById("prodIsFinished").checked = !!p.is_finished_product;
   document.getElementById("prodSpec").value = p.spec || "";
   document.getElementById("prodUnit").value = p.unit || "";
   document.getElementById("prodUnitEcho").textContent = p.unit || "đơn vị";
@@ -454,6 +482,7 @@ async function saveProduct() {
   const id    = rawId ? Number(rawId) : null;
   const code  = document.getElementById("prodCode").value.trim();
   const name  = document.getElementById("prodName").value.trim();
+  const is_finished_product = document.getElementById("prodIsFinished").checked;
   const spec  = document.getElementById("prodSpec").value.trim();
   const unit  = document.getElementById("prodUnit").value.trim();
   const unit_cost = Number(document.getElementById("prodUnitCost").value);
@@ -473,6 +502,7 @@ async function saveProduct() {
   const payload = {
     code: code || null, name, spec: spec || null, unit, unit_cost,
     package_qty, package_unit, min_stock_qty, is_active,
+    is_finished_product,           // ⚠️ MỚI
     updated_by: staff,
   };
 
