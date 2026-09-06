@@ -16,37 +16,38 @@
                     mới), gồm mã sản phẩm, quy cách, quy đổi đóng
                     gói (VD: 1 Hộp = 500 g).
 
-                    ⚠️ MỚI (2026-09 — gộp khai báo nguyên liệu VÀ
-                    thành phẩm trong CÙNG 1 bảng/form, chỉ phân biệt
-                    bằng 1 tick "🥤 Đây là thành phẩm" —
-                    is_finished_product):
+                    ⚠️ (2026-09 — gộp khai báo nguyên liệu VÀ thành
+                    phẩm trong CÙNG 1 bảng/form, chỉ phân biệt bằng
+                    1 tick "🥤 Đây là thành phẩm" — is_finished_product):
                       - Thành phẩm (VD: Trà sữa truyền thống) vẫn
                         theo dõi tồn kho ĐẦY ĐỦ như nguyên liệu
-                        thường — KHÔNG ẩn field nào trong form.
+                        thường — KHÔNG ẩn field tồn kho.
                       - Ở trang ☕ Đồ uống, khi tạo/sửa công thức
                         bán hàng, người dùng CHỌN từ dropdown các
                         item đã tick "Là thành phẩm" (thay vì gõ
-                        tay tên đồ uống tự do) — tên tự động khớp
-                        đúng mã đã khai báo ở đây, tránh gõ trùng/
-                        lệch tên giữa 2 nơi.
+                        tay tên đồ uống tự do).
                       - Dropdown chọn NGUYÊN LIỆU CON trong recipe
                         builder (dashboard-drinks.js) tự động loại
-                        trừ các item đã tick thành phẩm, tránh chọn
-                        nhầm 1 thành phẩm làm nguyên liệu của món
-                        khác.
+                        trừ các item đã tick thành phẩm.
 
-     🧪 Công thức — bảng tổng hợp toàn bộ đồ uống + số nguyên liệu +
-                    giá vốn/lợi nhuận, bấm "✏️ Sửa công thức" mở
-                    ĐÚNG modal công thức có sẵn ở trang "☕ Đồ uống"
-                    (window.editDrink()) — KHÔNG xây lại UI công
-                    thức lần 2 để tránh 2 nơi lệch dữ liệu.
+                    ⚠️ MỚI (2026-09-06 — điều chỉnh phần Giá):
+                      - Đổi nhãn "Giá / đơn vị tính (đ)" → "Giá (đ)"
+                        cho gọn.
+                      - "Quy đổi đóng gói" giờ có thêm 1 Ô HIỂN THỊ
+                        RIÊNG "Giá theo quy cách đóng gói" (thay cho
+                        dòng hint chữ nhỏ trước đây) = Giá ÷ Số lượng
+                        đóng gói. VD: 1 Hộp giá 30.000đ, 1 Hộp=300ml
+                        → hiển thị "100 đ / ml".
+                      - Khi tick "Là thành phẩm": ô Giá bị KHOÁ
+                        (disabled) và tự đặt về 0 — vì giá của thành
+                        phẩm được TỔNG HỢP từ công thức nguyên liệu
+                        cấu thành (drink_ingredients), không nhập tay
+                        ở đây. Validate cho phép Giá = 0 khi là thành
+                        phẩm; vẫn bắt buộc > 0 với nguyên liệu thường.
 
-   ⚠️ SQL CẦN CHẠY TRƯỚC (Supabase SQL Editor, 1 lần):
-
-     alter table ingredients
-       add column if not exists is_finished_product boolean not null default false;
-     alter table drinks
-       add column if not exists product_ingredient_id bigint references ingredients(id);
+   ⚠️ SQL CẦN CHẠY TRƯỚC (Supabase SQL Editor, 1 lần) — xem file
+      2026-09-finished-products.sql đi kèm. Chỉ ALTER TABLE ADD
+      COLUMN IF NOT EXISTS, KHÔNG tạo bảng mới.
 
    ⚠️ Load SAU: core/dashboard-page-registry.js,
       modules/drinks/dashboard-drinks.js (window.editDrink),
@@ -138,7 +139,7 @@ window.AdminDashboard.registerPage({
           <button class="btn btn-primary" id="prodAddBtn">+ Thêm sản phẩm</button>
         </div>
         <table class="game-table">
-          <thead><tr><th>Mã</th><th>Sản phẩm</th><th>Loại</th><th>Quy cách</th><th>Đơn vị tính</th><th>Quy đổi đóng gói</th><th>Giá/đơn vị</th><th>Hành động</th></tr></thead>
+          <thead><tr><th>Mã</th><th>Sản phẩm</th><th>Loại</th><th>Quy cách</th><th>Đơn vị tính</th><th>Quy đổi đóng gói</th><th>Giá</th><th>Hành động</th></tr></thead>
           <tbody id="prodTableBody"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Đang tải...</td></tr></tbody>
         </table>
       </div>
@@ -199,7 +200,11 @@ window.AdminDashboard.registerPage({
           <div class="form-group full-width"><label for="prodSpec">Quy cách</label><input type="text" id="prodSpec" placeholder="VD: Hộp giấy nguyên hộp"></div>
 
           <div class="form-group"><label for="prodUnit">Đơn vị tính *</label><input type="text" id="prodUnit" placeholder="Hộp, Can, Thùng, Chai, Ly..."></div>
-          <div class="form-group"><label for="prodUnitCost">Giá / đơn vị tính (đ) *</label><input type="number" id="prodUnitCost" min="0" step="0.01" placeholder="35000"></div>
+          <div class="form-group">
+            <label for="prodUnitCost">Giá (đ) *</label>
+            <input type="number" id="prodUnitCost" min="0" step="0.01" placeholder="35000">
+            <div class="hint" id="prodUnitCostNote" style="display:none;color:#0984e3;">🥤 Thành phẩm: giá được tổng hợp tự động từ công thức nguyên liệu cấu thành (☕ Đồ uống) — để 0 ở đây, không tính giá đầu vào theo cách này.</div>
+          </div>
 
           <div class="section-divider"><span>📐 Quy đổi đóng gói</span></div>
 
@@ -209,10 +214,17 @@ window.AdminDashboard.registerPage({
             <input type="number" id="prodPackageQty" min="0" step="0.01" placeholder="500" style="width:110px;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 12px;font-size:14px;">
             <label for="prodPackageUnit" class="visually-hidden">Đơn vị đóng gói</label>
             <input type="text" id="prodPackageUnit" placeholder="g, ml, cái..." style="width:120px;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 12px;font-size:14px;">
-            <span id="prodCostHint" style="font-size:12px;color:var(--primary);font-weight:700;"></span>
           </div>
           <div class="full-width" style="font-size:11px;color:var(--text-muted);margin-top:-10px;">
             VD: Nước cam — 1 Hộp = 500 g → Đơn vị tính: "Hộp", số lượng đóng gói: 500, đơn vị đóng gói: "g". Để trống nếu sản phẩm dùng thẳng đơn vị tính trong công thức (không cần quy đổi).
+          </div>
+
+          <!-- ⚠️ MỚI: ô hiển thị riêng "Giá theo quy cách đóng gói" (thay cho
+               dòng hint chữ nhỏ trước đây) — chỉ hiện khi có đủ Giá +
+               Số lượng đóng gói + Đơn vị đóng gói. -->
+          <div class="form-group full-width" id="prodPackageCostWrap" style="display:none;">
+            <label>Giá theo quy cách đóng gói</label>
+            <div id="prodPackageCostDisplay" style="height:44px;display:flex;align-items:center;padding:0 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-weight:700;color:var(--primary);"></div>
           </div>
 
           <div class="form-group"><label for="prodMinStock">Ngưỡng tồn kho tối thiểu</label><input type="number" id="prodMinStock" min="0" step="0.01" placeholder="10"></div>
@@ -249,6 +261,8 @@ function bindSettingsPageEvents() {
   ["prodUnitCost", "prodPackageQty", "prodPackageUnit"].forEach(id => {
     document.getElementById(id)?.addEventListener("input", updateProductCostHint);
   });
+  /* ⚠️ MỚI: tick/bỏ tick "Là thành phẩm" → khoá/mở khoá + đặt lại giá */
+  document.getElementById("prodIsFinished")?.addEventListener("change", updateFinishedProductPriceState);
 
   document.getElementById("prodSearchInput")?.addEventListener("input", window.debounce(e => {
     stProductSearchQ = e.target.value.trim().toLowerCase();
@@ -370,9 +384,7 @@ async function saveWarehouse() {
 }
 
 /* ══════════════════════════════════════════════
-   TAB 2 — SẢN PHẨM (ingredients + quy cách đóng gói +
-   ⚠️ MỚI: is_finished_product — gộp chung nguyên liệu & thành
-   phẩm trong 1 bảng/form, chỉ phân biệt bằng tick)
+   TAB 2 — SẢN PHẨM (ingredients + quy cách đóng gói + is_finished_product)
    ══════════════════════════════════════════════ */
 async function loadProducts() {
   await window.Inventory.loadIngredients();
@@ -411,7 +423,9 @@ function renderProductsTable() {
       <td>${window.escHtml(p.spec || "—")}</td>
       <td>${window.escHtml(p.unit || "—")}</td>
       <td>${packageDisplay(p)}</td>
-      <td>${Number(p.unit_cost || 0).toLocaleString("vi-VN")} đ</td>
+      <td>${p.is_finished_product
+        ? '<span style="color:var(--text-muted);">— (theo công thức)</span>'
+        : Number(p.unit_cost || 0).toLocaleString("vi-VN") + " đ"}</td>
       <td><button class="btn btn-primary" style="font-size:12px;padding:6px 10px;" data-prod-edit="${p.id}">✏️ Sửa</button></td>
     </tr>
   `).join("");
@@ -419,15 +433,51 @@ function renderProductsTable() {
   tbody.querySelectorAll("[data-prod-edit]").forEach(btn => btn.addEventListener("click", () => openEditProduct(Number(btn.dataset.prodEdit))));
 }
 
+/* ⚠️ MỚI: tính & hiển thị "Giá theo quy cách đóng gói" = Giá ÷ Số
+   lượng đóng gói (VD: 30.000đ / 300ml = 100 đ/ml). Thay cho dòng
+   hint chữ nhỏ (prodCostHint) trước đây — giờ là 1 ô hiển thị riêng
+   có nhãn hẳn hoi, ẩn khi thiếu dữ liệu hoặc là thành phẩm (giá=0). */
 function updateProductCostHint() {
   const cost  = Number(document.getElementById("prodUnitCost").value) || 0;
   const qty   = Number(document.getElementById("prodPackageQty").value) || 0;
   const punit = document.getElementById("prodPackageUnit").value.trim();
-  const el = document.getElementById("prodCostHint");
-  if (!el) return;
-  el.textContent = (cost > 0 && qty > 0 && punit)
-    ? `≈ ${(cost / qty).toLocaleString("vi-VN", { maximumFractionDigits: 4 })} đ / ${punit}`
-    : "";
+  const wrap    = document.getElementById("prodPackageCostWrap");
+  const display = document.getElementById("prodPackageCostDisplay");
+  if (!wrap || !display) return;
+
+  if (cost > 0 && qty > 0 && punit) {
+    wrap.style.display = "";
+    const perUnit = cost / qty;
+    display.textContent = `${perUnit.toLocaleString("vi-VN", { maximumFractionDigits: 4 })} đ / ${punit}`;
+  } else {
+    wrap.style.display = "none";
+    display.textContent = "";
+  }
+}
+
+/* ⚠️ MỚI: khoá/mở khoá ô Giá theo tick "Là thành phẩm".
+   - Tick (thành phẩm): disable ô Giá, ép giá trị về 0 — vì giá thật
+     của thành phẩm được tổng hợp tự động từ công thức nguyên liệu
+     cấu thành (drink_ingredients) ở trang ☕ Đồ uống, không nhập tay
+     ở đây.
+   - Bỏ tick (nguyên liệu thường): mở lại ô Giá; nếu đang là "0"
+     (do vừa từ trạng thái thành phẩm chuyển sang) thì xoá trắng để
+     người dùng tự nhập giá thật, không giữ giá trị giả 0. */
+function updateFinishedProductPriceState() {
+  const finished  = document.getElementById("prodIsFinished").checked;
+  const costInput = document.getElementById("prodUnitCost");
+  const note      = document.getElementById("prodUnitCostNote");
+
+  if (finished) {
+    costInput.value = "0";
+    costInput.disabled = true;
+    note.style.display = "block";
+  } else {
+    costInput.disabled = false;
+    note.style.display = "none";
+    if (costInput.value === "0") costInput.value = "";
+  }
+  updateProductCostHint();
 }
 
 function openAddProduct() {
@@ -448,7 +498,7 @@ function openAddProduct() {
   document.getElementById("prodDeleteBtn").style.display = "none";
   window.clearFieldError("prodName");
   window.clearFieldError("prodUnit");
-  updateProductCostHint();
+  updateFinishedProductPriceState(); // reset trạng thái khoá/mở + hint giá
   document.getElementById("productModal").classList.remove("hidden");
   document.getElementById("prodName").focus();
 }
@@ -459,20 +509,23 @@ function openEditProduct(id) {
   document.getElementById("prodId").value = p.id;
   document.getElementById("prodCode").value = p.code || "";
   document.getElementById("prodName").value = p.name || "";
-  document.getElementById("prodIsFinished").checked = !!p.is_finished_product;
   document.getElementById("prodSpec").value = p.spec || "";
   document.getElementById("prodUnit").value = p.unit || "";
   document.getElementById("prodUnitEcho").textContent = p.unit || "đơn vị";
+  /* Set giá trị Giá THẬT trước, rồi mới set tick + gọi
+     updateFinishedProductPriceState() — hàm đó sẽ tự ép về 0 nếu là
+     thành phẩm, hoặc giữ nguyên giá trị vừa set nếu là nguyên liệu. */
   document.getElementById("prodUnitCost").value = p.unit_cost ?? "";
   document.getElementById("prodPackageQty").value = p.package_unit ? (p.package_qty ?? "") : "";
   document.getElementById("prodPackageUnit").value = p.package_unit || "";
   document.getElementById("prodMinStock").value = p.min_stock_qty ?? "";
   document.getElementById("prodIsActive").checked = p.is_active !== false;
+  document.getElementById("prodIsFinished").checked = !!p.is_finished_product;
   document.getElementById("productModalTitle").textContent = "✏️ Sửa sản phẩm";
   document.getElementById("prodDeleteBtn").style.display = isSettingsReadOnly ? "none" : "inline-flex";
   window.clearFieldError("prodName");
   window.clearFieldError("prodUnit");
-  updateProductCostHint();
+  updateFinishedProductPriceState();
   document.getElementById("productModal").classList.remove("hidden");
 }
 
@@ -485,7 +538,7 @@ async function saveProduct() {
   const is_finished_product = document.getElementById("prodIsFinished").checked;
   const spec  = document.getElementById("prodSpec").value.trim();
   const unit  = document.getElementById("prodUnit").value.trim();
-  const unit_cost = Number(document.getElementById("prodUnitCost").value);
+  const unit_cost = Number(document.getElementById("prodUnitCost").value) || 0;
   const package_unit = document.getElementById("prodPackageUnit").value.trim() || null;
   const package_qty  = package_unit ? (Number(document.getElementById("prodPackageQty").value) || 0) : 1;
   const min_stock_qty = Number(document.getElementById("prodMinStock").value) || 0;
@@ -495,14 +548,21 @@ async function saveProduct() {
   window.clearFieldError("prodName");
   if (!unit) { window.showFieldError("prodUnit", "Vui lòng nhập đơn vị tính.", { fullWidth: true }); return; }
   window.clearFieldError("prodUnit");
-  if (!unit_cost || unit_cost < 0) { window.showToast("⚠️ Giá/đơn vị không hợp lệ.", "#e17055"); return; }
+
+  /* ⚠️ MỚI: thành phẩm được PHÉP giá = 0 (giá tổng hợp từ công thức
+     ở nơi khác) — chỉ bắt buộc > 0 với nguyên liệu thường. */
+  if (!is_finished_product && (!unit_cost || unit_cost < 0)) {
+    window.showToast("⚠️ Giá không hợp lệ.", "#e17055");
+    return;
+  }
   if (package_unit && package_qty <= 0) { window.showToast("⚠️ Số lượng đóng gói phải lớn hơn 0.", "#e17055"); return; }
 
   const staff = currentSession.displayName || currentSession.username;
   const payload = {
-    code: code || null, name, spec: spec || null, unit, unit_cost,
+    code: code || null, name, spec: spec || null, unit,
+    unit_cost: is_finished_product ? 0 : unit_cost,   // ⚠️ luôn ép 0 phía server nếu là thành phẩm
     package_qty, package_unit, min_stock_qty, is_active,
-    is_finished_product,           // ⚠️ MỚI
+    is_finished_product,
     updated_by: staff,
   };
 
@@ -624,7 +684,7 @@ function renderRecipeTable(drinks, costMap, countMap) {
 }
 
 /* ══════════════════════════════════════════════
-   ⚠️ MỚI: EXPOSE ĐIỀU HƯỚNG TỪ NƠI KHÁC (Kho nguyên liệu)
+   ⚠️ EXPOSE ĐIỀU HƯỚNG TỪ NƠI KHÁC (Kho nguyên liệu)
    ─────────────────────────────────────────────
    Kho nguyên liệu (dashboard-ingredients.js) không còn tự tạo/sửa/
    xoá sản phẩm nữa — mọi thao tác đó dồn về đây. 2 hàm dưới đây là
