@@ -21,6 +21,13 @@
    bên Settings (window.openProductInSettings(id)), không tự mở
    modal sửa tại chỗ nữa.
 
+   ⚠️ MỚI (2026-09 — thành phẩm & nguyên liệu gộp chung 1 bảng, phân
+   biệt bằng ingredients.is_finished_product — xem dashboard-settings.js
+   và dashboard-drinks.js): bảng ở trang này giờ có thêm cột "Loại"
+   (🥤 Thành phẩm / 🧂 Nguyên liệu) để nhân viên nhập/điều chỉnh kho
+   dễ phân biệt — cả 2 loại đều nhập/điều chỉnh tồn kho HỆT NHAU,
+   không có gì khác trong logic saveStockLog()/openStockModal().
+
    Cần: client, currentSession, window.AdminPermissions,
    window.Inventory (inventory-shared.js — PHẢI load trước file này),
    window.escHtml / window.showToast / window.showConfirm / window.debounce
@@ -52,7 +59,7 @@ window.AdminDashboard.registerPage({
     <div class="page-header">
       <div>
         <h1 class="page-title">📦 Kho nguyên liệu</h1>
-        <p class="page-subtitle">Tồn kho hiện tại &amp; nhập/điều chỉnh kho. Tạo mới hoặc sửa thông tin sản phẩm ở ⚙️ Settings → 📦 Sản phẩm.</p>
+        <p class="page-subtitle">Tồn kho hiện tại &amp; nhập/điều chỉnh kho (áp dụng cho cả 🧂 nguyên liệu và 🥤 thành phẩm). Tạo mới hoặc sửa thông tin sản phẩm ở ⚙️ Settings → 📦 Sản phẩm.</p>
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary" id="ingRefreshBtn">🔄 Refresh</button>
@@ -63,7 +70,7 @@ window.AdminDashboard.registerPage({
     <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
       <div class="stat-card">
         <div class="stat-icon" aria-hidden="true">📦</div>
-        <div><div class="stat-value" id="ingStatTotal">—</div><div class="stat-label">Nguyên liệu đang theo dõi</div></div>
+        <div><div class="stat-value" id="ingStatTotal">—</div><div class="stat-label">Nguyên liệu &amp; thành phẩm đang theo dõi</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon" aria-hidden="true">⚠️</div>
@@ -82,9 +89,9 @@ window.AdminDashboard.registerPage({
     <div class="table-card">
       <table class="game-table">
         <thead><tr>
-          <th>Mã SP</th><th>Nguyên liệu</th><th>Đơn vị</th><th>Giá/đơn vị</th><th>Tồn kho hiện tại</th><th>Tối thiểu</th><th>Hành động</th>
+          <th>Mã SP</th><th>Nguyên liệu / Thành phẩm</th><th>Loại</th><th>Đơn vị</th><th>Giá/đơn vị</th><th>Tồn kho hiện tại</th><th>Tối thiểu</th><th>Hành động</th>
         </tr></thead>
-        <tbody id="ingTableBody"><tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">⏳ Đang tải...</td></tr></tbody>
+        <tbody id="ingTableBody"><tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">⏳ Đang tải...</td></tr></tbody>
       </table>
     </div>
 
@@ -140,7 +147,7 @@ window.AdminDashboard.registerPage({
 function bindIngredientEvents() {
   document.getElementById("ingRefreshBtn")?.addEventListener("click", loadAndRenderIngredients);
 
-  /* ⚠️ MỚI: nút header giờ chỉ điều hướng sang Settings, không mở modal tại chỗ */
+  /* ⚠️ Nút header chỉ điều hướng sang Settings, không mở modal tại chỗ */
   document.getElementById("ingGoToSettingsBtn")?.addEventListener("click", () => window.openProductInSettings());
 
   document.getElementById("closeStockModalBtn")?.addEventListener("click", () => document.getElementById("stockModal").classList.add("hidden"));
@@ -172,6 +179,16 @@ function fmtVND(n) {
   return window.Membership ? window.Membership.formatVND(n) : Math.round(n).toLocaleString("vi-VN") + " đ";
 }
 
+/* ⚠️ MỚI: badge phân biệt 🥤 Thành phẩm / 🧂 Nguyên liệu — dùng
+   chung style với productTypeBadge() bên dashboard-settings.js
+   (không import chung được vì 2 file độc lập, nhưng markup giống
+   hệt để nhất quán trực quan). */
+function ingTypeBadge(i) {
+  return i.is_finished_product
+    ? '<span class="badge" style="background:#e0f2ff;color:#0984e3;">🥤 Thành phẩm</span>'
+    : '<span class="badge">🧂 Nguyên liệu</span>';
+}
+
 function updateIngredientStats() {
   const list = INV.state.ingredients;
   const low = list.filter(i => i.min_stock_qty > 0 && i.current_stock < i.min_stock_qty);
@@ -184,9 +201,9 @@ function updateIngredientStats() {
 
   const banner = document.getElementById("ingLowStockBanner");
   const messages = [];
-  if (low.length) messages.push(`⚠️ ${low.length} nguyên liệu sắp hết: ${low.map(i => i.name).join(", ")}`);
-  /* ⚠️ SỬA: trỏ người dùng sang Settings thay vì "nút Sửa" (đã bỏ khỏi trang này) */
-  if (noCode.length) messages.push(`🔖 ${noCode.length} nguyên liệu <b>chưa có Mã sản phẩm</b> — bổ sung tại ⚙️ Settings → 📦 Sản phẩm trước khi nhập kho: ${noCode.map(i => i.name).join(", ")}`);
+  if (low.length) messages.push(`⚠️ ${low.length} nguyên liệu/thành phẩm sắp hết: ${low.map(i => i.name).join(", ")}`);
+  /* ⚠️ Trỏ người dùng sang Settings thay vì "nút Sửa" (đã bỏ khỏi trang này) */
+  if (noCode.length) messages.push(`🔖 ${noCode.length} mục <b>chưa có Mã sản phẩm</b> — bổ sung tại ⚙️ Settings → 📦 Sản phẩm trước khi nhập kho: ${noCode.map(i => i.name).join(", ")}`);
 
   if (messages.length) {
     banner.style.display = "block";
@@ -205,7 +222,7 @@ function renderIngredientsTable() {
   );
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">${INV.state.ingredients.length ? "Không tìm thấy nguyên liệu phù hợp." : "Chưa có nguyên liệu nào — tạo mới tại ⚙️ Settings → 📦 Sản phẩm."}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">${INV.state.ingredients.length ? "Không tìm thấy nguyên liệu/thành phẩm phù hợp." : "Chưa có sản phẩm nào — tạo mới tại ⚙️ Settings → 📦 Sản phẩm."}</td></tr>`;
     return;
   }
 
@@ -215,6 +232,7 @@ function renderIngredientsTable() {
     return `<tr>
       <td>${noCode ? '<span class="badge" style="background:#fff5f5;color:var(--danger);">⚠️ Chưa có mã</span>' : `<b>${window.escHtml(i.code)}</b>`}</td>
       <td><div class="game-name">${window.escHtml(i.name)}</div>${!i.is_active ? '<div class="game-id" style="color:var(--danger)">Ngừng dùng</div>' : ''}</td>
+      <td>${ingTypeBadge(i)}</td>
       <td>${window.escHtml(i.unit)}</td>
       <td>${Number(i.unit_cost).toLocaleString("vi-VN")} đ</td>
       <td style="font-weight:700;${low ? 'color:var(--danger)' : ''}">${i.current_stock.toLocaleString("vi-VN")} ${window.escHtml(i.unit)} ${low ? '⚠️' : ''}</td>
@@ -226,7 +244,7 @@ function renderIngredientsTable() {
     </tr>`;
   }).join("");
 
-  /* ⚠️ MỚI: nút Sửa giờ chỉ điều hướng, không mở modal tại chỗ nữa */
+  /* ⚠️ Nút Sửa giờ chỉ điều hướng, không mở modal tại chỗ nữa */
   tbody.querySelectorAll("[data-ing-edit-settings]").forEach(b =>
     b.addEventListener("click", () => window.openProductInSettings(Number(b.dataset.ingEditSettings)))
   );
@@ -236,7 +254,9 @@ function renderIngredientsTable() {
 }
 
 /* ══════════════════════════════════════════════
-   NHẬP KHO / ĐIỀU CHỈNH TỒN KHO — không đổi so với bản trước
+   NHẬP KHO / ĐIỀU CHỈNH TỒN KHO — không đổi so với bản trước.
+   Áp dụng HỆT NHAU cho cả nguyên liệu và thành phẩm — không phân
+   biệt is_finished_product ở logic này.
    ══════════════════════════════════════════════ */
 function openStockModal(ingId) {
   if (isIngredientsReadOnly) return;
@@ -244,12 +264,12 @@ function openStockModal(ingId) {
   if (!ing) return;
 
   if (!ing.code) {
-    window.showToast("⚠️ Nguyên liệu này chưa có Mã sản phẩm — bổ sung tại ⚙️ Settings → 📦 Sản phẩm trước khi nhập/điều chỉnh kho.", "#e17055");
+    window.showToast("⚠️ Sản phẩm này chưa có Mã sản phẩm — bổ sung tại ⚙️ Settings → 📦 Sản phẩm trước khi nhập/điều chỉnh kho.", "#e17055");
     return;
   }
 
   document.getElementById("stockIngId").value = ingId;
-  document.getElementById("stockIngName").textContent = `${ing.code} — ${ing.name} (${ing.unit})`;
+  document.getElementById("stockIngName").textContent = `${ing.code} — ${ing.name} (${ing.unit})${ing.is_finished_product ? ' · 🥤 Thành phẩm' : ' · 🧂 Nguyên liệu'}`;
   document.getElementById("stockLogType").value = "import";
   document.getElementById("stockQty").value = "";
   document.getElementById("stockBatchRef").value = "";
@@ -297,7 +317,7 @@ async function saveStockLog() {
   if (!ing) return;
 
   if (!ing.code) {
-    window.showToast("⚠️ Nguyên liệu này chưa có Mã sản phẩm — không thể ghi nhận thay đổi tồn kho.", "#e17055");
+    window.showToast("⚠️ Sản phẩm này chưa có Mã sản phẩm — không thể ghi nhận thay đổi tồn kho.", "#e17055");
     return;
   }
 
