@@ -17,18 +17,47 @@
                     gói (VD: 1 Hộp = 500 g).
 
                     ⚠️ (2026-09 — gộp khai báo nguyên liệu VÀ thành
-                    phẩm trong CÙNG 1 bảng/form, chỉ phân biệt bằng
-                    1 tick "🥤 Đây là thành phẩm" — is_finished_product):
+                    phẩm trong CÙNG 1 bảng/form):
                       - Thành phẩm (VD: Trà sữa truyền thống) vẫn
                         theo dõi tồn kho ĐẦY ĐỦ như nguyên liệu
                         thường — KHÔNG ẩn field tồn kho.
                       - Ở trang ☕ Đồ uống, khi tạo/sửa công thức
                         bán hàng, người dùng CHỌN từ dropdown các
-                        item đã tick "Là thành phẩm" (thay vì gõ
+                        item đã đánh dấu "Là thành phẩm" (thay vì gõ
                         tay tên đồ uống tự do).
                       - Dropdown chọn NGUYÊN LIỆU CON trong recipe
                         builder (dashboard-drinks.js) tự động loại
-                        trừ các item đã tick thành phẩm.
+                        trừ các item đã đánh dấu thành phẩm.
+
+                    ⚠️ MỚI (2026-09-08 — SINH MÃ SẢN PHẨM TỰ ĐỘNG +
+                    ĐỔI TICK "Là thành phẩm" THÀNH DROPDOWN):
+                      - Đổi checkbox "🥤 Đây là thành phẩm" → dropdown
+                        "Loại sản phẩm": 🧂 Nguyên liệu / 🥤 Thành phẩm.
+                      - Ô "Mã sản phẩm" khi THÊM MỚI: tự sinh & KHOÁ
+                        (readonly), không cho gõ tay để đảm bảo không
+                        trùng tuyệt đối. Định dạng:
+                            [NL|TP] + 1 chữ cái A-Z + 4 chữ số (0001-9999)
+                        VD: NLA0001, NLA0002 ... NLA9999, NLB0001...
+                        Hết 9999 → chữ cái nhảy (A→B), số reset 0001.
+                        Chỉ đếm mã ĐÚNG định dạng này khi tìm số lớn
+                        nhất — mã cũ sai định dạng (VD "TPA001" chỉ 3
+                        số) bị bỏ qua, giữ nguyên không đổi.
+                      - Mã được sinh NGAY khi mở modal "+ Thêm sản
+                        phẩm" (dựa theo loại mặc định "Nguyên liệu"),
+                        và dropdown Loại bị KHOÁ ngay sau đó — muốn
+                        đổi loại phải bấm nút "↺ Đổi loại" để huỷ mã
+                        cũ (chưa lưu) và sinh mã mới đúng loại.
+                      - Khi SỬA (Edit) 1 sản phẩm đã có: mã VÀ dropdown
+                        Loại đều bị khoá cứng, không tự sinh lại,
+                        không cho đổi Thành phẩm ⇄ Nguyên liệu (đổi mã/
+                        loại của sản phẩm đang dùng có thể ảnh hưởng
+                        dữ liệu công thức/tồn kho đã liên kết theo mã
+                        cũ).
+                      - Trước khi LƯU (chỉ áp dụng lúc thêm mới): kiểm
+                        tra lại mã đó đã tồn tại trong DB chưa (phòng
+                        2 người thao tác gần như đồng thời) — nếu
+                        trùng thì tự tính lại mã kế tiếp và thử lưu
+                        lại đúng 1 lần.
 
                     ⚠️ MỚI (2026-09-06 — điều chỉnh phần Giá):
                       - Đổi nhãn "Giá / đơn vị tính (đ)" → "Giá (đ)"
@@ -38,7 +67,7 @@
                         dòng hint chữ nhỏ trước đây) = Giá ÷ Số lượng
                         đóng gói. VD: 1 Hộp giá 30.000đ, 1 Hộp=300ml
                         → hiển thị "100 đ / ml".
-                      - Khi tick "Là thành phẩm": ô Giá bị KHOÁ
+                      - Khi chọn Loại = Thành phẩm: ô Giá bị KHOÁ
                         (disabled) và tự đặt về 0 — vì giá của thành
                         phẩm được TỔNG HỢP từ công thức nguyên liệu
                         cấu thành (drink_ingredients), không nhập tay
@@ -91,6 +120,71 @@ window.AdminDashboard.registerPage({
 });
 
 /* ══════════════════════════════════════════════
+   ⚠️ MỚI — SINH MÃ SẢN PHẨM TỰ ĐỘNG (Nguyên liệu/Thành phẩm)
+   ─────────────────────────────────────────────
+   Định dạng: [NL|TP] + 1 chữ A-Z + 4 chữ số (0001-9999).
+   Hết 9999 → chữ cái nhảy (A→B), số reset 0001.
+   Chỉ đếm mã ĐÚNG định dạng này khi tìm số lớn nhất — mã cũ sai
+   định dạng (VD "TPA001" chỉ 3 số) bị bỏ qua, giữ nguyên không đổi.
+
+   ⚠️ Luôn truy vấn TOÀN BỘ mã trong DB (không lọc deleted_at) để
+   tránh sinh trùng với mã của sản phẩm đã bị ngừng dùng (soft delete)
+   — nếu chỉ dùng cache window.Inventory (đã lọc deleted_at IS NULL)
+   thì có thể vô tình sinh lại đúng mã của 1 sản phẩm đã ngừng dùng.
+   ══════════════════════════════════════════════ */
+const PRODUCT_TYPE_PREFIX = { ingredient: "NL", finished: "TP" };
+
+function parseProductCodeSeq(code, prefix) {
+  if (!code) return null;
+  const re = new RegExp("^" + prefix + "([A-Z])(\\d{4})$");
+  const m = String(code).match(re);
+  if (!m) return null;
+  const letterIdx = m[1].charCodeAt(0) - 65; // A=0
+  const num = parseInt(m[2], 10);
+  return letterIdx * 9999 + (num - 1);
+}
+
+function formatProductCodeSeq(prefix, seqIndex) {
+  const letterIdx = Math.floor(seqIndex / 9999);
+  const num = (seqIndex % 9999) + 1;
+  if (letterIdx > 25) return null; // vượt quá [prefix]Z9999 — hết dải mã tự động
+  const letter = String.fromCharCode(65 + letterIdx);
+  return prefix + letter + String(num).padStart(4, "0");
+}
+
+async function fetchAllProductCodes() {
+  const { data, error } = await client.from("ingredients").select("code");
+  if (error) throw error;
+  return (data || []).map(r => r.code).filter(Boolean);
+}
+
+async function computeNextProductCodeAsync(type) {
+  const prefix = PRODUCT_TYPE_PREFIX[type];
+  const codes = await fetchAllProductCodes();
+  let maxSeq = -1;
+  codes.forEach(code => {
+    const seq = parseProductCodeSeq(code, prefix);
+    if (seq !== null && seq > maxSeq) maxSeq = seq;
+  });
+  const next = formatProductCodeSeq(prefix, maxSeq + 1);
+  if (!next) throw new Error(`Đã dùng hết dải mã tự động cho ${prefix} (vượt quá ${prefix}Z9999) — liên hệ kỹ thuật để mở rộng định dạng mã.`);
+  return next;
+}
+
+/* Kiểm tra lại mã có bị trùng ngay trước khi lưu (phòng 2 người cùng
+   thao tác gần như đồng thời) — nếu trùng, tính lại mã kế tiếp dựa
+   trên dữ liệu MỚI NHẤT và thử lại ĐÚNG 1 lần. */
+async function ensureUniqueProductCodeBeforeSave(code, type) {
+  const { data: existing } = await client.from("ingredients").select("id").eq("code", code).maybeSingle();
+  if (!existing) return code;
+
+  const retryCode = await computeNextProductCodeAsync(type);
+  const { data: existing2 } = await client.from("ingredients").select("id").eq("code", retryCode).maybeSingle();
+  if (existing2) throw new Error("Không thể sinh mã sản phẩm duy nhất — vui lòng thử lại.");
+  return retryCode;
+}
+
+/* ══════════════════════════════════════════════
    INJECT PAGE HTML
    ══════════════════════════════════════════════ */
 (function injectSettingsPage() {
@@ -128,10 +222,10 @@ window.AdminDashboard.registerPage({
       </div>
     </div>
 
-    <!-- ═══ TAB: SẢN PHẨM (nguyên liệu + thành phẩm, phân biệt bằng tick) ═══ -->
+    <!-- ═══ TAB: SẢN PHẨM (nguyên liệu + thành phẩm, phân biệt bằng dropdown loại) ═══ -->
     <div id="stTabProducts" style="display:none;">
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">
-        🧂 <b>Nguyên liệu</b> = dùng trong công thức pha chế. 🥤 <b>Thành phẩm</b> = sản phẩm bán ra (VD: Trà sữa truyền thống) — chọn được ở trang ☕ Đồ uống khi tạo công thức bán hàng. Cả hai loại đều theo dõi tồn kho như nhau, chỉ khác ở tick "Là thành phẩm" bên dưới.
+        🧂 <b>Nguyên liệu</b> = dùng trong công thức pha chế. 🥤 <b>Thành phẩm</b> = sản phẩm bán ra (VD: Trà sữa truyền thống) — chọn được ở trang ☕ Đồ uống khi tạo công thức bán hàng. Cả hai loại đều theo dõi tồn kho như nhau, chỉ khác ở "Loại sản phẩm" bên dưới.
       </div>
       <div class="search-bar"><input type="text" id="prodSearchInput" class="search-input" placeholder="🔍 Tìm theo mã hoặc tên sản phẩm..."></div>
       <div class="table-card">
@@ -189,13 +283,27 @@ window.AdminDashboard.registerPage({
         </div>
         <input type="hidden" id="prodId">
         <div class="form-grid">
-          <div class="form-group"><label for="prodCode">Mã sản phẩm</label><input type="text" id="prodCode" placeholder="VD: NL001"></div>
-          <div class="form-group"><label for="prodName">Tên sản phẩm *</label><input type="text" id="prodName" placeholder="Nước cam, Sữa tươi, Trà sữa truyền thống..."></div>
 
-          <div class="form-group full-width" style="flex-direction:row;align-items:center;gap:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 14px;">
-            <input type="checkbox" id="prodIsFinished" style="width:18px;height:18px;flex-shrink:0;">
-            <label for="prodIsFinished" style="margin:0;font-weight:700;">🥤 Đây là thành phẩm (sản phẩm bán ra — sẽ chọn được khi tạo công thức bán hàng ở ☕ Đồ uống)</label>
+          <div class="form-group">
+            <label for="prodTypeSelect">Loại sản phẩm *</label>
+            <select id="prodTypeSelect">
+              <option value="ingredient">🧂 Nguyên liệu</option>
+              <option value="finished">🥤 Thành phẩm</option>
+            </select>
+            <div class="hint">🥤 Thành phẩm sẽ chọn được ở trang ☕ Đồ uống khi tạo công thức bán hàng. Cả hai loại đều theo dõi tồn kho như nhau.</div>
           </div>
+
+          <div class="form-group">
+            <label for="prodCode">Mã sản phẩm (tự động)</label>
+            <input type="text" id="prodCode" readonly style="background:var(--bg);color:var(--text-muted);font-weight:700;">
+            <div class="hint" id="prodCodeHint">Mã được sinh tự động theo thứ tự, không thể sửa tay.</div>
+          </div>
+
+          <div class="form-group full-width" id="prodChangeTypeWrap" style="display:none;">
+            <button type="button" class="btn btn-secondary" id="prodChangeTypeBtn" style="width:fit-content;">↺ Đổi loại (huỷ mã hiện tại, tạo mã mới)</button>
+          </div>
+
+          <div class="form-group full-width"><label for="prodName">Tên sản phẩm *</label><input type="text" id="prodName" placeholder="Nước cam, Sữa tươi, Trà sữa truyền thống..."></div>
 
           <div class="form-group full-width"><label for="prodSpec">Quy cách</label><input type="text" id="prodSpec" placeholder="VD: Hộp giấy nguyên hộp"></div>
 
@@ -219,9 +327,7 @@ window.AdminDashboard.registerPage({
             VD: Nước cam — 1 Hộp = 500 g → Đơn vị tính: "Hộp", số lượng đóng gói: 500, đơn vị đóng gói: "g". Để trống nếu sản phẩm dùng thẳng đơn vị tính trong công thức (không cần quy đổi).
           </div>
 
-          <!-- ⚠️ MỚI: ô hiển thị riêng "Giá theo quy cách đóng gói" (thay cho
-               dòng hint chữ nhỏ trước đây) — chỉ hiện khi có đủ Giá +
-               Số lượng đóng gói + Đơn vị đóng gói. -->
+          <!-- ô hiển thị riêng "Giá theo quy cách đóng gói" -->
           <div class="form-group full-width" id="prodPackageCostWrap" style="display:none;">
             <label>Giá theo quy cách đóng gói</label>
             <div id="prodPackageCostDisplay" style="height:44px;display:flex;align-items:center;padding:0 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-weight:700;color:var(--primary);"></div>
@@ -261,8 +367,10 @@ function bindSettingsPageEvents() {
   ["prodUnitCost", "prodPackageQty", "prodPackageUnit"].forEach(id => {
     document.getElementById(id)?.addEventListener("input", updateProductCostHint);
   });
-  /* ⚠️ MỚI: tick/bỏ tick "Là thành phẩm" → khoá/mở khoá + đặt lại giá */
-  document.getElementById("prodIsFinished")?.addEventListener("change", updateFinishedProductPriceState);
+  /* ⚠️ MỚI: nút "Đổi loại" — cách DUY NHẤT để đổi Nguyên liệu ⇄
+     Thành phẩm khi đang thêm mới (dropdown Loại bị khoá ngay sau
+     khi mở modal, không còn sự kiện "change" trực tiếp trên nó). */
+  document.getElementById("prodChangeTypeBtn")?.addEventListener("click", handleChangeProductType);
 
   document.getElementById("prodSearchInput")?.addEventListener("input", window.debounce(e => {
     stProductSearchQ = e.target.value.trim().toLowerCase();
@@ -433,10 +541,8 @@ function renderProductsTable() {
   tbody.querySelectorAll("[data-prod-edit]").forEach(btn => btn.addEventListener("click", () => openEditProduct(Number(btn.dataset.prodEdit))));
 }
 
-/* ⚠️ MỚI: tính & hiển thị "Giá theo quy cách đóng gói" = Giá ÷ Số
-   lượng đóng gói (VD: 30.000đ / 300ml = 100 đ/ml). Thay cho dòng
-   hint chữ nhỏ (prodCostHint) trước đây — giờ là 1 ô hiển thị riêng
-   có nhãn hẳn hoi, ẩn khi thiếu dữ liệu hoặc là thành phẩm (giá=0). */
+/* Tính & hiển thị "Giá theo quy cách đóng gói" = Giá ÷ Số
+   lượng đóng gói (VD: 30.000đ / 300ml = 100 đ/ml). */
 function updateProductCostHint() {
   const cost  = Number(document.getElementById("prodUnitCost").value) || 0;
   const qty   = Number(document.getElementById("prodPackageQty").value) || 0;
@@ -455,16 +561,15 @@ function updateProductCostHint() {
   }
 }
 
-/* ⚠️ MỚI: khoá/mở khoá ô Giá theo tick "Là thành phẩm".
-   - Tick (thành phẩm): disable ô Giá, ép giá trị về 0 — vì giá thật
-     của thành phẩm được tổng hợp tự động từ công thức nguyên liệu
-     cấu thành (drink_ingredients) ở trang ☕ Đồ uống, không nhập tay
-     ở đây.
-   - Bỏ tick (nguyên liệu thường): mở lại ô Giá; nếu đang là "0"
-     (do vừa từ trạng thái thành phẩm chuyển sang) thì xoá trắng để
-     người dùng tự nhập giá thật, không giữ giá trị giả 0. */
+/* ⚠️ MỚI: khoá/mở khoá ô Giá theo dropdown "Loại sản phẩm".
+   - Thành phẩm: disable ô Giá, ép giá trị về 0 — vì giá thật của
+     thành phẩm được tổng hợp tự động từ công thức nguyên liệu cấu
+     thành (drink_ingredients) ở trang ☕ Đồ uống, không nhập tay ở đây.
+   - Nguyên liệu: mở lại ô Giá; nếu đang là "0" (do vừa từ trạng thái
+     thành phẩm chuyển sang) thì xoá trắng để người dùng tự nhập giá
+     thật, không giữ giá trị giả 0. */
 function updateFinishedProductPriceState() {
-  const finished  = document.getElementById("prodIsFinished").checked;
+  const finished  = document.getElementById("prodTypeSelect").value === "finished";
   const costInput = document.getElementById("prodUnitCost");
   const note      = document.getElementById("prodUnitCostNote");
 
@@ -480,12 +585,14 @@ function updateFinishedProductPriceState() {
   updateProductCostHint();
 }
 
-function openAddProduct() {
+/* ══════════════════════════════════════════════
+   ⚠️ MỚI — MỞ MODAL THÊM SẢN PHẨM: sinh mã ngay khi mở, khoá
+   dropdown Loại ngay sau đó.
+   ══════════════════════════════════════════════ */
+async function openAddProduct() {
   if (isSettingsReadOnly) return;
   document.getElementById("prodId").value = "";
-  document.getElementById("prodCode").value = "";
   document.getElementById("prodName").value = "";
-  document.getElementById("prodIsFinished").checked = false;
   document.getElementById("prodSpec").value = "";
   document.getElementById("prodUnit").value = "";
   document.getElementById("prodUnitEcho").textContent = "đơn vị";
@@ -498,21 +605,71 @@ function openAddProduct() {
   document.getElementById("prodDeleteBtn").style.display = "none";
   window.clearFieldError("prodName");
   window.clearFieldError("prodUnit");
-  updateFinishedProductPriceState(); // reset trạng thái khoá/mở + hint giá
+  document.getElementById("prodCodeHint").textContent = "Mã được sinh tự động theo thứ tự, không thể sửa tay.";
+
+  const typeSelect = document.getElementById("prodTypeSelect");
+  typeSelect.value = "ingredient"; // ⚠️ loại mặc định ban đầu
+  typeSelect.disabled = true;      // ⚠️ khoá dropdown ngay sau khi mở modal
+  document.getElementById("prodChangeTypeWrap").style.display = "";
+
+  updateFinishedProductPriceState();
+
+  const codeInput = document.getElementById("prodCode");
+  codeInput.value = "⏳ Đang tạo mã...";
   document.getElementById("productModal").classList.remove("hidden");
   document.getElementById("prodName").focus();
+
+  /* ⚠️ Sinh mã NGAY khi mở modal, dựa trên loại mặc định ban đầu */
+  try {
+    codeInput.value = await computeNextProductCodeAsync(typeSelect.value);
+  } catch (err) {
+    codeInput.value = "";
+    window.showToast("❌ " + err.message, "#e17055");
+  }
+}
+
+/* ⚠️ MỚI — nút "Đổi loại": cách DUY NHẤT để đổi Nguyên liệu ⇄ Thành
+   phẩm khi đang thêm mới — huỷ mã cũ (chưa lưu), sinh mã mới đúng
+   loại vừa chọn, rồi khoá dropdown lại như ban đầu. */
+async function handleChangeProductType() {
+  if (isSettingsReadOnly) return;
+  const typeSelect = document.getElementById("prodTypeSelect");
+  const codeInput  = document.getElementById("prodCode");
+  const nextType   = typeSelect.value === "ingredient" ? "finished" : "ingredient";
+  const nextLabel  = nextType === "finished" ? "🥤 Thành phẩm" : "🧂 Nguyên liệu";
+
+  const ok = await window.showConfirm({
+    title: "Đổi loại sản phẩm?",
+    message: `Mã "${codeInput.value}" hiện tại sẽ bị huỷ (chưa lưu nên không ảnh hưởng dữ liệu đã có) và hệ thống sẽ tạo 1 mã mới cho loại "${nextLabel}".`,
+    confirmText: "↺ Đổi & tạo mã mới",
+    cancelText: "Giữ nguyên",
+    danger: false,
+  });
+  if (!ok) return;
+
+  typeSelect.value = nextType;
+  updateFinishedProductPriceState();
+
+  codeInput.value = "⏳ Đang tạo mã...";
+  try {
+    codeInput.value = await computeNextProductCodeAsync(nextType);
+  } catch (err) {
+    codeInput.value = "";
+    window.showToast("❌ " + err.message, "#e17055");
+  }
 }
 
 function openEditProduct(id) {
   const p = window.Inventory.getIngredientById(id);
   if (!p) return;
   document.getElementById("prodId").value = p.id;
-  document.getElementById("prodCode").value = p.code || "";
+  document.getElementById("prodCode").value = p.code || "(chưa có mã)";
+  document.getElementById("prodCodeHint").textContent = "Mã đã gán cho sản phẩm này — không thể đổi (tránh lệch dữ liệu công thức/tồn kho đã liên kết theo mã cũ).";
   document.getElementById("prodName").value = p.name || "";
   document.getElementById("prodSpec").value = p.spec || "";
   document.getElementById("prodUnit").value = p.unit || "";
   document.getElementById("prodUnitEcho").textContent = p.unit || "đơn vị";
-  /* Set giá trị Giá THẬT trước, rồi mới set tick + gọi
+  /* Set giá trị Giá THẬT trước, rồi mới set loại + gọi
      updateFinishedProductPriceState() — hàm đó sẽ tự ép về 0 nếu là
      thành phẩm, hoặc giữ nguyên giá trị vừa set nếu là nguyên liệu. */
   document.getElementById("prodUnitCost").value = p.unit_cost ?? "";
@@ -520,7 +677,12 @@ function openEditProduct(id) {
   document.getElementById("prodPackageUnit").value = p.package_unit || "";
   document.getElementById("prodMinStock").value = p.min_stock_qty ?? "";
   document.getElementById("prodIsActive").checked = p.is_active !== false;
-  document.getElementById("prodIsFinished").checked = !!p.is_finished_product;
+
+  const typeSelect = document.getElementById("prodTypeSelect");
+  typeSelect.value = p.is_finished_product ? "finished" : "ingredient";
+  typeSelect.disabled = true; // ⚠️ KHÔNG cho đổi Thành phẩm ⇄ Nguyên liệu khi edit
+  document.getElementById("prodChangeTypeWrap").style.display = "none";
+
   document.getElementById("productModalTitle").textContent = "✏️ Sửa sản phẩm";
   document.getElementById("prodDeleteBtn").style.display = isSettingsReadOnly ? "none" : "inline-flex";
   window.clearFieldError("prodName");
@@ -533,9 +695,9 @@ async function saveProduct() {
   if (isSettingsReadOnly) return;
   const rawId = document.getElementById("prodId").value;
   const id    = rawId ? Number(rawId) : null;
-  const code  = document.getElementById("prodCode").value.trim();
   const name  = document.getElementById("prodName").value.trim();
-  const is_finished_product = document.getElementById("prodIsFinished").checked;
+  const type  = document.getElementById("prodTypeSelect").value; // "ingredient" | "finished"
+  const is_finished_product = type === "finished";
   const spec  = document.getElementById("prodSpec").value.trim();
   const unit  = document.getElementById("prodUnit").value.trim();
   const unit_cost = Number(document.getElementById("prodUnitCost").value) || 0;
@@ -549,8 +711,8 @@ async function saveProduct() {
   if (!unit) { window.showFieldError("prodUnit", "Vui lòng nhập đơn vị tính.", { fullWidth: true }); return; }
   window.clearFieldError("prodUnit");
 
-  /* ⚠️ MỚI: thành phẩm được PHÉP giá = 0 (giá tổng hợp từ công thức
-     ở nơi khác) — chỉ bắt buộc > 0 với nguyên liệu thường. */
+  /* ⚠️ Thành phẩm được PHÉP giá = 0 (giá tổng hợp từ công thức ở nơi
+     khác) — chỉ bắt buộc > 0 với nguyên liệu thường. */
   if (!is_finished_product && (!unit_cost || unit_cost < 0)) {
     window.showToast("⚠️ Giá không hợp lệ.", "#e17055");
     return;
@@ -559,7 +721,7 @@ async function saveProduct() {
 
   const staff = currentSession.displayName || currentSession.username;
   const payload = {
-    code: code || null, name, spec: spec || null, unit,
+    name, spec: spec || null, unit,
     unit_cost: is_finished_product ? 0 : unit_cost,   // ⚠️ luôn ép 0 phía server nếu là thành phẩm
     package_qty, package_unit, min_stock_qty, is_active,
     is_finished_product,
@@ -570,17 +732,32 @@ async function saveProduct() {
   btn.disabled = true; btn.textContent = "Đang lưu...";
   try {
     if (id) {
+      /* ⚠️ Sửa sản phẩm: mã & loại giữ đúng như cũ (đã khoá trên UI,
+         không gửi thay đổi gì liên quan trong payload này). */
       const { error } = await client.from("ingredients").update(payload).eq("id", id);
       if (error) throw error;
     } else {
-      const { error } = await client.from("ingredients").insert({ ...payload, created_by: staff });
+      /* ⚠️ Thêm mới: mã đã sinh sẵn lúc mở modal — kiểm tra lại lần
+         cuối ngay trước khi lưu để tránh trùng do 2 người cùng thao
+         tác gần như đồng thời; nếu trùng thì tự tính lại & lưu lại
+         đúng 1 lần. */
+      const codeInput = document.getElementById("prodCode");
+      const displayedCode = codeInput.value.trim();
+      if (!displayedCode || displayedCode.startsWith("⏳")) {
+        throw new Error("Chưa tạo được mã sản phẩm — vui lòng đóng và mở lại modal.");
+      }
+      const finalCode = await ensureUniqueProductCodeBeforeSave(displayedCode, type);
+      if (finalCode !== displayedCode) codeInput.value = finalCode;
+
+      const { error } = await client.from("ingredients")
+        .insert({ ...payload, code: finalCode, created_by: staff });
       if (error) throw error;
     }
     document.getElementById("productModal").classList.add("hidden");
     window.showToast("✅ Đã lưu sản phẩm!");
     await loadProducts();
   } catch (err) {
-    if (err.code === "23505") window.showToast("⚠️ Sản phẩm này (tên + đơn vị) đã tồn tại.", "#e17055");
+    if (err.code === "23505") window.showToast("⚠️ Mã hoặc sản phẩm (tên + đơn vị) này đã tồn tại.", "#e17055");
     else window.showToast("❌ Lỗi: " + err.message, "#e17055");
   } finally {
     btn.disabled = false; btn.textContent = "💾 Lưu";
