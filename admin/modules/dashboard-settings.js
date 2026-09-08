@@ -290,17 +290,13 @@ async function ensureUniqueProductCodeBeforeSave(code, type) {
               <option value="ingredient">🧂 Nguyên liệu</option>
               <option value="finished">🥤 Thành phẩm</option>
             </select>
-            <div class="hint">🥤 Thành phẩm sẽ chọn được ở trang ☕ Đồ uống khi tạo công thức bán hàng. Cả hai loại đều theo dõi tồn kho như nhau.</div>
+            <div class="hint" id="prodTypeHint">🥤 Thành phẩm sẽ chọn được ở trang ☕ Đồ uống khi tạo công thức bán hàng. Cả hai loại đều theo dõi tồn kho như nhau.</div>
           </div>
 
           <div class="form-group">
             <label for="prodCode">Mã sản phẩm (tự động)</label>
             <input type="text" id="prodCode" readonly style="background:var(--bg);color:var(--text-muted);font-weight:700;">
-            <div class="hint" id="prodCodeHint">Mã được sinh tự động theo thứ tự, không thể sửa tay.</div>
-          </div>
-
-          <div class="form-group full-width" id="prodChangeTypeWrap" style="display:none;">
-            <button type="button" class="btn btn-secondary" id="prodChangeTypeBtn" style="width:fit-content;">↺ Đổi loại (huỷ mã hiện tại, tạo mã mới)</button>
+            <div class="hint" id="prodCodeHint">Mã được sinh tự động theo thứ tự, không thể sửa tay. Chọn lại "Loại sản phẩm" ở trên nếu cần đổi.</div>
           </div>
 
           <div class="form-group full-width"><label for="prodName">Tên sản phẩm *</label><input type="text" id="prodName" placeholder="Nước cam, Sữa tươi, Trà sữa truyền thống..."></div>
@@ -367,10 +363,11 @@ function bindSettingsPageEvents() {
   ["prodUnitCost", "prodPackageQty", "prodPackageUnit"].forEach(id => {
     document.getElementById(id)?.addEventListener("input", updateProductCostHint);
   });
-  /* ⚠️ MỚI: nút "Đổi loại" — cách DUY NHẤT để đổi Nguyên liệu ⇄
-     Thành phẩm khi đang thêm mới (dropdown Loại bị khoá ngay sau
-     khi mở modal, không còn sự kiện "change" trực tiếp trên nó). */
-  document.getElementById("prodChangeTypeBtn")?.addEventListener("click", handleChangeProductType);
+  /* ⚠️ Dropdown "Loại sản phẩm" VẪN MỞ khi đang thêm mới (không
+     khoá) — mỗi lần đổi lựa chọn sẽ tự sinh lại mã đúng loại đó.
+     Khi đang SỬA sản phẩm cũ, dropdown bị disabled (xem
+     openEditProduct) nên sự kiện này không có tác dụng gì — an toàn. */
+  document.getElementById("prodTypeSelect")?.addEventListener("change", handleProductTypeChange);
 
   document.getElementById("prodSearchInput")?.addEventListener("input", window.debounce(e => {
     stProductSearchQ = e.target.value.trim().toLowerCase();
@@ -586,8 +583,12 @@ function updateFinishedProductPriceState() {
 }
 
 /* ══════════════════════════════════════════════
-   ⚠️ MỚI — MỞ MODAL THÊM SẢN PHẨM: sinh mã ngay khi mở, khoá
-   dropdown Loại ngay sau đó.
+   ⚠️ MỞ MODAL THÊM SẢN PHẨM: dropdown "Loại sản phẩm" ĐỂ MỞ
+   (chọn được bình thường) — mã tự sinh ngay khi mở (dựa theo loại
+   mặc định "Nguyên liệu"), và tự sinh LẠI mỗi khi đổi lựa chọn
+   trong dropdown (xem handleProductTypeChange). Vì chưa có gì được
+   lưu, "đổi loại" chỉ đơn giản là tính mã mới — không cần hỏi xác
+   nhận hay khoá dropdown lại.
    ══════════════════════════════════════════════ */
 async function openAddProduct() {
   if (isSettingsReadOnly) return;
@@ -605,12 +606,11 @@ async function openAddProduct() {
   document.getElementById("prodDeleteBtn").style.display = "none";
   window.clearFieldError("prodName");
   window.clearFieldError("prodUnit");
-  document.getElementById("prodCodeHint").textContent = "Mã được sinh tự động theo thứ tự, không thể sửa tay.";
+  document.getElementById("prodCodeHint").textContent = "Mã được sinh tự động theo thứ tự, không thể sửa tay. Chọn lại \"Loại sản phẩm\" ở trên nếu cần đổi.";
 
   const typeSelect = document.getElementById("prodTypeSelect");
   typeSelect.value = "ingredient"; // ⚠️ loại mặc định ban đầu
-  typeSelect.disabled = true;      // ⚠️ khoá dropdown ngay sau khi mở modal
-  document.getElementById("prodChangeTypeWrap").style.display = "";
+  typeSelect.disabled = false;     // ⚠️ để MỞ khi thêm mới — chọn được bình thường
 
   updateFinishedProductPriceState();
 
@@ -628,31 +628,23 @@ async function openAddProduct() {
   }
 }
 
-/* ⚠️ MỚI — nút "Đổi loại": cách DUY NHẤT để đổi Nguyên liệu ⇄ Thành
-   phẩm khi đang thêm mới — huỷ mã cũ (chưa lưu), sinh mã mới đúng
-   loại vừa chọn, rồi khoá dropdown lại như ban đầu. */
-async function handleChangeProductType() {
+/* ⚠️ Khi đang THÊM MỚI và người dùng đổi dropdown "Loại sản phẩm"
+   → tự tính lại mã đúng theo loại vừa chọn (không hỏi xác nhận vì
+   chưa lưu gì cả). Nếu đang SỬA sản phẩm cũ, dropdown bị disabled
+   (openEditProduct) nên sự kiện "change" này không bao giờ xảy ra. */
+async function handleProductTypeChange() {
   if (isSettingsReadOnly) return;
+  const idInput = document.getElementById("prodId");
+  if (idInput.value) return; // an toàn: không tự đổi mã khi đang sửa
+
   const typeSelect = document.getElementById("prodTypeSelect");
   const codeInput  = document.getElementById("prodCode");
-  const nextType   = typeSelect.value === "ingredient" ? "finished" : "ingredient";
-  const nextLabel  = nextType === "finished" ? "🥤 Thành phẩm" : "🧂 Nguyên liệu";
 
-  const ok = await window.showConfirm({
-    title: "Đổi loại sản phẩm?",
-    message: `Mã "${codeInput.value}" hiện tại sẽ bị huỷ (chưa lưu nên không ảnh hưởng dữ liệu đã có) và hệ thống sẽ tạo 1 mã mới cho loại "${nextLabel}".`,
-    confirmText: "↺ Đổi & tạo mã mới",
-    cancelText: "Giữ nguyên",
-    danger: false,
-  });
-  if (!ok) return;
-
-  typeSelect.value = nextType;
   updateFinishedProductPriceState();
 
   codeInput.value = "⏳ Đang tạo mã...";
   try {
-    codeInput.value = await computeNextProductCodeAsync(nextType);
+    codeInput.value = await computeNextProductCodeAsync(typeSelect.value);
   } catch (err) {
     codeInput.value = "";
     window.showToast("❌ " + err.message, "#e17055");
@@ -681,7 +673,6 @@ function openEditProduct(id) {
   const typeSelect = document.getElementById("prodTypeSelect");
   typeSelect.value = p.is_finished_product ? "finished" : "ingredient";
   typeSelect.disabled = true; // ⚠️ KHÔNG cho đổi Thành phẩm ⇄ Nguyên liệu khi edit
-  document.getElementById("prodChangeTypeWrap").style.display = "none";
 
   document.getElementById("productModalTitle").textContent = "✏️ Sửa sản phẩm";
   document.getElementById("prodDeleteBtn").style.display = isSettingsReadOnly ? "none" : "inline-flex";
