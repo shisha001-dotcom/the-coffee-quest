@@ -8,6 +8,27 @@
       script khác cần dùng escHtml / showToast / formatTime
       (app.js, chat.js, admin/*.js).
 
+   ⚠️ MỚI (showConfirm — thêm nút ✕ đóng hộp thoại):
+   Trước đây showConfirm() chỉ có 2 lựa chọn (nút Đồng ý / nút Huỷ),
+   và bấm ra ngoài overlay hay nhấn Escape đều resolve về `false` —
+   TRÙNG với việc bấm nút Huỷ. Điều này gây khó chịu ở các luồng có
+   ý nghĩa khác nhau giữa "bấm nút Huỷ rõ ràng" và "chỉ muốn đóng
+   hộp thoại, không quyết định gì cả" (VD: hộp thoại "Bạn có thay
+   đổi chưa lưu" ở admin/modules/settings/dashboard-settings-
+   products.js — bấm ✕/ra ngoài/Escape phải giữ nguyên form đang
+   sửa, không được coi là "Thoát không lưu").
+
+   Giờ showConfirm() trả về Promise với 3 giá trị có thể có:
+     - true  → bấm nút xác nhận (confirmText)
+     - false → bấm nút huỷ (cancelText)
+     - null  → đóng hộp thoại mà KHÔNG chọn gì rõ ràng (bấm ✕ mới
+               thêm / click ra ngoài overlay / nhấn Escape)
+
+   ⚠️ AN TOÀN NGƯỢC (backward-compatible): `null` cũng là falsy
+   giống `false`, nên MỌI nơi khác trong dự án đang viết
+   `if (!ok) return;` sau khi await showConfirm(...) vẫn hoạt động
+   ĐÚNG Y HỆT như trước — không cần sửa gì thêm ở các file đó.
+
    Exports (window globals):
      window.escHtml(s)
      window.formatTime(ts)
@@ -18,7 +39,7 @@
      window.isValidPhoneVN(phone)
      window.debounce(fn, delay)
      window.buildGameSlugMap(games)
-     window.showConfirm(opts)        — modal xác nhận (Đồng ý/Huỷ)
+     window.showConfirm(opts)        — modal xác nhận (Đồng ý/Huỷ/✕)
      window.showReasonPrompt(opts)   — modal xác nhận CÓ Ô NHẬP LÝ DO bắt buộc
      window.getYoutubeId(url)
      window.extractGDriveFileId(url)
@@ -118,6 +139,11 @@ window.showToast = function (msg, bg = '#00b894') {
 
 /* ══════════════════════════════════════════════
    SHOW CONFIRM — thay window.confirm() native
+   ─────────────────────────────────────────────
+   ⚠️ MỚI: thêm nút ✕ ở góc trên hộp thoại — bấm ✕ / click ra
+   ngoài overlay / nhấn Escape đều resolve về `null` (chỉ đóng
+   hộp thoại, không chọn gì). Bấm đúng 2 nút hành động vẫn
+   resolve `true`/`false` như trước — không đổi.
    ══════════════════════════════════════════════ */
 (function setupConfirmDialog() {
   let resolvePromise = null;
@@ -147,10 +173,30 @@ window.showToast = function (msg, bg = '#00b894') {
         from { opacity: 0; transform: translateY(18px) scale(.96); }
         to   { opacity: 1; transform: none; }
       }
+      #tcq-confirm-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
       #tcq-confirm-title {
         font-size: 17px; font-weight: 800; color: #1a1a1a;
-        margin-bottom: 8px; line-height: 1.4;
+        line-height: 1.4;
       }
+      #tcq-confirm-close {
+        flex-shrink: 0;
+        width: 28px; height: 28px;
+        border: none; border-radius: 8px;
+        background: transparent;
+        color: #999;
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: background .15s ease, color .15s ease;
+      }
+      #tcq-confirm-close:hover { background: #f0ebe0; color: #1a1a1a; }
       #tcq-confirm-msg {
         font-size: 14px; color: #666; line-height: 1.6;
         margin-bottom: 22px; white-space: pre-line;
@@ -181,7 +227,10 @@ window.showToast = function (msg, bg = '#00b894') {
     overlay.setAttribute('aria-describedby', 'tcq-confirm-msg');
     overlay.innerHTML = `
       <div id="tcq-confirm-box">
-        <div id="tcq-confirm-title"></div>
+        <div id="tcq-confirm-header">
+          <div id="tcq-confirm-title"></div>
+          <button type="button" id="tcq-confirm-close" aria-label="Đóng">✕</button>
+        </div>
         <div id="tcq-confirm-msg"></div>
         <div id="tcq-confirm-actions">
           <button type="button" id="tcq-confirm-cancel"></button>
@@ -191,17 +240,20 @@ window.showToast = function (msg, bg = '#00b894') {
     `;
     document.body.appendChild(overlay);
 
+    /* result: true (đồng ý) | false (huỷ rõ ràng) | null (chỉ đóng,
+       không chọn gì — bấm ✕ / ra ngoài / Escape) */
     const close = (result) => {
       overlay.classList.remove('show');
       document.removeEventListener('keydown', onKeydown);
       if (resolvePromise) { resolvePromise(result); resolvePromise = null; }
     };
     function onKeydown(e) {
-      if (e.key === 'Escape') close(false);
+      if (e.key === 'Escape') close(null);
       if (e.key === 'Enter') close(true);
     }
 
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
+    document.getElementById('tcq-confirm-close').addEventListener('click', () => close(null));
     document.getElementById('tcq-confirm-cancel').addEventListener('click', () => close(false));
     document.getElementById('tcq-confirm-ok').addEventListener('click', () => close(true));
     overlay._tcqClose = close;
