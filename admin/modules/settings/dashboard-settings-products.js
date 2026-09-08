@@ -7,12 +7,19 @@
    sinh mã sản phẩm tự động, CRUD `ingredients` (nguyên liệu +
    thành phẩm), quy đổi đóng gói, khoá giá khi là thành phẩm.
 
-   ⚠️ MỚI (bổ sung theo yêu cầu): xác nhận trước khi đóng
-   #productModal nếu form có thay đổi chưa lưu (đóng bằng nút ✕ /
-   click ra ngoài overlay / phím Escape) — áp dụng cho CẢ thêm mới
-   lẫn sửa. Xem productFormDirty + attemptCloseProductModal() bên
-   dưới. Nút "💾 Lưu" chính (#prodSaveBtn) KHÔNG đổi hành vi — vẫn
-   lưu trực tiếp như cũ, không qua showConfirm.
+   ⚠️ Xác nhận trước khi đóng #productModal nếu form có thay đổi
+   chưa lưu (đóng bằng nút ✕ / click ra ngoài overlay / phím
+   Escape) — áp dụng cho CẢ thêm mới lẫn sửa. Nút "💾 Lưu" chính
+   (#prodSaveBtn) KHÔNG đổi hành vi — vẫn lưu trực tiếp như cũ,
+   không qua showConfirm.
+
+   ⚠️ MỚI: window.showConfirm() giờ trả về 3 giá trị có thể có
+   (xem js/shared-utils.js — PHẢI cập nhật cùng lúc với file này):
+     true  → bấm "💾 Lưu lại"      → chạy lại saveProduct()
+     false → bấm "🚪 Thoát không lưu" → huỷ thay đổi & đóng modal
+     null  → bấm ✕ / click ra ngoài / Escape trên CHÍNH hộp thoại
+             xác nhận này → GIỮ NGUYÊN #productModal đang mở, không
+             làm gì cả, để người dùng tiếp tục chỉnh sửa.
 
    Cần: client, currentSession, window.Inventory (inventory-shared.js),
    isSettingsReadOnly (settings-shared.js — PHẢI load ngay trước file
@@ -22,7 +29,7 @@
 
 let stProductSearchQ = "";
 
-/* ⚠️ MỚI: theo dõi "đã chỉnh sửa" (dirty) của form #productModal */
+/* Theo dõi "đã chỉnh sửa" (dirty) của form #productModal */
 let productFormDirty = false;
 
 /* ══════════════════════════════════════════════
@@ -182,7 +189,7 @@ async function ensureUniqueProductCodeBeforeSave(code, type) {
 function bindProductEvents() {
   document.getElementById("prodAddBtn")?.addEventListener("click", openAddProduct);
 
-  /* ⚠️ MỚI: X / click overlay / Escape đều đi qua attemptCloseProductModal()
+  /* X / click overlay / Escape đều đi qua attemptCloseProductModal()
      thay vì đóng thẳng — có xác nhận nếu form đang dirty. */
   document.getElementById("closeProductModalBtn")?.addEventListener("click", attemptCloseProductModal);
   const productModal = document.getElementById("productModal");
@@ -214,11 +221,11 @@ function bindProductEvents() {
   }
 }
 
-/* ⚠️ MỚI: gắn listener 'input'/'change' lên MỌI field trong
-   #productModal (kể cả dropdown Loại) để đánh dấu productFormDirty
-   = true ngay khi có bất kỳ thay đổi nào do người dùng thao tác.
-   Set giá trị bằng JS (.value = ...) KHÔNG tự bắn 2 sự kiện này nên
-   việc điền form lúc mở modal không vô tình làm dirty. */
+/* Gắn listener 'input'/'change' lên MỌI field trong #productModal
+   (kể cả dropdown Loại) để đánh dấu productFormDirty = true ngay
+   khi có bất kỳ thay đổi nào do người dùng thao tác. Set giá trị
+   bằng JS (.value = ...) KHÔNG tự bắn 2 sự kiện này nên việc điền
+   form lúc mở modal không vô tình làm dirty. */
 function bindProductDirtyTracking() {
   const modal = document.getElementById("productModal");
   if (!modal) return;
@@ -228,8 +235,15 @@ function bindProductDirtyTracking() {
   });
 }
 
-/* ⚠️ MỚI: điểm vào DUY NHẤT khi người dùng cố đóng #productModal
-   qua nút ✕ / click ra ngoài overlay / phím Escape. */
+/* ⚠️ Điểm vào DUY NHẤT khi người dùng cố đóng #productModal qua
+   nút ✕ / click ra ngoài overlay / phím Escape.
+
+   window.showConfirm() giờ trả về 3 khả năng:
+     true  → "💾 Lưu lại"          → chạy lại saveProduct()
+     false → "🚪 Thoát không lưu"  → huỷ thay đổi & đóng modal
+     null  → ✕ / ra ngoài / Escape TRÊN CHÍNH hộp thoại xác nhận
+             này → giữ nguyên #productModal đang mở, không làm gì
+             cả, để người dùng bấm vào popup sản phẩm chỉnh sửa tiếp. */
 function attemptCloseProductModal() {
   if (!productFormDirty) {
     document.getElementById("productModal").classList.add("hidden");
@@ -242,19 +256,22 @@ function attemptCloseProductModal() {
     confirmText: "💾 Lưu lại",
     cancelText: "🚪 Thoát không lưu",
     danger: false,
-  }).then(wantsToSave => {
-    if (wantsToSave) {
+  }).then(result => {
+    if (result === true) {
       /* Gọi lại ĐÚNG luồng validate + lưu hiện có — nếu validate lỗi
          (báo lỗi tại field) hoặc lỗi server, saveProduct() sẽ KHÔNG
-         đóng modal (return sớm / catch không .add("hidden")), giữ
-         nguyên hành vi y hệt khi bấm nút "💾 Lưu" bình thường. Nếu
-         lưu thành công, saveProduct() tự đóng modal + reset dirty. */
+         đóng modal, giữ nguyên hành vi y hệt khi bấm nút "💾 Lưu"
+         bình thường. Nếu lưu thành công, saveProduct() tự đóng modal
+         + reset dirty. */
       saveProduct();
-    } else {
+    } else if (result === false) {
       /* "🚪 Thoát không lưu" — đóng modal ngay, bỏ mọi thay đổi. */
       productFormDirty = false;
       document.getElementById("productModal").classList.add("hidden");
     }
+    /* result === null: bấm ✕ / click ra ngoài / Escape trên hộp
+       thoại xác nhận — KHÔNG làm gì cả, #productModal vẫn đang mở
+       nguyên trạng để người dùng tiếp tục sửa. */
   });
 }
 
@@ -379,10 +396,10 @@ async function openAddProduct() {
   document.getElementById("productModal").classList.remove("hidden");
   document.getElementById("prodName").focus();
 
-  /* ⚠️ MỚI: reset trạng thái "đã chỉnh sửa" mỗi khi mở modal mới —
-     đặt SAU khi mọi field đã được set giá trị ban đầu bằng JS ở
-     trên (không tự trigger dirty), TRƯỚC khi người dùng có cơ hội
-     gõ/chọn gì. */
+  /* Reset trạng thái "đã chỉnh sửa" mỗi khi mở modal mới — đặt SAU
+     khi mọi field đã được set giá trị ban đầu bằng JS ở trên
+     (không tự trigger dirty), TRƯỚC khi người dùng có cơ hội gõ/
+     chọn gì. */
   productFormDirty = false;
 
   /* Sinh mã NGAY khi mở modal, dựa trên loại mặc định ban đầu */
@@ -442,8 +459,8 @@ function openEditProduct(id) {
   updateFinishedProductPriceState();
   document.getElementById("productModal").classList.remove("hidden");
 
-  /* ⚠️ MỚI: reset dirty SAU khi toàn bộ field đã được điền xong ở
-     trên, giống hệt vị trí trong openAddProduct(). */
+  /* Reset dirty SAU khi toàn bộ field đã được điền xong ở trên,
+     giống hệt vị trí trong openAddProduct(). */
   productFormDirty = false;
 }
 
@@ -502,7 +519,7 @@ async function saveProduct() {
       if (error) throw error;
     }
     document.getElementById("productModal").classList.add("hidden");
-    /* ⚠️ MỚI: lưu thành công → coi như form đã "sạch" trở lại */
+    /* Lưu thành công → coi như form đã "sạch" trở lại */
     productFormDirty = false;
     window.showToast("✅ Đã lưu sản phẩm!");
     await loadProducts();
