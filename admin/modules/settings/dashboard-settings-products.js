@@ -7,14 +7,31 @@
    sinh mã sản phẩm tự động, CRUD `ingredients` (nguyên liệu +
    thành phẩm), quy đổi đóng gói, khoá giá khi là thành phẩm.
 
+   ⚠️ SỬA (2026-09 — cho phép trùng tên sản phẩm): TRƯỚC ĐÂY bảng
+   `ingredients` có ràng buộc UNIQUE trên (name, unit) ở phía
+   Supabase, khiến việc thêm 2 sản phẩm CÙNG TÊN (VD: "Sữa tươi"
+   mua từ 2 nhà cung cấp khác nhau, giá khác nhau) bị chặn — trong
+   khi đây là nhu cầu hợp lý trên thực tế (cùng 1 mặt hàng có thể
+   nhập từ nhiều nguồn với giá khác nhau, quản lý bằng MÃ riêng
+   biệt, không phải bằng tên). Ràng buộc DUY NHẤT cần giữ lại là
+   trên cột `code` — mỗi sản phẩm có 1 mã riêng biệt (xem
+   ensureUniqueProductCodeBeforeSave() bên dưới).
+
+   ⚠️ Đã chạy migration SQL (xem khối SQL ở cuối file) để:
+     - Xoá ràng buộc UNIQUE cũ trên (name, unit).
+     - Đảm bảo CHỈ còn ràng buộc UNIQUE trên cột `code`.
+   Thông báo lỗi 23505 trong saveProduct() bên dưới đã được cập
+   nhật cho khớp — giờ chỉ còn khả năng trùng MÃ SẢN PHẨM gây lỗi
+   này (trùng tên/đơn vị không còn bị chặn ở DB nữa).
+
    ⚠️ Xác nhận trước khi đóng #productModal nếu form có thay đổi
    chưa lưu (đóng bằng nút ✕ / click ra ngoài overlay / phím
    Escape) — áp dụng cho CẢ thêm mới lẫn sửa. Nút "💾 Lưu" chính
    (#prodSaveBtn) KHÔNG đổi hành vi — vẫn lưu trực tiếp như cũ,
    không qua showConfirm.
 
-   ⚠️ MỚI: window.showConfirm() giờ trả về 3 giá trị có thể có
-   (xem js/shared-utils.js — PHẢI cập nhật cùng lúc với file này):
+   ⚠️ window.showConfirm() trả về 3 giá trị có thể có (xem
+   js/shared-utils.js):
      true  → bấm "💾 Lưu lại"      → chạy lại saveProduct()
      false → bấm "🚪 Thoát không lưu" → huỷ thay đổi & đóng modal
      null  → bấm ✕ / click ra ngoài / Escape trên CHÍNH hộp thoại
@@ -39,6 +56,12 @@ let productFormDirty = false;
    Hết 9999 → chữ cái nhảy (A→B), số reset 0001.
    Chỉ đếm mã ĐÚNG định dạng này khi tìm số lớn nhất — mã cũ sai
    định dạng bị bỏ qua, giữ nguyên không đổi.
+
+   ⚠️ Đây cũng chính là ranh giới "không trùng" DUY NHẤT của sản
+   phẩm — mỗi sản phẩm PHẢI có 1 mã riêng biệt (ràng buộc UNIQUE
+   trên cột `code` ở DB, xem SQL cuối file), nhưng TÊN sản phẩm
+   được phép trùng thoải mái (VD: 2 nhà cung cấp khác nhau cùng bán
+   "Sữa tươi" với giá khác nhau → 2 mã khác nhau, tên giống nhau).
    ══════════════════════════════════════════════ */
 const PRODUCT_TYPE_PREFIX = { ingredient: "NL", finished: "TP" };
 
@@ -102,6 +125,7 @@ async function ensureUniqueProductCodeBeforeSave(code, type) {
   container.innerHTML = `
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">
       🧂 <b>Nguyên liệu</b> = dùng trong công thức pha chế. 🥤 <b>Thành phẩm</b> = sản phẩm bán ra (VD: Trà sữa truyền thống) — chọn được ở trang ☕ Đồ uống khi tạo công thức bán hàng. Cả hai loại đều theo dõi tồn kho như nhau, chỉ khác ở "Loại sản phẩm" bên dưới.
+      <br>ℹ️ Tên sản phẩm được phép trùng nhau (VD: cùng "Sữa tươi" nhưng mua từ 2 nhà cung cấp khác giá) — hệ thống chỉ đảm bảo <b>Mã sản phẩm</b> là duy nhất.
     </div>
     <div class="search-bar"><input type="text" id="prodSearchInput" class="search-input" placeholder="🔍 Tìm theo mã hoặc tên sản phẩm..."></div>
     <div class="table-card">
@@ -139,7 +163,11 @@ async function ensureUniqueProductCodeBeforeSave(code, type) {
             <div class="hint" id="prodCodeHint">Mã được sinh tự động theo thứ tự, không thể sửa tay. Chọn lại "Loại sản phẩm" ở trên nếu cần đổi.</div>
           </div>
 
-          <div class="form-group full-width"><label for="prodName">Tên sản phẩm *</label><input type="text" id="prodName" placeholder="Nước cam, Sữa tươi, Trà sữa truyền thống..."></div>
+          <div class="form-group full-width">
+            <label for="prodName">Tên sản phẩm *</label>
+            <input type="text" id="prodName" placeholder="Nước cam, Sữa tươi, Trà sữa truyền thống...">
+            <div class="hint">Được phép trùng tên với sản phẩm khác (VD: cùng mặt hàng mua từ nhà cung cấp khác) — mỗi sản phẩm vẫn có Mã riêng biệt.</div>
+          </div>
 
           <div class="form-group full-width"><label for="prodSpec">Quy cách</label><input type="text" id="prodSpec" placeholder="VD: Hộp giấy nguyên hộp"></div>
 
@@ -524,7 +552,12 @@ async function saveProduct() {
     window.showToast("✅ Đã lưu sản phẩm!");
     await loadProducts();
   } catch (err) {
-    if (err.code === "23505") window.showToast("⚠️ Mã hoặc sản phẩm (tên + đơn vị) này đã tồn tại.", "#e17055");
+    /* ⚠️ SỬA: sau khi bỏ ràng buộc UNIQUE (name, unit) ở DB (xem SQL
+       migration cuối file), mã lỗi 23505 giờ CHỈ còn có thể xảy ra
+       do trùng cột `code` — không còn liên quan gì tới tên/đơn vị
+       nữa. Cập nhật lại thông báo cho đúng thực tế, tránh làm người
+       dùng hiểu nhầm là hệ thống vẫn chặn trùng tên. */
+    if (err.code === "23505") window.showToast("⚠️ Mã sản phẩm này đã tồn tại — vui lòng thử lưu lại để hệ thống tự sinh mã khác.", "#e17055");
     else window.showToast("❌ Lỗi: " + err.message, "#e17055");
   } finally {
     btn.disabled = false; btn.textContent = "💾 Lưu";
@@ -581,3 +614,24 @@ window.openProductInSettings = async function (id) {
   renderProductsTable();
   if (id) openEditProduct(id);
 };
+
+/* ══════════════════════════════════════════════
+   ⚠️ SQL MIGRATION — chạy 1 lần trong Supabase SQL Editor
+   ─────────────────────────────────────────────
+   Mục đích: CHO PHÉP trùng tên sản phẩm (name, unit), CHỈ CÒN
+   chặn trùng Mã sản phẩm (code).
+
+   -- 1) Tìm tên constraint UNIQUE hiện có trên (name, unit) nếu
+   --    chưa biết tên chính xác:
+   --    select conname from pg_constraint
+   --      where conrelid = 'ingredients'::regclass and contype = 'u';
+
+   -- 2) Xoá ràng buộc unique cũ trên (name, unit) — thử cả 2 tên
+   --    phổ biến, lệnh nào không khớp sẽ tự bỏ qua nhờ IF EXISTS:
+   alter table ingredients drop constraint if exists ingredients_name_unit_key;
+   alter table ingredients drop constraint if exists ingredients_name_unit_unique;
+
+   -- 3) Đảm bảo CHỈ còn ràng buộc unique trên cột code:
+   alter table ingredients drop constraint if exists ingredients_code_key;
+   alter table ingredients add constraint ingredients_code_key unique (code);
+   ══════════════════════════════════════════════ */
