@@ -28,23 +28,42 @@
    này tự copy-paste y hệt 1 regex — sửa 1 chỗ quên 2 chỗ còn lại sẽ
    khiến validate lệch nhau giữa các form.
 
-   ⚠️ MỚI (yêu cầu bổ sung — xuất Excel + lọc theo ngày):
+   ⚠️ MỚI (đợt 1 — xuất Excel + lọc theo ngày đăng ký):
    - Thêm bộ lọc "📅 Lọc theo ngày đăng ký" (custDateFrom/custDateTo)
      ngay trên bảng danh sách — lọc CỤC BỘ trên dữ liệu đã tải sẵn
      trong M.state.customers (không gọi lại Supabase), áp dụng ĐỒNG
      THỜI với ô tìm kiếm tên/SĐT hiện có.
-   - Thêm nút "⬇️ Xuất Excel" (dùng window.XLSX/SheetJS — đã có sẵn
-     qua CDN trong admin/dashboard.html, cùng thư viện dùng bởi
-     admin/modules/orders/dashboard-orders.js::exportOrdersToExcel())
-     — xuất ĐÚNG danh sách khách hàng ĐANG hiển thị (đã áp mọi bộ lọc
-     ở trên), 1 sheet chi tiết đầy đủ cột.
    - ⚠️ GIẢ ĐỊNH SCHEMA: dùng cột `customers.created_at` làm "ngày
      đăng ký" (Supabase mặc định luôn tự thêm cột timestamptz này cho
      bảng mới, và M.loadCustomers() đã SELECT * nên cột này tự có
      trong state nếu tồn tại). Nếu bảng `customers` thực tế KHÔNG có
-     cột này, đổi lại tên cột ở 3 chỗ: getFilteredCustomers() (dòng
-     đọc c.created_at để lọc) và exportCustomersToExcel() (cột "Ngày
-     đăng ký" trong header/rows) — không có chỗ nào khác phụ thuộc.
+     cột này, đổi lại tên cột trong getFilteredCustomers() (dòng đọc
+     c.created_at) và buildAndDownloadCustomerWorkbook() (cột "Ngày
+     đăng ký").
+
+   ⚠️ MỚI (đợt 2 — kèm chi tiết đơn hàng khi xuất Excel):
+   - Nút "⬇️ Xuất Excel" giờ là ASYNC: sau khi có danh sách khách
+     đang hiển thị (đã áp tìm kiếm + lọc ngày đăng ký), TRUY VẤN
+     THÊM `customer_orders` (kèm customer_order_items) của ĐÚNG các
+     customer_id đó — dùng `.in("customer_id", [...])` — rồi xuất
+     workbook 3 sheet: "Khách hàng" (tổng hợp), "Đơn hàng" (mỗi dòng
+     = 1 đơn), "Chi tiết sản phẩm" (mỗi dòng = 1 sản phẩm trong 1
+     đơn). Cấu trúc 2 sheet đơn hàng lấy theo đúng mẫu đã dùng ở
+     admin/modules/orders/dashboard-orders.js::exportOrdersToExcel()
+     để nhất quán trong dự án.
+   - Thêm bộ lọc ngày RIÊNG cho đơn hàng (custOrderDateFrom/
+     custOrderDateTo) — ĐỘC LẬP với bộ lọc "ngày đăng ký" ở trên, chỉ
+     ảnh hưởng tới việc ĐƠN HÀNG NÀO được đưa vào file Excel (không
+     ảnh hưởng bảng danh sách khách hàng trên màn hình). Để trống cả
+     2 ô = lấy TOÀN BỘ lịch sử đơn hàng của các khách đang được lọc.
+   - Trang này chỉ Super Admin mới truy cập được (guard ở
+     registerPage() bên dưới) nên KHÔNG cần ẩn giá vốn/lợi nhuận như
+     cách dashboard-orders.js phải làm cho barstaff.
+   - Lưu ý vận hành: `.in("customer_id", ids)` gửi toàn bộ danh sách
+     ID trong query string — nếu bộ lọc để trống (chọn TOÀN BỘ khách
+     hàng) và số lượng khách rất lớn (hàng nghìn), có thể chạm giới
+     hạn độ dài URL của PostgREST. Với quy mô 1 quán thông thường thì
+     không đáng lo.
 
    Cần: client, currentSession, window.AdminPermissions,
    window.Membership (M) — PHẢI load trước file này,
@@ -61,11 +80,17 @@ let custActiveTab = "list";
 let custSearchQ   = "";
 let _custActionBusy = false;
 
-/* ⚠️ MỚI: bộ lọc theo khoảng ngày đăng ký (customers.created_at) +
-   xuất Excel danh sách khách hàng đang hiển thị (đã áp search + lọc
-   ngày). Xem ghi chú giả định schema ở đầu file. */
+/* ⚠️ MỚI: bộ lọc theo khoảng ngày đăng ký (customers.created_at) —
+   ảnh hưởng CẢ bảng hiển thị lẫn danh sách khách được đưa vào Excel.
+   Xem ghi chú giả định schema ở đầu file. */
 let custDateFrom = ""; // "" = không giới hạn
 let custDateTo   = "";
+
+/* ⚠️ MỚI: bộ lọc ngày RIÊNG cho đơn hàng — CHỈ dùng lúc xuất Excel
+   (không ảnh hưởng bảng khách hàng trên màn hình). Để trống = lấy
+   toàn bộ lịch sử đơn hàng của các khách đang được lọc ở trên. */
+let custOrderDateFrom = "";
+let custOrderDateTo   = "";
 
 /* ══════════════════════════════════════════════
    ĐĂNG KÝ MENU + PAGE
@@ -121,16 +146,33 @@ function renderIfQuestsTabActive() { if (custActiveTab === "quests" && window.re
         <input type="text" id="custSearchInput" class="search-input" placeholder="🔍 Tìm theo tên hoặc số điện thoại...">
       </div>
 
-      <!-- ⚠️ MỚI: lọc theo khoảng ngày đăng ký + xuất Excel danh sách đang hiển thị -->
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
-        <span style="font-size:12px;font-weight:700;color:var(--text-muted);">📅 Lọc theo ngày đăng ký:</span>
-        <label for="custDateFrom" class="visually-hidden">Từ ngày</label>
+      <!-- ⚠️ MỚI: lọc theo khoảng ngày đăng ký — ảnh hưởng cả bảng lẫn Excel -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text-muted);">📅 Lọc khách hàng theo ngày đăng ký:</span>
+        <label for="custDateFrom" class="visually-hidden">Từ ngày đăng ký</label>
         <input type="date" id="custDateFrom" style="height:38px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;">
         <span style="color:var(--text-muted);font-size:13px;">→</span>
-        <label for="custDateTo" class="visually-hidden">Đến ngày</label>
+        <label for="custDateTo" class="visually-hidden">Đến ngày đăng ký</label>
         <input type="date" id="custDateTo" style="height:38px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;">
         <button class="btn btn-secondary" id="custDateClearBtn" style="font-size:13px;">↺ Xoá lọc ngày</button>
-        <button class="btn btn-secondary" id="custExportExcelBtn" style="font-size:13px;">⬇️ Xuất Excel</button>
+      </div>
+
+      <!-- ⚠️ MỚI: lọc ngày RIÊNG cho đơn hàng — chỉ dùng khi xuất Excel -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;padding:12px 16px;background:var(--bg);border-radius:10px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text-muted);">🧾 Chỉ lấy đơn hàng trong khoảng ngày (áp dụng khi xuất Excel):</span>
+        <label for="custOrderDateFrom" class="visually-hidden">Từ ngày (đơn hàng)</label>
+        <input type="date" id="custOrderDateFrom" style="height:38px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;">
+        <span style="color:var(--text-muted);font-size:13px;">→</span>
+        <label for="custOrderDateTo" class="visually-hidden">Đến ngày (đơn hàng)</label>
+        <input type="date" id="custOrderDateTo" style="height:38px;border:1px solid var(--border);border-radius:8px;padding:0 10px;font-size:13px;">
+        <button class="btn btn-secondary" id="custOrderDateClearBtn" style="font-size:13px;">↺ Xoá lọc đơn hàng</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">
+        Để trống 2 ô "đơn hàng" ở trên = xuất Excel kèm <b>toàn bộ</b> lịch sử đơn hàng của các khách hàng đang được lọc phía trên.
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <button class="btn btn-secondary" id="custExportExcelBtn" style="font-size:13px;">⬇️ Xuất Excel (kèm chi tiết đơn hàng)</button>
       </div>
 
       <div class="table-card">
@@ -202,10 +244,16 @@ function bindTopLevelEvents() {
     document.getElementById("addCustomerModal").classList.add("hidden"));
   document.getElementById("saveNewCustomerBtn")?.addEventListener("click", saveNewCustomer);
 
-  /* ⚠️ MỚI: lọc theo khoảng ngày đăng ký + xuất Excel */
+  /* ⚠️ MỚI: lọc khách theo ngày đăng ký (ảnh hưởng bảng + Excel) */
   document.getElementById("custDateFrom")?.addEventListener("change", handleCustDateRangeChange);
   document.getElementById("custDateTo")?.addEventListener("change", handleCustDateRangeChange);
   document.getElementById("custDateClearBtn")?.addEventListener("click", clearCustDateFilter);
+
+  /* ⚠️ MỚI: lọc đơn hàng theo ngày (chỉ ảnh hưởng Excel) */
+  document.getElementById("custOrderDateFrom")?.addEventListener("change", handleCustOrderDateRangeChange);
+  document.getElementById("custOrderDateTo")?.addEventListener("change", handleCustOrderDateRangeChange);
+  document.getElementById("custOrderDateClearBtn")?.addEventListener("click", clearCustOrderDateFilter);
+
   document.getElementById("custExportExcelBtn")?.addEventListener("click", exportCustomersToExcel);
 }
 
@@ -246,10 +294,10 @@ async function loadCustomers() {
 }
 window.loadCustomers = loadCustomers;
 
-/* ⚠️ MỚI: điểm lọc DUY NHẤT — dùng chung bởi renderCustomerTable()
-   VÀ exportCustomersToExcel(), để bảng hiển thị và file Excel xuất
-   ra LUÔN khớp nhau (đúng nguyên tắc đã áp dụng ở
-   dashboard-orders.js::getFilteredOrdersOfDay()). */
+/* ⚠️ MỚI: điểm lọc DUY NHẤT cho danh sách khách — dùng chung bởi
+   renderCustomerTable() VÀ exportCustomersToExcel(), để bảng hiển
+   thị và file Excel xuất ra LUÔN khớp nhau (đúng nguyên tắc đã áp
+   dụng ở dashboard-orders.js::getFilteredOrdersOfDay()). */
 function getFilteredCustomers() {
   return M.state.customers.filter(c => {
     if (custSearchQ) {
@@ -315,7 +363,7 @@ function renderCustomerTable() {
   });
 }
 
-/* ⚠️ MỚI: thay đổi khoảng ngày lọc — tự hoán đổi nếu nhập ngược,
+/* ⚠️ MỚI: thay đổi khoảng ngày đăng ký — tự hoán đổi nếu nhập ngược,
    giống hệt handleOrderDateRangeChange() ở dashboard-orders.js. */
 function handleCustDateRangeChange() {
   custDateFrom = document.getElementById("custDateFrom").value || "";
@@ -334,6 +382,25 @@ function clearCustDateFilter() {
   document.getElementById("custDateFrom").value = "";
   document.getElementById("custDateTo").value   = "";
   renderCustomerTable();
+}
+
+/* ⚠️ MỚI: thay đổi khoảng ngày ĐƠN HÀNG — KHÔNG re-render bảng
+   khách hàng (bộ lọc này chỉ có tác dụng lúc xuất Excel). */
+function handleCustOrderDateRangeChange() {
+  custOrderDateFrom = document.getElementById("custOrderDateFrom").value || "";
+  custOrderDateTo   = document.getElementById("custOrderDateTo").value   || "";
+  if (custOrderDateFrom && custOrderDateTo && custOrderDateFrom > custOrderDateTo) {
+    [custOrderDateFrom, custOrderDateTo] = [custOrderDateTo, custOrderDateFrom];
+    document.getElementById("custOrderDateFrom").value = custOrderDateFrom;
+    document.getElementById("custOrderDateTo").value   = custOrderDateTo;
+  }
+}
+
+function clearCustOrderDateFilter() {
+  custOrderDateFrom = "";
+  custOrderDateTo   = "";
+  document.getElementById("custOrderDateFrom").value = "";
+  document.getElementById("custOrderDateTo").value   = "";
 }
 
 /* ══════════════════════════════════════════════
@@ -439,15 +506,17 @@ async function deleteCustomer(id) {
 }
 
 /* ══════════════════════════════════════════════
-   ⚠️ MỚI — XUẤT EXCEL DANH SÁCH KHÁCH HÀNG
+   ⚠️ MỚI — XUẤT EXCEL (KÈM CHI TIẾT ĐƠN HÀNG)
    ─────────────────────────────────────────────
-   Xuất ĐÚNG danh sách khách hàng ĐANG hiển thị (đã áp ô tìm kiếm
-   tên/SĐT + bộ lọc khoảng ngày đăng ký ở trên — dùng chung
-   getFilteredCustomers() để không bao giờ lệch giữa bảng và file
-   Excel). 1 sheet chi tiết đầy đủ cột, dùng window.XLSX (SheetJS —
-   đã tải sẵn qua CDN trong admin/dashboard.html).
+   1. Lấy danh sách khách ĐANG hiển thị (getFilteredCustomers() —
+      đã áp tìm kiếm + lọc ngày đăng ký).
+   2. Truy vấn customer_orders (kèm customer_order_items) của ĐÚNG
+      các customer_id đó, lọc thêm theo custOrderDateFrom/To nếu có.
+   3. Xuất workbook 3 sheet: "Khách hàng" / "Đơn hàng" / "Chi tiết
+      sản phẩm" — 2 sheet sau lấy mẫu theo đúng cấu trúc đã dùng ở
+      dashboard-orders.js::exportOrdersToExcel().
    ══════════════════════════════════════════════ */
-function exportCustomersToExcel() {
+async function exportCustomersToExcel() {
   if (typeof window.XLSX === "undefined") {
     window.showToast("⚠️ Chưa tải được thư viện xuất Excel — kiểm tra kết nối mạng hoặc CDN xlsx trong dashboard.html.", "#e17055");
     return;
@@ -459,6 +528,37 @@ function exportCustomersToExcel() {
     return;
   }
 
+  const btn = document.getElementById("custExportExcelBtn");
+  const origText = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Đang tải dữ liệu đơn hàng..."; }
+
+  try {
+    const customerIds = list.map(c => c.id);
+
+    let ordersQuery = client
+      .from("customer_orders")
+      .select("*, customers(name, phone), customer_order_items(*)")
+      .in("customer_id", customerIds)
+      .order("created_at", { ascending: false });
+
+    if (custOrderDateFrom) ordersQuery = ordersQuery.gte("created_at", custOrderDateFrom + "T00:00:00");
+    if (custOrderDateTo)   ordersQuery = ordersQuery.lt("created_at", custOrderDateTo + "T23:59:59.999");
+
+    const { data: orders, error: ordersErr } = await ordersQuery;
+    if (ordersErr) throw ordersErr;
+
+    buildAndDownloadCustomerWorkbook(list, orders || []);
+  } catch (err) {
+    window.showToast("❌ Lỗi khi tải dữ liệu đơn hàng để xuất Excel: " + err.message, "#e17055");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = origText || "⬇️ Xuất Excel (kèm chi tiết đơn hàng)"; }
+  }
+}
+
+/* Dựng workbook 3 sheet + trigger tải file — tách riêng khỏi
+   exportCustomersToExcel() để phần fetch (async/await) và phần
+   dựng file (đồng bộ) rõ ràng, dễ đọc hơn. */
+function buildAndDownloadCustomerWorkbook(customerList, orders) {
   const genderLabel = g => g === "nam" ? "Nam" : g === "nu" ? "Nữ" : g === "khac" ? "Khác" : "—";
   const fmtDate = iso => {
     if (!iso) return "";
@@ -469,13 +569,13 @@ function exportCustomersToExcel() {
     try { return new Date(iso).toLocaleString("vi-VN"); } catch { return iso; }
   };
 
-  const header = [
+  /* ── SHEET 1: Khách hàng (tổng hợp) ── */
+  const custHeader = [
     "STT", "Tên", "Số điện thoại", "Ngày sinh", "Giới tính",
     "Ngày đăng ký", "Cấp độ", "Hạng", "XP",
     "Tổng chi tiêu (đ)", "Lợi nhuận gộp (đ)", "Streak (ngày)", "Check-in gần nhất",
   ];
-
-  const rows = list.map((c, i) => {
+  const custRows = customerList.map((c, i) => {
     const info = M.getLevelInfo(c.level);
     return [
       i + 1,
@@ -494,20 +594,101 @@ function exportCustomersToExcel() {
     ];
   });
 
-  const wb = window.XLSX.utils.book_new();
-  const ws = window.XLSX.utils.aoa_to_sheet([header, ...rows]);
-  ws['!cols'] = header.map((_, i) => ({ wch: i === 1 ? 22 : i === 7 ? 18 : 14 }));
-  window.XLSX.utils.book_append_sheet(wb, ws, "Khách hàng");
+  /* ── SHEET 2: Đơn hàng (tổng hợp theo đơn) ── */
+  const orderHeader = [
+    "Mã đơn", "Khách hàng", "SĐT", "Thời gian tạo đơn", "Số món (còn hiệu lực)",
+    "Tổng khách trả (đ)", "Tổng lợi nhuận gộp (đ)", "Trạng thái", "Lý do huỷ", "Nhân viên tạo đơn",
+  ];
+  const orderRows = orders.map(o => {
+    const items = o.customer_order_items || [];
+    const activeItems = items.filter(it => !it.is_void);
+    const totalPaid   = activeItems.reduce((s, it) => s + Number(it.customer_paid), 0);
+    const totalProfit = activeItems.reduce((s, it) => s + Number(it.profit || 0), 0);
+    return [
+      o.order_number,
+      o.customers?.name  || "",
+      o.customers?.phone || "",
+      fmtDateTime(o.created_at),
+      activeItems.length,
+      Math.round(totalPaid),
+      Math.round(totalProfit),
+      o.status === "voided" ? "Đã huỷ" : "Hoàn tất",
+      o.void_reason || "",
+      o.staff_name || "",
+    ];
+  });
 
-  const rangeLabel = (custDateFrom || custDateTo)
+  /* ── SHEET 3: Chi tiết sản phẩm (mỗi dòng = 1 sản phẩm trong 1 đơn) ── */
+  const lineHeader = [
+    "Mã đơn", "Khách hàng", "SĐT", "Thời gian tạo đơn",
+    "Sản phẩm", "Số lượng", "Đơn giá", "Giảm giá (%)", "Thành tiền (Khách trả)",
+    "Giá vốn NL/đơn vị", "Tổng giá vốn NL", "Lợi nhuận",
+    "Trạng thái dòng", "Lý do huỷ dòng", "Trạng thái đơn", "Lý do huỷ đơn", "Nhân viên tạo đơn",
+  ];
+  const lineRows = [];
+  orders.forEach(o => {
+    const items = o.customer_order_items || [];
+    const custName  = o.customers?.name  || "";
+    const custPhone = o.customers?.phone || "";
+    const orderStatusLabel = o.status === "voided" ? "Đã huỷ" : "Hoàn tất";
+
+    if (!items.length) {
+      lineRows.push([
+        o.order_number, custName, custPhone, fmtDateTime(o.created_at),
+        "(Không có sản phẩm)", "", "", "", "",
+        "", "", "",
+        "", "", orderStatusLabel, o.void_reason || "", o.staff_name || "",
+      ]);
+      return;
+    }
+
+    items.forEach(it => {
+      lineRows.push([
+        o.order_number, custName, custPhone, fmtDateTime(o.created_at),
+        it.product_name, it.quantity, Number(it.unit_price), Number(it.discount_pct),
+        Number(it.customer_paid),
+        Number(it.ingredient_unit_cost || 0),
+        Number(it.ingredient_cost_total || 0),
+        Number(it.profit || 0),
+        it.is_void ? "Đã huỷ" : "Bình thường",
+        it.void_reason || "",
+        orderStatusLabel,
+        o.void_reason || "",
+        o.staff_name || "",
+      ]);
+    });
+  });
+
+  const wb = window.XLSX.utils.book_new();
+
+  const wsCust = window.XLSX.utils.aoa_to_sheet([custHeader, ...custRows]);
+  wsCust['!cols'] = custHeader.map((_, i) => ({ wch: i === 1 ? 22 : i === 7 ? 18 : 14 }));
+  window.XLSX.utils.book_append_sheet(wb, wsCust, "Khách hàng");
+
+  const wsOrders = window.XLSX.utils.aoa_to_sheet([orderHeader, ...orderRows]);
+  wsOrders['!cols'] = orderHeader.map((_, i) => ({ wch: i === 0 ? 14 : i === 1 ? 22 : 16 }));
+  window.XLSX.utils.book_append_sheet(wb, wsOrders, "Đơn hàng");
+
+  const wsLines = window.XLSX.utils.aoa_to_sheet([lineHeader, ...lineRows]);
+  wsLines['!cols'] = lineHeader.map((_, i) => ({ wch: i === 0 ? 14 : i === 4 ? 26 : 16 }));
+  window.XLSX.utils.book_append_sheet(wb, wsLines, "Chi tiết sản phẩm");
+
+  const custRangeLabel = (custDateFrom || custDateTo)
     ? `${custDateFrom || "truoc"}_den_${custDateTo || "nay"}`
     : "tat-ca";
+  const orderRangeLabel = (custOrderDateFrom || custOrderDateTo)
+    ? `_don-${custOrderDateFrom || "truoc"}_den_${custOrderDateTo || "nay"}`
+    : "";
   const searchSuffix = custSearchQ ? `_loc-${window.slugify(custSearchQ)}` : "";
-  const filename = `khach-hang_${rangeLabel}${searchSuffix}.xlsx`;
+  const filename = `khach-hang-chi-tiet_${custRangeLabel}${orderRangeLabel}${searchSuffix}.xlsx`;
 
   try {
     window.XLSX.writeFile(wb, filename);
-    window.showToast(`✅ Đã xuất file "${filename}"!`);
+    window.showToast(
+      orders.length
+        ? `✅ Đã xuất file "${filename}" (${customerList.length} khách, ${orders.length} đơn hàng)!`
+        : `✅ Đã xuất file "${filename}" — không có đơn hàng nào trong khoảng ngày đã chọn cho ${customerList.length} khách này.`
+    );
   } catch (err) {
     window.showToast("❌ Lỗi khi xuất Excel: " + err.message, "#e17055");
   }
