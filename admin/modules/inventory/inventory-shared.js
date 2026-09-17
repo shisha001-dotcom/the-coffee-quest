@@ -1,26 +1,16 @@
 /* ══════════════════════════════════════════════
    INVENTORY SHARED — admin/modules/inventory/inventory-shared.js
    ─────────────────────────────────────────────
-   MỚI (theo schema SQL v1) — state + helper dùng chung cho domain
-   Kho nguyên liệu, đọc bởi:
-     - dashboard-ingredients.js  (CRUD nguyên liệu + nhập/điều chỉnh kho)
-     - dashboard-drinks.js       (recipe builder — cần state.ingredients
-                                   + state.categories để render dropdown)
-     - dashboard-customers.js    (tạo đơn hàng — cần giá vốn nguyên liệu
-                                   để snapshot ingredient_unit_cost)
+   ⚠️ MỚI: tồn kho giờ theo dõi RIÊNG theo từng kho
+   (ingredient_stock_logs.branch_id) thay vì gộp chung 1 con số
+   duy nhất như trước. current_stock (field cũ, dùng bởi
+   dashboard-drinks.js/dashboard-orders.js) VẪN giữ nguyên ý nghĩa
+   "tổng tồn mọi kho cộng lại" để không phá vỡ 2 nơi đó — chỉ thêm
+   getStockInBranch()/getStockBreakdown() để tra theo từng kho.
 
-   ⚠️ Load file này TRƯỚC modules/drinks/dashboard-drinks.js VÀ TRƯỚC
-      modules/inventory/dashboard-ingredients.js, NGAY SAU
-      core/dashboard-page-registry.js (cùng vị trí như
-      membership-shared.js — hạ tầng dùng chung load sớm).
-
-   Exports (window.Inventory.*):
-     state.ingredients   — [{id,name,unit,unit_cost,min_stock_qty,is_active,current_stock}]
-     state.categories    — [{id,name,icon,color,sort_order}]
-     isReadOnly
-     loadIngredients() / loadCategories()
-     getIngredientById(id) / getCategoryById(id)
-     computeRecipeCost(rows) — preview giá thành từ danh sách dòng công thức
+   Log cũ (trước khi có tính năng nhiều kho) có branch_id = null —
+   được gộp vào 1 "kho ảo" riêng (key branch_id=null) khi tính tổng,
+   không mất dữ liệu, chỉ hiển thị là "Chưa gán kho" ở phần chi tiết.
    ══════════════════════════════════════════════ */
 
 window.Inventory = (function () {
@@ -38,10 +28,6 @@ window.Inventory = (function () {
     return state.categories.find(c => c.id === id) || null;
   }
 
-  /* Preview giá thành — dùng cho UI trực tiếp (modal sửa đồ uống /
-     tạo đơn hàng). Giá thành THẬT lúc lưu đơn hàng nên snapshot lại
-     tại thời điểm tạo (không phụ thuộc hàm này) để không đổi ngược
-     khi giá nguyên liệu thay đổi sau này. */
   function computeRecipeCost(rows) {
     return (rows || []).reduce((sum, r) => {
       const ing = getIngredientById(r.ingredient_id);
@@ -52,10 +38,6 @@ window.Inventory = (function () {
     }, 0);
   }
 
-  /* ── Tồn kho hiện tại = qty_after của log gần nhất mỗi ingredient_id.
-     Supabase JS không hỗ trợ DISTINCT ON tiện lợi → lấy toàn bộ log
-     sắp created_at desc, giữ dòng đầu tiên gặp mỗi ingredient_id. Với
-     quy mô 1 quán, số dòng log là chấp nhận được. ── */
   async function loadIngredients() {
     const { data: ings, error } = await client
       .from("ingredients")
@@ -66,20 +48,46 @@ window.Inventory = (function () {
 
     const { data: logs, error: logErr } = await client
       .from("ingredient_stock_logs")
-      .select("ingredient_id, qty_after, created_at")
+      .select("ingredient_id, branch_id, qty_after, created_at")
       .order("created_at", { ascending: false });
     if (logErr) console.warn("[Inventory] loadIngredients (stock logs):", logErr.message);
 
-    const latestStock = new Map();
+    /* Với mỗi cặp (ingredient_id, branch_id) — kể cả branch_id=null
+       (log cũ) — giữ dòng MỚI NHẤT làm tồn kho hiện tại của kho đó. */
+    const latestByKey = new Map();
     (logs || []).forEach(l => {
-      if (!latestStock.has(l.ingredient_id)) latestStock.set(l.ingredient_id, Number(l.qty_after));
+      const key = `${l.ingredient_id}::${l.branch_id ?? "null"}`;
+      if (!latestByKey.has(key)) latestByKey.set(key, l);
     });
 
-    state.ingredients = (ings || []).map(i => ({
-      ...i,
-      current_stock: latestStock.has(i.id) ? latestStock.get(i.id) : 0,
-    }));
+    const stockMapByIngredient = new Map(); // ingredient_id -> Map(branch_id -> qty)
+    latestByKey.forEach(l => {
+      if (!stockMapByIngredient.has(l.ingredient_id)) stockMapByIngredient.set(l.ingredient_id, new Map());
+      stockMapByIngredient.get(l.ingredient_id).set(l.branch_id, Number(l.qty_after) || 0);
+    });
+
+    state.ingredients = (ings || []).map(i => {
+      const byBranch = stockMapByIngredient.get(i.id) || new Map();
+      const total = [...byBranch.values()].reduce((s, v) => s + v, 0);
+      return { ...i, current_stock: total, _stockByBranch: byBranch };
+    });
     return state.ingredients;
+  }
+
+  /* ⚠️ MỚI: tồn kho của 1 sản phẩm TẠI ĐÚNG 1 KHO — dùng để kiểm tra
+     đủ hàng trước khi xuất/chuyển kho. */
+  function getStockInBranch(ingredientId, branchId) {
+    const ing = getIngredientById(ingredientId);
+    if (!ing || !ing._stockByBranch) return 0;
+    return ing._stockByBranch.get(branchId) || 0;
+  }
+
+  /* ⚠️ MỚI: liệt kê tồn kho theo từng kho — dùng để hiển thị chi tiết
+     (▸ xổ ra) trong bảng Kho nguyên liệu. */
+  function getStockBreakdown(ingredientId) {
+    const ing = getIngredientById(ingredientId);
+    if (!ing || !ing._stockByBranch) return [];
+    return [...ing._stockByBranch.entries()].map(([branchId, qty]) => ({ branchId, qty }));
   }
 
   async function loadCategories() {
@@ -96,5 +104,6 @@ window.Inventory = (function () {
     isReadOnly, state,
     getIngredientById, getCategoryById, computeRecipeCost,
     loadIngredients, loadCategories,
+    getStockInBranch, getStockBreakdown,
   };
 })();
