@@ -34,7 +34,7 @@ window.AdminDashboard.registerPage({
   menuId: "accountsMenuItem",
   icon: "👤",
   label: "Quản lý tài khoản",
-  guard: () => isSuperAdmin,
+  guard: () => false,
   onShow: () => loadAccounts(),
 });
 
