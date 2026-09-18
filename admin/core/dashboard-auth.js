@@ -93,7 +93,7 @@ const MODULE_SEQUENCE = [
   "./modules/analytics/dashboard-analytics.js",
   "./modules/banners/dashboard-banners.js",
   "./modules/media/dashboard-media.js",
-  "./modules/accounts/dashboard-accounts.js",
+  //"./modules/accounts/dashboard-accounts.js",//
 ];
 
 const FINAL_SCRIPT = "./dashboard-mobile-menu.js";
