@@ -1,42 +1,46 @@
 /* ══════════════════════════════════════════════
    ADMIN NAV — admin/core/dashboard-nav.js
    ─────────────────────────────────────────────
-   TRƯỚC ĐÂY: toàn bộ hàm điều hướng (showDashboard,
-   toggleBgMenu, showBoardgames, showDrinks...) nằm trong
-   1 khối <script> ~300 dòng viết thẳng trong admin/dashboard.html.
+   VAI TRÒ
+   Điều hướng cho 3 trang TĨNH có sẵn trong admin/dashboard.html:
+     - #dashboardPage   (menu #dashboardMenuItem)
+     - #boardgamesPage  (menu #bgParent)
+     - #drinksPage      (menu #drinkParent)
+   Các trang ĐỘNG (Đơn hàng, Kho, Khách hàng, Chat, Thống kê, Settings…)
+   tự đăng ký qua AdminDashboard.registerPage() trong module của chúng,
+   không đi qua file này.
 
-   BÂY GIỜ: chuyển hẳn ra file .js riêng.
+   CÁCH GỌI
+   - Các hàm dưới đây là hàm toàn cục (file này là classic script) và
+     được gọi bằng onclick="" ngay trong dashboard.html:
+       showDashboard()   showBoardgames()   showDrinks('all')
+     Các module khác (chat, …) cũng gọi qua window.showDashboard().
+   - ⚠️ ID `bgParent` và `drinkParent` là tên cũ từ thời sidebar còn
+     submenu. Nay chúng chỉ là menu item đơn nhưng giữ nguyên id — đổi id
+     trong HTML thì phải đổi cả ở đây.
 
-   THAY ĐỔI SO VỚI BẢN TRƯỚC:
-   - Bỏ toggleBgMenu()/toggleDrinkMenu() và các menu-sub-item
-     (submenu "Tất cả game"/"+ Thêm game mới"/"Tìm kiếm" và
-     tương tự cho Đồ uống) — Boardgames & Đồ uống giờ là
-     menu-item đơn, bấm là vào thẳng trang (search bar/nút thêm/
-     tab lọc đã có sẵn ngay trên trang rồi, không cần sổ ra ở
-     sidebar nữa).
-   - Bỏ openAddGame() (không còn nơi gọi).
-
-   Chỉ xử lý 3 page TĨNH đã có sẵn trong HTML (Dashboard,
-   Boardgames, Drinks) — các page ĐỘNG (chat/analytics/banners/
-   media/accounts) tự đăng ký qua AdminDashboard.registerPage()
-   trong module riêng của chúng.
+   PHỤ THUỘC (đã nạp TRƯỚC file này trong SCRIPT_SEQUENCE)
+   - loadGames()                 ← dashboard-games.js
+   - loadDrinks(), renderDrinkGrid() ← dashboard-drinks.js
+   - window.__showPage()         ← dashboard-page-registry.js
    ══════════════════════════════════════════════ */
 
+/* Bỏ class `active` (nền tím nổi bật của mục đang chọn — style trong
+   dashboard.css) khỏi MỌI mục menu, kể cả mục do registerPage() tạo. */
 function clearActive() {
   document.querySelectorAll('.menu-item, .menu-item-parent, .menu-sub-item')
     .forEach(el => el.classList.remove('active'));
 }
 
-/* ── Show Dashboard ── */
+/* ── Trang Dashboard (tổng quan) ── */
 function showDashboard() {
   clearActive();
   document.getElementById('dashboardMenuItem').classList.add('active');
   window.__showPage('dashboardPage');
 }
 
-/* ── Show Boardgames page ──
-   Search bar + nút "+ Thêm Game" đã hiển thị sẵn trên trang này,
-   sidebar chỉ còn 1 mục "Boardgames" duy nhất, bấm là vào thẳng. */
+/* ── Trang Boardgames ──
+   Mỗi lần mở đều gọi loadGames() để tải lại danh sách từ Supabase. */
 function showBoardgames() {
   clearActive();
   document.getElementById('bgParent').classList.add('active');
@@ -44,8 +48,18 @@ function showBoardgames() {
   loadGames();
 }
 
-/* ── Show Drinks page ──
-   Tương tự: filter theo loại đã có sẵn tab ngay trên trang. */
+/* ── Trang Đồ uống ──
+   cat = tên loại đồ uống cần lọc (khớp drink_categories.name), hoặc 'all'.
+   Chữ phụ đề dưới tiêu đề (#drinkPageSubtitle) được đặt lại ở đây:
+     - 'all'   → "Công thức & hướng dẫn pha chế"
+     - có loại → "Loại: <tên loại>"
+   ⚠️ Chữ này GHI ĐÈ chữ mặc định trong dashboard.html ("Công thức, giá
+   bán & giá thành pha chế") ngay khi mở trang — muốn đổi câu hiển thị
+   thì đổi ở ĐÂY, không phải ở HTML.
+
+   Nút lọc (.drink-tab): nút đang chọn dùng class btn-primary (tím),
+   các nút còn lại btn-secondary (trắng viền) — màu định nghĩa trong
+   dashboard.css. */
 function showDrinks(cat) {
   clearActive();
   document.getElementById('drinkParent').classList.add('active');
@@ -65,7 +79,12 @@ function showDrinks(cat) {
   loadDrinks();
 }
 
-/* ── Filter drinks bằng tab ngay trên trang (không đổi trang) ── */
+/* ── Lọc đồ uống bằng tab ngay trên trang (không đổi trang) ──
+   Được gọi khi bấm 1 nút .drink-tab (sự kiện gắn trong
+   dashboard-drinks.js::renderDrinkTabs()).
+   ⚠️ dashboard-drinks.js cũng gán 1 hàm window.filterDrinks cùng tên.
+   Vì file này nạp SAU nên bản dưới đây là bản đang chạy thật; bản kia bị
+   ghi đè. Nếu sửa cách lọc, hãy sửa ở đây (hoặc gộp về 1 nơi). */
 function filterDrinks(cat, btnEl) {
   document.querySelectorAll('.drink-tab').forEach(b => {
     b.classList.toggle('btn-primary',   b === btnEl);
@@ -76,9 +95,19 @@ function filterDrinks(cat, btnEl) {
 }
 
 /* ══════════════════════════════════════════════
-   ONLINE COUNT trên Dashboard — mirror từ #adminOnlineCount
-   (được cập nhật bởi dashboard-chat.js) sang #dashOnlineCount.
-   Dùng MutationObserver thay vì setTimeout polling liên tục.
+   SỐ NGƯỜI ĐANG ONLINE trên trang Dashboard
+   ─────────────────────────────────────────────
+   Nguồn dữ liệu: #adminOnlineCount — do module Chat (dashboard-chat.js,
+   nạp SAU bằng type="module") tạo ra và cập nhật từ Firebase.
+   Đích hiển thị: #dashOnlineCount (số lớn trong khung "Người dùng đang
+   online" của trang Dashboard).
+
+   Cách hoạt động:
+     - Chat module tạo sau file này, nên nếu chưa thấy #adminOnlineCount thì
+       hẹn thử lại mỗi 500ms cho tới khi cả 2 phần tử cùng tồn tại
+       (chỉ thử lại lúc chờ, KHÔNG phải polling liên tục).
+     - Khi đã có đủ: copy giá trị hiện tại, rồi dùng MutationObserver theo
+       dõi nguồn để tự cập nhật đích mỗi khi số thay đổi.
    ══════════════════════════════════════════════ */
 function syncOnlineCountToDashboard() {
   const src = document.getElementById('adminOnlineCount');
