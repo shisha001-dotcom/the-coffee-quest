@@ -1,67 +1,70 @@
 /* ══════════════════════════════════════════════
    ADMIN AUTH — admin/core/dashboard-auth.js
    ─────────────────────────────────────────────
-   ⚠️ SỬA LẦN 2 (2026-07-18): bỏ hẳn cách dùng 1 script riêng
-   type="module" để "gác cổng" (auth gate) đặt TRƯỚC file này.
+   VAI TRÒ
+   Đây là "cổng vào" DUY NHẤT của Admin Dashboard. Trình tự:
+     1. Tạo Supabase client (biến toàn cục `client`).
+     2. Kiểm tra session Supabase Auth → không có thì về login.html.
+     3. Tra hồ sơ trong bảng `admin_users` (qua cột auth_user_id)
+        → không có hồ sơ / bị vô hiệu hoá thì đăng xuất + về login.html.
+     4. Gán `currentSession` (role, tên hiển thị...) cho mọi module dùng.
+     5. Chèn thanh người dùng (avatar + tên + nút đăng xuất) vào sidebar.
+     6. TỰ TẢI toàn bộ script còn lại của Dashboard bằng JavaScript
+        (xem SCRIPT_SEQUENCE / MODULE_SEQUENCE / FINAL_SCRIPT bên dưới).
 
-   LÝ DO: <script type="module"> được trình duyệt xử lý như
-   "deferred" — nó chỉ thực thi SAU KHI toàn bộ HTML đã parse
-   xong. Trong khi đó <script src="..."> THƯỜNG (không có
-   defer/async) lại thực thi NGAY LẬP TỨC khi trình duyệt gặp
-   nó trong lúc parse. Vì vậy dù đặt script module TRƯỚC
-   dashboard-auth.js trong file HTML, dashboard-auth.js (script
-   thường) vẫn chạy TRƯỚC khi module kịp gán window.__authSession
-   → luôn thấy "chưa xác thực" → redirect login.html ngay lập
-   tức → gây vòng lặp nhấp nháy login ⇄ dashboard.
+   VÌ SAO TỰ TẢI SCRIPT BẰNG JS (không khai báo <script> trong HTML)?
+   - Script thường (<script src>) chạy NGAY khi trình duyệt gặp nó,
+     còn bước xác thực ở trên là bất đồng bộ (async). Nếu các module
+     nằm sẵn trong HTML thì chúng chạy TRƯỚC khi `client` /
+     `currentSession` được gán → lỗi "client is undefined".
+   - Script type="module" lại bị hoãn tới khi HTML parse xong, nên
+     không thể dùng nó để "gác cổng" cho script thường phía sau.
+   → Giải pháp: chỉ xác thực xong mới nạp các module.
 
-   CÁCH SỬA: gộp toàn bộ việc (1) tạo client, (2) kiểm tra
-   session Supabase Auth, (3) lấy hồ sơ admin_users, và (4) TỰ
-   TẢI các <script> còn lại của Dashboard bằng JavaScript
-   (createElement + appendChild theo đúng thứ tự tuần tự) — chỉ
-   sau khi xác thực xong.
-
-   ⚠️ QUAN TRỌNG: `admin/dashboard.html` chỉ còn cần các <script>
-   "hạ tầng" và DUY NHẤT 1 dòng
-   <script src="./core/dashboard-auth.js"></script> — KHÔNG còn
-   bất kỳ <script> nào khác phía sau nó trong HTML nữa. Toàn bộ
-   phần còn lại được chính file này tải bằng JS theo đúng thứ tự
-   (xem SCRIPT_SEQUENCE / MODULE_SEQUENCE bên dưới).
-
-   ⚠️ MỚI (tách nhỏ Settings): "./modules/dashboard-settings.js"
-   (1 file monolith) đã được XOÁ, thay bằng 4 file trong thư mục
-   admin/modules/settings/, ĐÚNG THỨ TỰ PHỤ THUỘC:
-     1. settings-shared.js              — khung trang + registerPage()
-                                           + switchSettingsTab() +
-                                           window.SettingsTabs (PHẢI
-                                           chạy trước 3 file dưới vì
-                                           chúng cần #stTabWarehouses/
-                                           #stTabProducts/#stTabRecipes
-                                           đã tồn tại trong DOM).
-     2. dashboard-settings-warehouses.js — tab 🏬 Kho (không phụ
-                                           thuộc gì thêm ngoài
-                                           window.Branches, đã load ở
-                                           dashboard-inventory-count.js
-                                           từ trước).
-     3. dashboard-settings-products.js   — tab 📦 Sản phẩm (cần
-                                           window.Inventory, đã load ở
-                                           inventory-shared.js).
-     4. dashboard-settings-recipes.js    — tab 🧪 Công thức (cần
-                                           window.editDrink, đã load ở
-                                           dashboard-drinks.js).
-   Vị trí chèn giữ nguyên như dòng cũ: sau
-   "./modules/inventory/dashboard-inventory-count.js" và trước
-   "./core/dashboard-nav.js".
+   ⚠️ QUY TẮC KHI SỬA:
+   - admin/dashboard.html chỉ được có các <script> hạ tầng + đúng 1
+     dòng <script src="./core/dashboard-auth.js">. KHÔNG thêm <script>
+     nào khác phía sau nó.
+   - Muốn thêm 1 file JS mới cho Admin → thêm đường dẫn vào
+     SCRIPT_SEQUENCE (cần biến toàn cục kiểu classic script) hoặc
+     MODULE_SEQUENCE (dùng import / muốn cô lập scope) ở dưới.
    ══════════════════════════════════════════════ */
 
-/* Khai báo ở scope ngoài cùng (không bọc trong function) để các
-   <script> thường load SAU (được tự động chèn bên dưới) vẫn đọc
-   được `client` / `currentSession` như 1 biến toàn cục — giữ
-   đúng "hợp đồng" (contract) cũ mà mọi module admin đang dựa vào. */
+/* `client` (Supabase) và `currentSession` (thông tin người đăng nhập)
+   được khai báo `let` Ở NGOÀI CÙNG file (không bọc trong function).
+   Nhờ vậy mọi classic script nạp SAU có thể dùng thẳng tên `client`
+   / `currentSession` như biến toàn cục (không cần `window.` phía trước). */
 let client;
 let currentSession;
 
 /* ══════════════════════════════════════════════
-   DANH SÁCH SCRIPT CẦN TẢI TIẾP — ĐÚNG THỨ TỰ CŨ
+   DANH SÁCH SCRIPT CLASSIC — nạp TUẦN TỰ
+   ─────────────────────────────────────────────
+   File sau chỉ bắt đầu tải khi file trước đã chạy xong phần code
+   đồng bộ ở top-level (nhưng KHÔNG chờ các fetch/Promise bên
+   trong file đó, ví dụ loadGames()). Thứ tự dưới đây là thứ tự
+   PHỤ THUỘC — đổi chỗ sẽ gây lỗi "X is not defined":
+
+   - page-registry       → tạo window.AdminDashboard (mọi module cần)
+   - inventory-shared    → tạo window.Inventory (drinks/orders/ingredients/settings cần)
+   - games               → inject #gameModal; khai báo games, isGamesReadOnly,
+                           parseLines, parseImages, setLines, setImages
+   - drinks              → cần window.Inventory
+   - game-detail         → cần các biến/hàm của dashboard-games.js ở trên
+   - membership-shared   → tạo window.Membership (4 file membership + orders cần)
+   - customers / customer-detail / quests / levels → domain Khách hàng
+   - orders              → cần window.Membership + window.Inventory
+   - ingredients         → trang Kho nguyên liệu (cần window.Inventory)
+   - inventory-count     → trang Kiểm kê + tạo window.Branches
+                           (settings-warehouses và ingredients dùng lại)
+   - settings-shared     → dựng khung trang Settings; PHẢI đứng trước 3 file
+                           settings-* phía sau vì chúng cần các div
+                           #stTabWarehouses / #stTabProducts / #stTabRecipes
+   - settings-warehouses → cần window.Branches
+   - settings-products   → cần window.Inventory
+   - settings-recipes    → cần window.editDrink (từ dashboard-drinks.js)
+   - nav                 → showDashboard / showBoardgames / showDrinks
+   - mobile-tables       → chỉ thao tác DOM, không phụ thuộc gì, đặt vị trí nào cũng được
    ══════════════════════════════════════════════ */
 const SCRIPT_SEQUENCE = [
   "./core/dashboard-page-registry.js",
@@ -85,19 +88,43 @@ const SCRIPT_SEQUENCE = [
   "./dashboard-mobile-tables.js",
 ];
 
-/* Các module ES (type="module") — không bắt buộc thứ tự nghiêm
-   ngặt với nhau, nhưng phải load SAU toàn bộ SCRIPT_SEQUENCE ở
-   trên (vì chúng cần window.AdminDashboard, currentSession...) */
+/* ══════════════════════════════════════════════
+   DANH SÁCH MODULE ES (type="module")
+   ─────────────────────────────────────────────
+   Chèn cùng lúc (không cần đúng thứ tự giữa chúng) nhưng luôn SAU
+   khi toàn bộ SCRIPT_SEQUENCE đã chạy xong, vì chúng cần
+   window.AdminDashboard, window.AdminPermissions, currentSession...
+   Module ES có scope riêng nên biến top-level trong các file này
+   KHÔNG lộ ra ngoài (khác với SCRIPT_SEQUENCE).
+   ══════════════════════════════════════════════ */
 const MODULE_SEQUENCE = [
   "./modules/chat/dashboard-chat.js",
   "./modules/analytics/dashboard-analytics.js",
   "./modules/banners/dashboard-banners.js",
   "./modules/media/dashboard-media.js",
+  /* Module "Quản lý tài khoản" đang được TẮT (comment dòng dưới).
+     Lý do: nút "+ Thêm tài khoản" chỉ ghi vào admin_users mà không
+     tạo user Supabase Auth → tài khoản tạo ra không đăng nhập được.
+     Muốn bật lại: bỏ dấu // ở đầu dòng VÀ đổi `guard: () => false`
+     trong dashboard-accounts.js thành điều kiện quyền phù hợp. */
   //"./modules/accounts/dashboard-accounts.js",//
 ];
 
+/* Script nạp CUỐI CÙNG — chỉ cần .sidebar đã có trong DOM (luôn đúng
+   vào thời điểm này). Xử lý đóng/mở menu dạng drawer trên mobile. */
 const FINAL_SCRIPT = "./dashboard-mobile-menu.js";
 
+/* ══════════════════════════════════════════════
+   NẠP SCRIPT TUẦN TỰ
+   ─────────────────────────────────────────────
+   Tạo thẻ <script> cho paths[index]; khi onload xong mới tải file
+   kế tiếp (nối chuỗi bằng callback để giữ đúng thứ tự — script
+   chèn động mặc định chạy bất đồng bộ nên KHÔNG tự đảm bảo thứ tự).
+   Nếu 1 file lỗi (404, mạng...) chỉ ghi console.error rồi vẫn tải
+   tiếp file sau → 1 module hỏng không làm sập cả Dashboard, nhưng
+   tính năng của module đó sẽ vắng mặt mà không có thông báo cho
+   người dùng (chỉ thấy trong Console).
+   ══════════════════════════════════════════════ */
 function loadScriptsSequentially(paths, index, onDone) {
   if (index >= paths.length) { onDone(); return; }
   const s = document.createElement("script");
@@ -110,9 +137,9 @@ function loadScriptsSequentially(paths, index, onDone) {
   document.body.appendChild(s);
 }
 
+/* Trình tự tổng: SCRIPT_SEQUENCE → MODULE_SEQUENCE → FINAL_SCRIPT */
 function loadRemainingDashboardScripts() {
   loadScriptsSequentially(SCRIPT_SEQUENCE, 0, () => {
-    // Module scripts — thứ tự giữa chúng không quan trọng, chèn cùng lúc
     MODULE_SEQUENCE.forEach(src => {
       const s = document.createElement("script");
       s.type = "module";
@@ -120,19 +147,43 @@ function loadRemainingDashboardScripts() {
       document.body.appendChild(s);
     });
 
-    // Cuối cùng: dashboard-mobile-menu.js (chỉ cần .sidebar đã có sẵn trong DOM — luôn đúng)
     const s = document.createElement("script");
     s.src = FINAL_SCRIPT;
     document.body.appendChild(s);
   });
 }
 
+/* Đăng xuất: huỷ session Supabase rồi về trang login
+   (chạy về login kể cả khi signOut báo lỗi nhờ .finally). */
 function logout() {
   client.auth.signOut().finally(() => location.replace("login.html"));
 }
 
 /* ══════════════════════════════════════════════
-   USER BAR — chèn vào cuối sidebar (giữ nguyên như cũ)
+   USER BAR — thanh người dùng ở đáy sidebar
+   ─────────────────────────────────────────────
+   Vì HTML nằm trong template string (không chèn được comment vào
+   giữa), bảng tra "chỗ nào chỉnh gì" ở đây:
+
+   ► Khung ngoài (userBar.style.cssText)
+       margin-top:auto        → đẩy thanh xuống đáy sidebar
+       border-top             → viền trên rgba(255,255,255,.08) (trắng mờ, hợp nền sidebar tối)
+       padding                → 16px (trên/dưới) × 20px (trái/phải)
+       gap                    → 12px khoảng cách avatar ↔ tên ↔ nút
+   ► Avatar tròn: 38×38px, chữ cái đầu 16px đậm (700), chữ trắng #fff,
+       nền = MÀU CỦA ROLE (lấy từ ROLES trong core/dashboard-permissions.js,
+       KHÔNG đổi ở đây)
+   ► Tên hiển thị: 13px, đậm 600, trắng #fff; quá dài thì cắt "…"
+   ► Nhãn role (badge): 10px, đậm 700, trắng #fff, nền = màu role,
+       padding 2px 8px, bo tròn 20px, giãn chữ .4px
+   ► Nút đăng xuất (icon ⏏): 32×32px, bo 8px, icon 16px
+       - bình thường: nền rgba(255,255,255,.08), icon xám xanh #a0a8c0
+       - khi rê chuột: nền rgba(225,112,85,.25) + icon #e17055 (đỏ cam,
+         cùng màu --danger trong dashboard.css)
+       - tooltip: chữ "Đăng xuất" (thuộc tính title)
+   ► Hộp thoại xác nhận: chữ "Bạn muốn đăng xuất?" (dòng confirm bên dưới)
+       ⚠️ Đang dùng confirm() của trình duyệt — chưa đồng bộ với quy ước
+       dự án (window.showConfirm). Đổi khi được phép sửa code.
    ══════════════════════════════════════════════ */
 function injectUserBar() {
   const sidebar = document.querySelector(".sidebar");
@@ -162,11 +213,12 @@ function injectUserBar() {
 }
 
 /* ══════════════════════════════════════════════
-   MAIN — chạy ngay khi file load (IIFE async).
-   `client`/`currentSession` được gán vào 2 biến khai báo ở
-   scope ngoài cùng phía trên (không phải bên trong IIFE này),
-   nên vẫn là "toàn cục" theo đúng nghĩa các script thường load
-   sau có thể đọc được.
+   MAIN — IIFE async chạy ngay khi file được nạp
+   ─────────────────────────────────────────────
+   `supabase` (global) do thẻ CDN supabase-js trong dashboard.html cung
+   cấp — phải nằm TRƯỚC thẻ <script> của file này.
+   Các URL/khoá lấy từ window.APP_CONFIG (js/shared-config.js).
+   Trang đích khi chưa đăng nhập / bị chặn: "login.html".
    ══════════════════════════════════════════════ */
 (async function initAuth() {
   client = supabase.createClient(
@@ -174,6 +226,7 @@ function injectUserBar() {
     window.APP_CONFIG.supabaseKey
   );
 
+  /* Bước 1: có session Supabase Auth chưa? Chưa → về trang đăng nhập */
   const { data: { session } } = await client.auth.getSession();
 
   if (!session) {
@@ -181,6 +234,8 @@ function injectUserBar() {
     return;
   }
 
+  /* Bước 2: map user Auth → hồ sơ nhân viên trong admin_users.
+     Không có hồ sơ, lỗi truy vấn, hoặc is_active=false → đăng xuất. */
   const { data: profile, error } = await client
     .from("admin_users")
     .select("id, username, display_name, role, is_active")
@@ -193,6 +248,9 @@ function injectUserBar() {
     return;
   }
 
+  /* Bước 3: dữ liệu phiên dùng chung cho mọi module.
+     role là 1 trong "superadmin" | "editor" | "barstaff"
+     (định nghĩa ở core/dashboard-permissions.js). */
   currentSession = {
     id:          profile.id,
     username:    profile.username || session.user.email,
@@ -202,18 +260,22 @@ function injectUserBar() {
     email:       session.user.email,
   };
 
-  /* Tự đăng xuất nếu tài khoản vừa bị vô hiệu hoá trong lúc phiên đang mở */
+  /* Nếu phiên bị huỷ ở nơi khác (hết hạn token, đăng xuất tab khác...)
+     → tự về trang đăng nhập. */
   client.auth.onAuthStateChange((event) => {
     if (event === "SIGNED_OUT") location.replace("login.html");
   });
 
   injectUserBar();
 
-  /* Xác thực xong — giờ mới tải phần còn lại của Dashboard */
+  /* Xác thực xong → mới nạp phần còn lại của Dashboard */
   loadRemainingDashboardScripts();
 
-  /* Kiểm tra định kỳ is_active — giữ hành vi cũ, chạy sau khi
-     mọi thứ đã tải xong, không chặn luồng tải script */
+  /* Kiểm tra lại is_active ĐÚNG 1 LẦN sau khi đã khởi động (phòng trường
+     hợp tài khoản vừa bị vô hiệu hoá giữa lúc tải trang). Không chặn
+     việc nạp script. Nếu bị vô hiệu hoá → hiện toast + đăng xuất sau
+     1200ms. Toast: chữ "🚫 Tài khoản của bạn đã bị vô hiệu hoá — đang
+     đăng xuất...", nền #e17055 (đỏ cam). */
   try {
     const { data, error: checkErr } = await client
       .from("admin_users")
