@@ -1,29 +1,55 @@
 /* ══════════════════════════════════════════════
    DASHBOARD QUESTS — admin/modules/membership/dashboard-quests.js
    ─────────────────────────────────────────────
-   ⚠️ CẬP NHẬT THEO SCHEMA SQL V1:
-   - `quests` giờ có `code`, `is_checkin`, `deleted_at`.
-   - Quest có `is_checkin = true` là quest HỆ THỐNG (tự hoàn thành khi
-     khách có đơn hàng đầu ngày — xử lý bởi dashboard-customers.js lúc
-     tạo đơn hàng). Quest này KHÔNG được sửa/tắt/xoá qua tab này —
-     hiển thị dạng khoá (🔒) để tránh thao tác nhầm làm hỏng luồng
-     check-in tự động.
-   - `customer_quests.quest_id` có ON DELETE RESTRICT → xoá cứng sẽ
-     lỗi FK nếu quest đã có khách nào từng hoàn thành. Đổi XOÁ →
-     SOFT DELETE (set deleted_at + active=false).
+   VAI TRÒ
+   Tab "🗺️ Nhiệm vụ" trong trang Khách hàng: xem, thêm, sửa, bật/tắt, xoá
+   ĐỊNH NGHĨA nhiệm vụ (bảng `quests`). Chỉ Super Admin dùng được.
 
-   KHÔNG tự gọi registerPage() — nội dung được render vào
-   #custTabQuests, vùng đã có sẵn trong page do
-   dashboard-customers.js đăng ký (pageId "customersPage").
+   KHÔNG tự đăng ký trang: file chỉ vẽ vào vùng #custTabQuests đã có sẵn
+   trong trang do dashboard-customers.js tạo, và xuất window.renderQuestsTab()
+   để file đó gọi khi chuyển sang tab này.
 
-   Expose: window.renderQuestsTab()
+   QUEST HỆ THỐNG (CHECK-IN)
+   Quest có is_checkin = true là quest hệ thống, tự hoàn thành khi khách có
+   đơn hàng đầu tiên trong ngày (logic ở dashboard-orders.js). Nó hiện với
+   biểu tượng 🔒 và KHÔNG được sửa / tắt / xoá ở đây (chặn ở cả giao diện
+   lẫn từng hàm xử lý).
+
+   ⚠️ QUEST THƯỜNG CHƯA CÓ CHỖ ĐỂ CỘNG TIẾN ĐỘ
+   Quest is_checkin = false chỉ được tạo/sửa định nghĩa ở đây; hiện không có
+   giao diện nào để ghi nhận khách đã làm nhiệm vụ đó, nên chúng không tự cộng
+   XP. Hiện chỉ quest check-in thực sự phát XP.
+
+   XOÁ = XOÁ MỀM
+   customer_quests.quest_id là khoá ngoại ON DELETE RESTRICT, xoá cứng sẽ lỗi
+   nếu đã có khách hoàn thành. Nên "xoá" chỉ ghi deleted_at, active=false,
+   lý do và người xoá (lý do là BẮT BUỘC).
+
+   PHỤ THUỘC
+   window.Membership (alias M_Q), `client`, `currentSession`,
+   window.showToast, window.showReasonPrompt, window.escHtml.
+   Quyền: mọi thao tác đều kiểm tra Super Admin; popup chỉ được inject nếu là
+   Super Admin.
    ══════════════════════════════════════════════ */
 
 const M_Q = window.Membership;
 const isSuperAdminQuests = M_Q.isSuperAdmin;
 
 /* ══════════════════════════════════════════════
-   INJECT MODAL THÊM/SỬA NHIỆM VỤ
+   POPUP THÊM/SỬA NHIỆM VỤ — inject 1 lần (chỉ Super Admin)
+   ─────────────────────────────────────────────
+   Bảng tra "sửa ở đâu" (HTML trong chuỗi bên dưới):
+     · Tiêu đề: "➕ Thêm nhiệm vụ" (mặc định) / "✏️ Sửa nhiệm vụ".
+     · Nhãn/placeholder: Mã nhiệm vụ (VD "2604T01", tuỳ chọn), Tên nhiệm vụ *
+       (VD "Uống 3 ly cà phê trong tuần"), Mô tả, Loại *, XP thưởng *,
+       Số lần cần hoàn thành *.
+     · 3 loại nhiệm vụ: value daily / weekly / onetime — hiển thị "Hàng ngày /
+       Hàng tuần / Một lần". Giá trị value khớp với logic chu kỳ
+       (periodKeyFor) và cột `type` trong DB, KHÔNG đổi tuỳ tiện.
+     · Mặc định: XP thưởng 10, số lần cần hoàn thành 1 (tối thiểu 1).
+     · Kích thước: popup rộng tối đa 480px, form 1 cột; ô chọn Loại cao 44px,
+       bo 10px, chữ 14px (style inline).
+   Đóng popup: nút ✕, phím Escape, hoặc bấm ra ngoài lớp nền.
    ══════════════════════════════════════════════ */
 (function injectQuestModal() {
   if (!isSuperAdminQuests || document.getElementById("questModal")) return;
@@ -70,7 +96,20 @@ const isSuperAdminQuests = M_Q.isSuperAdmin;
 })();
 
 /* ══════════════════════════════════════════════
-   RENDER TAB
+   VẼ TAB
+   ─────────────────────────────────────────────
+   Bảng gồm: Tên (+ mã + mô tả) / Loại / XP / Mục tiêu / Trạng thái /
+   Hành động. Chữ và kiểu ghi cứng:
+     · Ghi chú đầu tab: "🔒 Nhiệm vụ đánh dấu khoá là nhiệm vụ check-in hệ
+       thống…" (12px, var(--text-muted)).
+     · Nhãn loại: Hàng ngày / Hàng tuần / Một lần (hàm typeLabel).
+     · Trạng thái: "Đang mở" (.badge mặc định) hoặc "Tắt" (nền #f1f5f9,
+       chữ #888).
+     · Mô tả dưới tên: 11px; mã nhiệm vụ dùng kiểu .game-id.
+     · Nút thường: "✏️ Sửa", "Tắt"/"Bật", "🗑️" (btn-danger); cỡ chữ 12px,
+       padding 6px 10px. Quest hệ thống thay bằng dòng "Quest hệ thống — không
+       thể chỉnh sửa".
+     · Rỗng: "Chưa có nhiệm vụ nào.".
    ══════════════════════════════════════════════ */
 function renderQuestsTab() {
   const wrap = document.getElementById("custTabQuests");
@@ -123,12 +162,14 @@ function renderQuestsTab() {
 window.renderQuestsTab = renderQuestsTab;
 
 /* ══════════════════════════════════════════════
-   TOGGLE / DELETE (SOFT DELETE)
+   BẬT/TẮT VÀ XOÁ MỀM
    ══════════════════════════════════════════════ */
+
+/* Đảo trạng thái active của 1 quest rồi tải lại danh sách. Bỏ qua quest hệ thống. */
 async function toggleQuestActive(id) {
   if (!isSuperAdminQuests) return;
   const q = M_Q.state.quests.find(x => x.id === id);
-  if (!q || q.is_checkin) return; // ⚠️ chặn quest hệ thống
+  if (!q || q.is_checkin) return; // chặn quest hệ thống
   try {
     const { error } = await client.from("quests").update({ active: !q.active }).eq("id", id);
     if (error) throw error;
@@ -139,10 +180,14 @@ async function toggleQuestActive(id) {
   }
 }
 
+/* Xoá mềm 1 quest. Hộp thoại lý do: tiêu đề "Xoá nhiệm vụ này?", nút
+   "🗑️ Xoá nhiệm vụ", ô "Lý do xoá *" (bắt buộc). Xong: toast "🗑️ Đã xoá
+   nhiệm vụ" (nền #e17055). Lịch sử EXP của khách đã hoàn thành trước đó
+   vẫn được giữ. */
 async function deleteQuest(id) {
   if (!isSuperAdminQuests) return;
   const q = M_Q.state.quests.find(x => x.id === id);
-  if (!q || q.is_checkin) return; // ⚠️ chặn quest hệ thống
+  if (!q || q.is_checkin) return; // chặn quest hệ thống
 
   const reason = await window.showReasonPrompt({
     title: "Xoá nhiệm vụ này?",
@@ -155,8 +200,6 @@ async function deleteQuest(id) {
   if (reason === null) return;
 
   try {
-    /* ⚠️ SOFT DELETE — customer_quests.quest_id là ON DELETE RESTRICT,
-       xoá cứng sẽ lỗi FK nếu đã có khách hoàn thành nhiệm vụ này. */
     const { error } = await client.from("quests")
       .update({
         deleted_at: new Date().toISOString(), active: false,
@@ -172,12 +215,15 @@ async function deleteQuest(id) {
 }
 
 /* ══════════════════════════════════════════════
-   MODAL THÊM/SỬA
+   MỞ / ĐÓNG POPUP
+   Truyền id = null để thêm mới (giá trị mặc định: loại "daily", XP 10,
+   số lần 1); có id thì nạp dữ liệu quest đó để sửa. Quest hệ thống không
+   mở được.
    ══════════════════════════════════════════════ */
 function openQuestModal(id) {
   if (!isSuperAdminQuests) return;
   const q = id ? M_Q.state.quests.find(x => x.id === id) : null;
-  if (q?.is_checkin) return; // ⚠️ chặn quest hệ thống
+  if (q?.is_checkin) return; // chặn quest hệ thống
 
   document.getElementById("questId").value    = q ? q.id : "";
   document.getElementById("questCode").value  = q?.code || "";
@@ -196,6 +242,16 @@ function closeQuestModal() {
   document.getElementById("questModal").classList.add("hidden");
 }
 
+/* ══════════════════════════════════════════════
+   LƯU NHIỆM VỤ
+   ─────────────────────────────────────────────
+   Kiểm tra: tên bắt buộc (lỗi tại ô "Vui lòng nhập tên nhiệm vụ."), XP thưởng
+   > 0 và số lần > 0 (toast "⚠️ XP thưởng phải lớn hơn 0." / "⚠️ Số lần hoàn
+   thành phải lớn hơn 0.", nền #e17055). Mã nhiệm vụ và mô tả rỗng được lưu
+   thành null. Quest tạo mới mặc định active = true, is_checkin = false.
+   Trùng mã (lỗi DB 23505) → toast "⚠️ Mã nhiệm vụ này đã tồn tại.".
+   Thành công: toast "✅ Đã lưu nhiệm vụ!" (xanh mặc định).
+   ══════════════════════════════════════════════ */
 async function saveQuest() {
   if (!isSuperAdminQuests) return;
 
