@@ -1,39 +1,82 @@
 /* ══════════════════════════════════════════════
    DASHBOARD GAMES MODULE — admin/modules/games/dashboard-games.js
    ─────────────────────────────────────────────
-   ⚠️ TỐI ƯU (bổ sung so với bản trước):
-   - Search dùng window.debounce() dùng chung (shared-utils.js)
-     thay vì tự viết lại clearTimeout/setTimeout.
-   - saveGame()/deleteGame(): PATCH trực tiếp vào mảng `games` từ
-     dữ liệu Supabase trả về (.select()), thay vì loadGames() gọi
-     lại toàn bảng — giảm 1 round-trip mạng không cần thiết mỗi
-     lần lưu/xoá 1 game.
+   VAI TRÒ
+   Toàn bộ trang "🎲 Boardgames": bảng danh sách, ô tìm kiếm, khung Bộ
+   lọc nâng cao, phân trang, và popup Thêm/Sửa/Xem game (kèm emoji
+   picker, chọn thể loại, chọn màu).
 
-   ⚠️ MỚI — PHÂN TRANG + BỘ LỌC NÂNG CAO:
-   - Bảng game giờ hiển thị 10 game/trang (BG_PAGE_SIZE), có nút
-     điều hướng trang (‹ Trước / số trang / Sau ›) ở cuối bảng —
-     tránh dàn trải toàn bộ danh sách khi catalog lớn dần.
-   - Khung "🔎 Bộ lọc nâng cao" (thu gọn mặc định, bấm để mở rộng)
-     ngay trên bảng, gồm: lọc theo thể loại, lọc theo độ khó, và
-     nhóm checkbox "Thiếu nội dung" (MISSING_CONTENT_CHECKS) để tìm
-     nhanh game còn thiếu PDF luật chơi / video YouTube / ảnh nền /
-     ảnh hướng dẫn / mục tiêu / điều kiện thắng / bước chuẩn bị /
-     bước lượt chơi / mẹo chơi — mục đích: rà soát nội dung còn
-     thiếu để bổ sung, không phải dò tay từng game.
-   - Tick nhiều checkbox "Thiếu nội dung" cùng lúc = lọc OR (game
-     thiếu BẤT KỲ mục nào được tick, không cần thiếu tất cả).
-   - Toàn bộ pipeline lọc (tìm kiếm tên + thể loại + độ khó + thiếu
-     nội dung) gộp lại trong getBgFilteredGames(), rồi mới cắt trang
-     trong renderGames() — đổi bất kỳ bộ lọc/ô tìm kiếm nào đều tự
-     reset về trang 1; chỉ giữ nguyên trang hiện tại khi
-     refresh/lưu/xoá (không làm phiền người dùng đang ở trang giữa).
+   TRANG TĨNH & POPUP
+   - Trang #boardgamesPage (bảng #gameTable, #searchInput, khung bộ lọc
+     #bgFilterPanel, #bgPagination…) nằm sẵn trong admin/dashboard.html.
+   - Popup #gameModal KHÔNG có trong HTML — được file này tự inject vào
+     <body> khi chạy (IIFE injectGameModal bên dưới).
+
+   NGUYÊN LÝ CHÍNH
+   1. Dữ liệu game nằm trong mảng `games` (tải 1 lần từ bảng `games`).
+      Lưu / xoá 1 game chỉ VÁ tại chỗ mảng này bằng dữ liệu Supabase trả
+      về (.select()), không tải lại cả bảng.
+   2. MỌI thay đổi bộ lọc / ô tìm kiếm đều đi qua applyGamesFilters():
+        getBgFilteredGames() (lọc) → renderGames() (cắt trang + vẽ bảng).
+        · applyGamesFilters(true)  = vừa đổi điều kiện lọc → về trang 1.
+        · applyGamesFilters(false) = chỉ làm mới dữ liệu (lưu/xoá) → giữ
+          nguyên trang đang xem (tự lùi nếu trang hiện tại hết dòng).
+   3. Nhóm checkbox "Thiếu nội dung": tick nhiều mục = lọc OR (game thiếu
+      BẤT KỲ mục nào được tick sẽ hiện ra). Danh sách mục nằm ở mảng
+      MISSING_CONTENT_CHECKS — thêm/bớt mục chỉ cần sửa mảng đó.
+
+   ⚠️ BIẾN TOÀN CỤC DÙNG CHUNG
+   File này là classic script nên các khai báo top-level (`games`,
+   `isGamesReadOnly`, `modal`, `saveBtn`, `deleteBtn`, `searchInput`,
+   `parseLines`, `parseImages`, `setLines`, `setImages`, …) nằm chung
+   scope toàn cục với các file admin khác.
+     - dashboard-game-detail.js (nạp SAU) đọc trực tiếp `games`,
+       `isGamesReadOnly`, `parseLines`, `parseImages`, `setLines`,
+       `setImages` — đổi tên/xoá các thứ này sẽ làm hỏng trang chi tiết.
+     - File khác KHÔNG được khai báo lại top-level cùng tên (const/let
+       trùng tên sẽ gây SyntaxError và file đó không chạy).
+
+   PHỤ THUỘC (đã nạp trước)
+   client, currentSession, window.AdminPermissions, window.escHtml,
+   window.showToast, window.showConfirm, window.debounce,
+   window.EMOJI_CATEGORIES / UNIQUE_EMOJIS (js/shared-emoji.js),
+   window.GAME_CATEGORIES / DIFFICULTY_LEVELS / renderCategoryPicker /
+   getSelectedCategories / populateDifficultySelect (js/shared-categories.js).
+
+   CÁC GIÁ TRỊ MẶC ĐỊNH ĐANG GHI CỨNG (đổi thì phải đổi ở NHIỀU chỗ)
+     · Emoji mặc định "🎲": trong template popup, saveGame(), clearForm(),
+       bộ chọn emoji (currentEmoji), dòng hiển thị bảng, và cả
+       dashboard-game-detail.js.
+     · Màu mặc định "#6c5ce7": template popup (2 ô màu), saveGame(),
+       clearForm(), handler sửa game, bindColorPickerSync().
+       (Trùng với --primary trong dashboard.css.)
    ══════════════════════════════════════════════ */
 
+/* true nếu role hiện tại chỉ được xem: ẩn nút Thêm, khoá mọi ô trong popup. */
 const isGamesReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
 
 /* ══════════════════════════════════════════════
-   INJECT MODAL HTML — 1 lần duy nhất lúc file load
-   (thay cho HTML tĩnh #gameModal từng nằm trong dashboard.html)
+   POPUP THÊM/SỬA GAME — inject 1 lần lúc file chạy
+   ─────────────────────────────────────────────
+   Nội dung popup là chuỗi HTML ngay bên dưới (không chèn comment vào giữa
+   được). Bảng tra "muốn đổi X thì sửa ở đâu":
+     · Chữ nhãn / placeholder / gợi ý (.hint): sửa trực tiếp trong chuỗi HTML.
+     · Tên 3 nhóm: "📋 Thông tin cơ bản", "🎯 Nội dung game", "🖼️ Media".
+     · Tiêu đề popup: mặc định "Thêm Boardgame"; khi mở được đặt lại bởi
+       nút "+ Thêm Game" (➕ Thêm Boardgame) hoặc handler .edit-btn
+       (✏️ Chỉnh sửa Boardgame / 👁️ Xem chi tiết Boardgame).
+     · Khung popup: kích thước, padding, bo góc lấy từ .modal-box trong
+       dashboard.css (rộng tối đa 620px, padding 32px, bo 18px).
+       Lưới 2 cột: .form-grid (khoảng cách 18px). Đường kẻ nhóm:
+       .section-divider trong dashboard-shared.css.
+     · Ô "Ảnh hướng dẫn": ví dụ cú pháp `URL ảnh | Chú thích` nằm trong
+       hint; kiểu ô <code> dùng nền #f1f5f9, padding 1px 5px, bo 4px.
+     · Ô màu: <input type="color"> mặc định #6c5ce7 + ô text placeholder "#6c5ce7".
+     · Emoji picker: 8 danh mục lấy từ window.EMOJI_CATEGORIES (js/shared-emoji.js);
+       giao diện .emoji-picker trong dashboard.css.
+   ⚠️ Khối "Link luật chơi PDF" nằm NGOÀI .form-grid (giữa lưới và nút Lưu)
+   nên không co theo lưới 2 cột — chỉ là cách viết hiện tại, không ảnh hưởng
+   chức năng.
    ══════════════════════════════════════════════ */
 (function injectGameModal() {
   if (document.getElementById("gameModal")) return;
@@ -177,7 +220,11 @@ const isGamesReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
 })();
 
 /* ══════════════════════════════════════════════
-   DOM REFS (sau khi modal đã inject ở trên)
+   THAM CHIẾU DOM
+   ─────────────────────────────────────────────
+   Chạy SAU khi popup ở trên đã được inject (nên getElementById tìm thấy
+   được). Phần tử tĩnh (#gameTableBody, #searchInput, #addGameBtn,
+   #loadingMsg, #errorMsg, #gameTable) lấy từ admin/dashboard.html.
    ══════════════════════════════════════════════ */
 const tableBody     = document.getElementById("gameTableBody");
 const searchInput   = document.getElementById("searchInput");
@@ -195,23 +242,30 @@ const difficultySelect = document.getElementById("difficultyInput");
 const colorInput       = document.getElementById("colorInput");
 const colorPicker      = document.getElementById("colorPicker");
 
+/* Mảng dữ liệu game — nguồn duy nhất của bảng. */
 let games = [];
+/* Cho module khác (trang chi tiết game) tra 1 game theo id. */
 window.getGameById = id => games.find(g => g.id === id);
 
 if (isGamesReadOnly && addGameBtn) addGameBtn.style.display = "none";
 
 /* ══════════════════════════════════════════════
-   ⚠️ MỚI — STATE: PHÂN TRANG + BỘ LỌC NÂNG CAO
+   STATE: PHÂN TRANG + BỘ LỌC NÂNG CAO
    ══════════════════════════════════════════════ */
+/* ⚠️ HARDCODE: số game mỗi trang trong bảng. */
 const BG_PAGE_SIZE = 10;
 let bgActivePage       = 1;
 let bgFilterCategory   = "";
 let bgFilterDifficulty = "";
 const bgActiveMissingChecks = new Set();
 
-/* Danh sách các "kiểm tra thiếu nội dung" — mỗi mục là 1 checkbox
-   độc lập trong khung Bộ lọc nâng cao. Thêm/bớt mục mới chỉ cần sửa
-   mảng này, UI + logic lọc tự động cập nhật theo. */
+/* Danh sách các mục "Thiếu nội dung" hiển thị thành checkbox trong khung
+   Bộ lọc nâng cao.
+     key   : mã nội bộ (không hiển thị)
+     label : CHỮ HIỂN THỊ (sửa tự do)
+     test  : hàm trả true nếu game bị THIẾU nội dung đó
+   Thêm/bớt/đổi tên mục chỉ cần sửa mảng này — checkbox và logic lọc
+   tự cập nhật theo. */
 const MISSING_CONTENT_CHECKS = [
   { key: "no_pdf",       label: "📄 Chưa có link PDF luật chơi", test: g => !g.rules_pdf_url },
   { key: "no_youtube",   label: "▶️ Chưa có video YouTube",       test: g => !g.youtube_url },
@@ -224,7 +278,7 @@ const MISSING_CONTENT_CHECKS = [
   { key: "no_tips",      label: "💡 Chưa có mẹo chơi",             test: g => !(Array.isArray(g.tips) && g.tips.length) },
 ];
 
-/* ── Sync 2 ô màu (color text ⇄ color picker) — thay cho oninput="" inline ── */
+/* Đồng bộ 2 chiều giữa ô chọn màu (color picker) và ô nhập mã màu (text). */
 function bindColorPickerSync() {
   colorPicker?.addEventListener("input", () => { colorInput.value = colorPicker.value; });
   colorInput?.addEventListener("input",  () => { colorPicker.value = colorInput.value || "#6c5ce7"; });
@@ -232,7 +286,17 @@ function bindColorPickerSync() {
 bindColorPickerSync();
 
 /* ══════════════════════════════════════════════
-   EMOJI PICKER (không đổi so với bản gốc)
+   EMOJI PICKER
+   ─────────────────────────────────────────────
+   Dữ liệu emoji: window.EMOJI_CATEGORIES (8 danh mục) và
+   window.UNIQUE_EMOJIS (danh sách phẳng, không trùng) từ js/shared-emoji.js
+   — thêm/bớt emoji sửa ở file đó. Giao diện: .emoji-picker, .emoji-item…
+   trong dashboard.css (lưới 8 cột, cao tối đa 220px, rộng 320px — thu còn
+   280px ở màn ≤600px).
+
+   ⚠️ Ô tìm emoji chỉ khớp theo KÝ TỰ emoji (dùng includes trên chính emoji),
+   không tìm theo tên chữ. Phần `|| UNIQUE_EMOJIS.slice(0, 64)` sau
+   filter() không bao giờ chạy vì filter() luôn trả về mảng.
    ══════════════════════════════════════════════ */
 const EMOJI_CATEGORIES = window.EMOJI_CATEGORIES;
 const UNIQUE_EMOJIS    = window.UNIQUE_EMOJIS;
@@ -311,7 +375,10 @@ emojiPicker.addEventListener("click", e => e.stopPropagation());
 emojiPicker.addEventListener("keydown", e => { if (e.key === "Escape") { closePicker(); emojiToggleBtn.focus(); } });
 
 /* ══════════════════════════════════════════════
-   READ-ONLY MODE
+   CHẾ ĐỘ CHỈ XEM
+   ─────────────────────────────────────────────
+   Khoá toàn bộ ô nhập trong popup + ẩn nút Lưu/Xoá (logic chung nằm ở
+   AdminPermissions.applyReadOnlyForm). Nút mở emoji picker được khoá thêm.
    ══════════════════════════════════════════════ */
 function setModalReadOnly(readonly) {
   window.AdminPermissions.applyReadOnlyForm(modal, {
@@ -320,7 +387,12 @@ function setModalReadOnly(readonly) {
 }
 
 /* ══════════════════════════════════════════════
-   ARRAY FIELD HELPERS
+   HÀM ĐỌC/GHI CÁC Ô DẠNG "NHIỀU DÒNG"
+   ─────────────────────────────────────────────
+   - textarea các bước (setup/turn/tips): mỗi dòng = 1 phần tử mảng, dòng
+     trống bị bỏ.
+   - textarea ảnh: mỗi dòng dạng `URL | Chú thích`; dòng không có URL bị bỏ.
+   Dùng chung với dashboard-game-detail.js (đó là lý do chúng nằm ở scope toàn cục).
    ══════════════════════════════════════════════ */
 function parseLines(id) {
   return (document.getElementById(id)?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
@@ -340,7 +412,17 @@ function setImages(id, arr) {
 }
 
 /* ══════════════════════════════════════════════
-   VALIDATE FIELD ERROR
+   BÁO LỖI TẠI Ô NHẬP (thay cho alert)
+   ─────────────────────────────────────────────
+   Viền ô chuyển màu var(--danger) (#e17055) + dòng chữ lỗi đỏ 12px đậm
+   ngay dưới ô (id = <id ô> + "Error"); tự xoá khi người dùng gõ lại.
+   ⚠️ TRÙNG TÊN VỚI BẢN DÙNG CHUNG: js/shared-utils.js cũng định nghĩa
+   window.clearFieldError / window.showFieldError (có thêm tham số tuỳ chọn
+   opts). Vì 2 hàm dưới đây là function toàn cục, chúng GHI ĐÈ bản dùng
+   chung ngay khi file này chạy — các module nạp sau (đồ uống, settings,
+   tài khoản, membership-shared…) khi gọi window.showFieldError thực ra đang
+   chạy bản này: luôn xếp dòng lỗi full-width, bỏ qua opts. Nếu sau này
+   cần dùng opts.scrollIntoView thì phải bỏ 2 hàm cục bộ này.
    ══════════════════════════════════════════════ */
 function clearFieldError(id) {
   const el = document.getElementById(id);
@@ -366,7 +448,11 @@ function showFieldError(id, msg) {
 }
 
 /* ══════════════════════════════════════════════
-   LOAD GAMES
+   TẢI DANH SÁCH GAME
+   ─────────────────────────────────────────────
+   Tải toàn bộ bảng `games` (sắp theo sort_order tăng dần), đổ vào mảng
+   `games`, rồi qua bộ lọc + phân trang. Lỗi thì hiện hộp #errorMsg
+   với chữ "❌ Lỗi khi tải dữ liệu: …".
    ══════════════════════════════════════════════ */
 async function loadGames() {
   loadingMsg.classList.remove("hidden");
@@ -384,10 +470,12 @@ async function loadGames() {
 
   games = data || [];
   gameTable.classList.remove("hidden");
-  applyGamesFilters(true); // ⚠️ MỚI: qua bộ lọc + phân trang thay vì renderGames(games) thẳng
+  applyGamesFilters(true);
   updateStats(games);
 }
 
+/* Cập nhật 3 ô số liệu trên trang Dashboard (#totalGames, #youtubeCount,
+   #imageCount): tổng game, số game có YouTube, số game có ảnh nền (hero). */
 function updateStats(data) {
   let youtubeCount = 0, imageCount = 0;
   for (const game of data) {
@@ -400,6 +488,11 @@ function updateStats(data) {
   set("imageCount",   imageCount);
 }
 
+/* Đổi độ khó (chữ tự do) thành tên class CSS để tô màu nhãn:
+     chứa "dễ"/"easy"  → easy   (chữ xanh #00b894 trên nền #e8f8f0)
+     chứa "khó"/"hard" → hard   (chữ #e17055 trên nền #fdecea)
+     còn lại           → medium (chữ #e0a700 trên nền #fef9e7)
+   Màu định nghĩa ở `.difficulty.easy/.medium/.hard` trong dashboard.css. */
 function difficultyClass(value) {
   const v = (value || "").toLowerCase();
   return v.includes("dễ") || v.includes("easy") ? "easy"
@@ -408,16 +501,17 @@ function difficultyClass(value) {
 }
 
 /* ══════════════════════════════════════════════
-   ⚠️ MỚI — LỌC + PHÂN TRANG
+   LỌC + PHÂN TRANG
    ─────────────────────────────────────────────
-   getBgFilteredGames(): áp toàn bộ bộ lọc (tìm tên + thể loại +
-   độ khó + thiếu nội dung) lên mảng `games` gốc, trả về mảng ĐÃ LỌC
-   (chưa cắt trang).
+   getBgFilteredGames(): áp mọi điều kiện lên mảng `games`, trả về mảng ĐÃ
+   LỌC (chưa cắt trang). Điều kiện (AND với nhau):
+     · tên chứa từ khoá ô tìm kiếm (không phân biệt hoa/thường)
+     · thể loại đã chọn nằm trong game.categories
+     · độ khó khớp CHÍNH XÁC chuỗi đã chọn
+     · nếu có tick "Thiếu nội dung": thiếu ÍT NHẤT 1 mục đã tick (OR)
 
-   applyGamesFilters(resetPage): điểm vào DUY NHẤT mà mọi nơi thay
-   đổi bộ lọc/tìm kiếm nên gọi — resetPage=true khi người dùng vừa
-   đổi 1 điều kiện lọc (quay về trang 1 cho khỏi lạc); resetPage=false
-   khi chỉ refresh/lưu/xoá dữ liệu (giữ nguyên trang đang xem).
+   applyGamesFilters(resetPage): cổng vào DUY NHẤT để vẽ lại bảng — xem
+   nguyên lý ở đầu file.
    ══════════════════════════════════════════════ */
 function getBgFilteredGames() {
   const q = (searchInput?.value || "").trim().toLowerCase();
@@ -445,6 +539,23 @@ function applyGamesFilters(resetPage = false) {
   renderGames(getBgFilteredGames());
 }
 
+/* ══════════════════════════════════════════════
+   VẼ BẢNG GAME
+   ─────────────────────────────────────────────
+   Nhận mảng đã lọc, cắt đúng trang hiện tại rồi vẽ. Các chỗ ghi cứng
+   trong hàm này:
+     · "Không tìm thấy game nào." (khi rỗng), padding 40px, chữ var(--text-muted).
+     · Nhãn nút: "✏️ Sửa" (thường) / "👁️ Xem" (role chỉ xem); nút "📄 Chi tiết"
+       (chữ 12px, padding 6px 10px).
+     · Ảnh game: dùng hero_bg, nếu thiếu/lỗi thì ảnh giữ chỗ
+       https://placehold.co/48x48 (dịch vụ bên ngoài; 48px khớp .game-image
+       trong dashboard.css).
+     · Chấm màu cạnh ID: hình tròn 10px, màu = game.color.
+     · Độ khó rỗng hiển thị chữ "Medium" (tiếng Anh, khác với các giá trị
+       Dễ/Trung bình/Khó trong shared-categories.js).
+     · Thể loại rỗng hiển thị nhãn "Boardgame".
+     · Emoji rỗng dùng "🎲".
+   ══════════════════════════════════════════════ */
 function renderGames(filtered) {
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / BG_PAGE_SIZE));
@@ -497,7 +608,20 @@ function renderGames(filtered) {
   updateBgFilterResultCount(total);
 }
 
-/* ── Render dải nút phân trang (‹ Trước / số trang / Sau ›) ── */
+/* ══════════════════════════════════════════════
+   DẢI NÚT PHÂN TRANG
+   ─────────────────────────────────────────────
+   Chỉ hiện khi có từ 2 trang. Nút: "‹ Trước", các số trang, "Sau ›";
+   trang hiện tại dùng btn-primary (tím), còn lại btn-secondary.
+   Ghi cứng:
+     · MAX_BUTTONS = 7: tối đa 7 nút số. Nhiều hơn thì chỉ hiện trang
+       1, trang cuối, trang hiện tại và 2 trang kề bên, phần thiếu thay
+       bằng dấu "…".
+     · Kích thước nút: rộng tối thiểu 38px, cao 36px, padding ngang 10px,
+       chữ 13px; nút bị khoá mờ 40%.
+     · Dòng chú thích dưới: "Trang x/y — n game", chữ 12px màu var(--text-muted).
+     · Bấm đổi trang → cuộn êm về đầu bảng.
+   ══════════════════════════════════════════════ */
 function renderGamesPagination(total, totalPages) {
   const wrap = document.getElementById("bgPagination");
   if (!wrap) return;
@@ -544,13 +668,23 @@ function renderGamesPagination(total, totalPages) {
   });
 }
 
+/* Dòng "Đang lọc: X / Y game" ở đáy khung Bộ lọc nâng cao. */
 function updateBgFilterResultCount(total) {
   const el = document.getElementById("bgFilterResultCount");
   if (el) el.textContent = `Đang lọc: ${total} / ${games.length} game`;
 }
 
 /* ══════════════════════════════════════════════
-   ⚠️ MỚI — KHUNG "BỘ LỌC NÂNG CAO": populate select + render checkbox + bind
+   KHUNG "BỘ LỌC NÂNG CAO"
+   ─────────────────────────────────────────────
+   - populateBgFilterSelects(): đổ 2 ô chọn Thể loại / Độ khó từ
+     window.GAME_CATEGORIES và window.DIFFICULTY_LEVELS (js/shared-categories.js).
+     Chữ mục đầu: "-- Tất cả thể loại --" / "-- Tất cả độ khó --".
+   - renderBgMissingChecks(): vẽ các checkbox từ MISSING_CONTENT_CHECKS
+     (lưới tự chia cột, mỗi cột tối thiểu 230px; chữ 13px; ô tick 16px).
+   - bindBgFilterPanelEvents(): gắn sự kiện đổi lọc, nút "↺ Xoá bộ lọc",
+     và nút thu gọn/mở rộng (chữ "▾ Mở rộng" / "▴ Thu gọn"). Khung tiêu đề
+     "🔎 Bộ lọc nâng cao" và mặc định thu gọn nằm trong admin/dashboard.html.
    ══════════════════════════════════════════════ */
 function populateBgFilterSelects() {
   const catSel = document.getElementById("bgFilterCategory");
@@ -615,17 +749,23 @@ function bindBgFilterPanelEvents() {
 }
 
 /* ══════════════════════════════════════════════
-   SEARCH — ⚠️ TỐI ƯU: dùng window.debounce() dùng chung
-   (shared-utils.js) thay vì tự viết clearTimeout/setTimeout.
-   ⚠️ MỚI: giờ chạy qua applyGamesFilters() (gộp chung với lọc
-   thể loại/độ khó/thiếu nội dung) thay vì tự filter theo tên riêng.
+   Ô TÌM KIẾM
+   ─────────────────────────────────────────────
+   Chờ 200ms sau lần gõ cuối mới lọc (debounce) rồi về trang 1.
+   Chỉ tìm theo TÊN game.
    ══════════════════════════════════════════════ */
 searchInput?.addEventListener("input", window.debounce(() => {
   applyGamesFilters(true);
 }, 200));
 
 /* ══════════════════════════════════════════════
-   MODAL OPEN/CLOSE
+   MỞ / ĐÓNG POPUP
+   ─────────────────────────────────────────────
+   Nút "+ Thêm Game" (#addGameBtn, trong HTML): xoá form, đặt tiêu đề
+   "➕ Thêm Boardgame", ẩn nút Xoá, rồi mở popup. Đóng bằng nút ✕ hoặc
+   phím Escape (bấm ra ngoài KHÔNG đóng popup này).
+   Ghi chú: deleteBtn.dataset.wasVisible ("1"/"0") là cờ để
+   applyReadOnlyForm() biết có hiện lại nút Xoá hay không.
    ══════════════════════════════════════════════ */
 addGameBtn?.addEventListener("click", () => {
   if (isGamesReadOnly) return;
@@ -641,9 +781,16 @@ closeModalBtn?.addEventListener("click", () => modal.classList.add("hidden"));
 modal?.addEventListener("keydown", e => { if (e.key === "Escape") modal.classList.add("hidden"); });
 
 /* ══════════════════════════════════════════════
-   SAVE — ⚠️ TỐI ƯU: PATCH mảng `games` tại chỗ bằng dữ liệu
-   Supabase trả về (.select()), thay vì gọi lại loadGames() —
-   trước đây mỗi lần lưu 1 game là refetch TOÀN BỘ bảng.
+   LƯU GAME (thêm mới hoặc cập nhật)
+   ─────────────────────────────────────────────
+   - Tên là trường bắt buộc duy nhất; thiếu thì báo lỗi ngay tại ô
+     "Vui lòng nhập tên game."
+   - Giá trị mặc định khi để trống: emoji = emoji đang chọn, màu "#6c5ce7".
+   - sort_order rỗng/0 được lưu thành null.
+   - Không refetch: VÁ mảng `games` từ dữ liệu trả về rồi sắp lại theo
+     sort_order (null coi như 0), vẽ lại giữ nguyên trang đang xem.
+   - Thông báo: "✅ Đã lưu thành công!" (xanh mặc định #00b894); lỗi dùng
+     nền #e17055. Nút Lưu đổi chữ "Đang lưu..." trong lúc chờ.
    ══════════════════════════════════════════════ */
 async function saveGame() {
   if (isGamesReadOnly) return;
@@ -687,7 +834,7 @@ async function saveGame() {
       if (error) throw error;
       if (!data?.length) throw new Error(`UPDATE không ảnh hưởng dòng nào (id=${id}).`);
 
-      /* ⚠️ TỐI ƯU: patch tại chỗ thay vì loadGames() refetch toàn bảng */
+      /* Vá tại chỗ thay vì tải lại toàn bảng */
       const idx = games.findIndex(g => g.id === id);
       if (idx !== -1) games[idx] = data[0];
       else games.push(data[0]);
@@ -696,13 +843,12 @@ async function saveGame() {
       const { data, error } = await client.from("games").insert(payload).select();
       if (error) throw error;
 
-      /* ⚠️ TỐI ƯU: thêm trực tiếp vào mảng thay vì refetch */
       if (data?.[0]) games.push(data[0]);
       games.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     }
 
     modal.classList.add("hidden");
-    applyGamesFilters(false); // ⚠️ MỚI: giữ nguyên trang đang xem, không nhảy về trang 1
+    applyGamesFilters(false); // giữ nguyên trang đang xem, không nhảy về trang 1
     updateStats(games);
     window.showToast("✅ Đã lưu thành công!");
   } catch(err) {
@@ -715,8 +861,13 @@ async function saveGame() {
 saveBtn?.addEventListener("click", saveGame);
 
 /* ══════════════════════════════════════════════
-   DELETE — ⚠️ TỐI ƯU: xoá tại chỗ trong mảng `games` thay vì
-   loadGames() refetch toàn bảng.
+   XOÁ GAME
+   ─────────────────────────────────────────────
+   Xoá CỨNG (bảng `games` không có khoá ngoại nào trỏ tới nên không cần
+   xoá mềm). Có hộp xác nhận (window.showConfirm) với chữ "Xóa "<tên>"?"
+   / "Hành động này không thể hoàn tác." Xoá xong lọc bỏ khỏi mảng `games`
+   tại chỗ; nếu trang hiện tại hết dòng, renderGames() tự lùi 1 trang.
+   Toast thành công nền #e17055 (đỏ cam): "🗑️ Đã xóa thành công!".
    ══════════════════════════════════════════════ */
 async function deleteGame() {
   if (isGamesReadOnly) return;
@@ -741,11 +892,10 @@ async function deleteGame() {
     const { error } = await client.from("games").delete().eq("id", id);
     if (error) throw error;
 
-    /* ⚠️ TỐI ƯU: xoá tại chỗ thay vì loadGames() refetch toàn bảng */
     games = games.filter(g => String(g.id) !== String(id));
 
     modal.classList.add("hidden");
-    applyGamesFilters(false); // ⚠️ MỚI: renderGames() tự lùi trang nếu trang hiện tại rỗng sau khi xoá
+    applyGamesFilters(false);
     updateStats(games);
     window.showToast("🗑️ Đã xóa thành công!", "#e17055");
   } catch(err) {
@@ -758,7 +908,12 @@ async function deleteGame() {
 deleteBtn?.addEventListener("click", deleteGame);
 
 /* ══════════════════════════════════════════════
-   CLEAR FORM
+   XOÁ TRẮNG FORM (dùng khi mở "Thêm game" và trước khi nạp game để sửa)
+   ─────────────────────────────────────────────
+   Đặt lại: các ô chữ, màu về "#6c5ce7", thể loại (không chọn), độ khó
+   (không chọn), emoji về "🎲".
+   ⚠️ Danh sách ô bị xoá bên dưới KHÔNG có #rulesPdfInput → khi bấm
+   "+ Thêm Game" ngay sau lúc sửa 1 game có link PDF, ô PDF vẫn còn link cũ.
    ══════════════════════════════════════════════ */
 function clearForm() {
   [
@@ -782,7 +937,14 @@ function clearForm() {
 }
 
 /* ══════════════════════════════════════════════
-   EDIT / VIEW — event delegation
+   MỞ POPUP ĐỂ SỬA / XEM (event delegation)
+   ─────────────────────────────────────────────
+   Lắng nghe click trên cả trang, bắt nút .edit-btn (nút "✏️ Sửa"/"👁️ Xem"
+   trong bảng — các nút này được vẽ lại liên tục nên không gắn sự kiện trực
+   tiếp). Nạp dữ liệu game vào form, đặt tiêu đề:
+     - role chỉ xem : "👁️ Xem chi tiết Boardgame"
+     - role sửa được: "✏️ Chỉnh sửa Boardgame"
+   rồi hiện nút Xoá (nếu được sửa) và mở popup.
    ══════════════════════════════════════════════ */
 document.addEventListener("click", e => {
   const btn = e.target.closest(".edit-btn");
@@ -837,7 +999,11 @@ document.addEventListener("click", e => {
 });
 
 /* ══════════════════════════════════════════════
-   TRANG CHI TIẾT — event delegation
+   MỞ TRANG CHI TIẾT (event delegation)
+   ─────────────────────────────────────────────
+   Nút "📄 Chi tiết" (.detail-btn) gọi window.openGameDetail(id) do
+   dashboard-game-detail.js định nghĩa (file đó nạp SAU file này; chỉ cần có
+   mặt tại lúc bấm nút).
    ══════════════════════════════════════════════ */
 document.addEventListener("click", e => {
   const detailBtn = e.target.closest(".detail-btn");
@@ -847,7 +1013,9 @@ document.addEventListener("click", e => {
 });
 
 /* ══════════════════════════════════════════════
-   REFRESH
+   NÚT REFRESH TRÊN TRANG DASHBOARD (#refreshBtn)
+   Tải lại danh sách game, rồi danh sách đồ uống nếu module Đồ uống
+   đã có hàm loadDrinks.
    ══════════════════════════════════════════════ */
 document.getElementById("refreshBtn")?.addEventListener("click", async () => {
   await loadGames();
@@ -857,7 +1025,11 @@ document.getElementById("refreshBtn")?.addEventListener("click", async () => {
 window.loadGames = loadGames;
 
 /* ══════════════════════════════════════════════
-   INIT
+   KHỞI ĐỘNG
+   Dựng khung bộ lọc rồi tải dữ liệu ngay khi file chạy (không chờ người
+   dùng mở trang Boardgames). Sau đó loadGames() còn được gọi lại mỗi lần
+   mở trang qua showBoardgames() (core/dashboard-nav.js) và khi bấm nút
+   "🔄 Refresh" trên trang.
    ══════════════════════════════════════════════ */
 populateBgFilterSelects();
 renderBgMissingChecks();
