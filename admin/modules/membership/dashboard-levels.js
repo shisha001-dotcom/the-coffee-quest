@@ -1,19 +1,54 @@
 /* ══════════════════════════════════════════════
    DASHBOARD LEVELS — admin/modules/membership/dashboard-levels.js
    ─────────────────────────────────────────────
-   ĐÃ TÁCH khỏi dashboard-customers.js cũ. File này CHỈ lo tab
-   "🏆 Cấp độ": cấu hình bảng `membership_levels` (XP tối thiểu,
-   tên rank, icon, % giảm giá, quà tặng, ưu tiên đặt bàn).
+   VAI TRÒ
+   Tab "🏆 Cấp độ" trong trang Khách hàng: bảng sửa trực tiếp cấu hình từng
+   cấp thành viên (bảng `membership_levels`): XP tối thiểu, tên hạng, icon,
+   % giảm giá, quà tặng, ưu tiên đặt bàn. Chỉ Super Admin lưu được.
 
-   KHÔNG tự gọi registerPage() — render vào #custTabLevels, vùng
-   đã có sẵn trong page do dashboard-customers.js đăng ký.
+   KHÔNG tự đăng ký trang: file chỉ vẽ vào vùng #custTabLevels có sẵn trong
+   trang do dashboard-customers.js tạo, và xuất window.renderLevelsTab() để
+   file đó gọi khi chuyển sang tab này.
 
-   Expose: window.renderLevelsTab()
+   CÁCH DÙNG
+   Sửa giá trị ngay trong bảng rồi bấm "💾 Lưu tất cả" — lưu MỘT LẦN toàn bộ
+   các cấp (upsert theo cột `level`). Chỉ SỬA được các cấp đã có trong DB;
+   giao diện không có nút thêm/xoá cấp.
+
+   QUY TẮC KIỂM TRA TRƯỚC KHI LƯU (báo bằng toast nền #e17055)
+     · Tên hạng không được trống.
+     · XP tối thiểu không âm.
+     · % giảm giá từ 0 đến 100.
+     · XP tối thiểu phải TĂNG DẦN NGHIÊM NGẶT theo cấp (cấp sau > cấp trước).
+
+   ⚠️ SAU KHI LƯU KHÔNG TÍNH LẠI CẤP CỦA KHÁCH
+   Cột customers.level được lưu sẵn (không suy ra lúc hiển thị). Đổi mốc XP ở
+   đây KHÔNG cập nhật lại level của khách trong DB — level chỉ được tính lại
+   lần kế tiếp khách được cộng XP (khi có đơn check-in). Sau khi lưu, file chỉ
+   tải lại state (levels + customers) và làm mới bảng danh sách.
+
+   PHỤ THUỘC
+   window.Membership (alias M_L), `client`, window.showToast, window.escHtml;
+   window.loadCustomers (dashboard-customers.js) nếu có.
    ══════════════════════════════════════════════ */
 
 const M_L = window.Membership;
 const isSuperAdminLevels = M_L.isSuperAdmin;
 
+/* ══════════════════════════════════════════════
+   VẼ TAB
+   ─────────────────────────────────────────────
+   Chữ và kích thước ghi cứng (đều là style inline, sửa tại đây):
+     · Tiêu đề khối "Cấu hình cấp độ & ưu đãi" 14px đậm; nút "💾 Lưu tất cả".
+     · Tên cột: Cấp / XP tối thiểu / Tên rank / Icon / Giảm giá % / Quà tặng /
+       Ưu tiên đặt bàn.
+     · Độ rộng ô nhập: XP 90px, Tên rank 120px, Icon 50px (chữ căn giữa),
+       Giảm giá 70px, Quà tặng 160px, checkbox 18px. Tất cả cao 34px, bo 6px,
+       viền var(--border), padding ngang 8px.
+     · Dòng chú thích cuối 12px, màu var(--text-muted).
+   Mỗi hàng <tr> mang data-level = số cấp; saveLevels() đọc lại theo các class
+   .lv-xp, .lv-name, .lv-icon, .lv-discount, .lv-freeitem, .lv-priority.
+   ══════════════════════════════════════════════ */
 function renderLevelsTab() {
   const wrap = document.getElementById("custTabLevels");
   if (!wrap) return;
@@ -48,6 +83,16 @@ function renderLevelsTab() {
 }
 window.renderLevelsTab = renderLevelsTab;
 
+/* ══════════════════════════════════════════════
+   LƯU TẤT CẢ CÁC CẤP
+   ─────────────────────────────────────────────
+   Đọc mọi hàng trong bảng → kiểm tra 4 quy tắc (xem đầu file) → upsert
+   một lần vào `membership_levels` (khoá xung đột: level). Giá trị mặc định
+   khi để trống: icon "⭐", quà tặng → null, XP/giảm giá không hợp lệ → 0.
+   Thành công: toast "✅ Đã lưu cấu hình cấp độ!" (xanh mặc định), rồi tải lại
+   levels + customers và làm mới tab Danh sách nếu đang mở.
+   Lỗi: "❌ Lỗi: …" nền #e17055.
+   ══════════════════════════════════════════════ */
 async function saveLevels() {
   if (!isSuperAdminLevels) return;
   const rows = [...document.querySelectorAll("#custTabLevels tbody tr")].map(tr => ({
