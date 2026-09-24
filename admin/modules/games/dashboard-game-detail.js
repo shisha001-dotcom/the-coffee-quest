@@ -1,49 +1,61 @@
 /* ══════════════════════════════════════════════
    DASHBOARD GAME DETAIL — admin/modules/games/dashboard-game-detail.js
    ─────────────────────────────────────────────
-   Trang CHI TIẾT chỉnh sửa game — thay thế popup khi cần thao tác
-   trực quan hơn, tách rời hoàn toàn với modal popup trong
-   dashboard-games.js.
+   VAI TRÒ
+   Trang chi tiết để chỉnh sửa 1 game (#gameDetailPage) — 1 trang đầy đủ
+   thay cho popup, có xem trước trực tiếp ảnh nền / ảnh hướng dẫn /
+   YouTube / PDF luật chơi. Popup #gameModal trong dashboard-games.js vẫn
+   tồn tại độc lập; 2 nơi cùng sửa 1 bảng `games`.
 
-   ⚠️ SỬA (UI/UX audit — ưu tiên cao):
-   - saveGameDetail(): validate tên game báo lỗi ngay tại field
-     (#gdName) thay vì alert(); lỗi server báo qua toast.
-   - deleteGameDetail(): window.confirm() → window.showConfirm().
-   - Các nút icon-only (không đổi vì đã có text) giữ nguyên; đã thêm
-     aria-label cho khu vực preview lỗi ảnh.
+   CÁCH MỞ
+   - Bấm nút "📄 Chi tiết" ở bảng Boardgames → dashboard-games.js gọi
+     window.openGameDetail(id) (định nghĩa ở file này).
+   - Trang KHÔNG có mục menu riêng và KHÔNG gọi registerPage(): mở bằng
+     window.__showPage("gameDetailPage"), nên mục "Boardgames" trong sidebar
+     vẫn giữ trạng thái active. Nút "← Quay lại Boardgames" gọi
+     window.showBoardgames() (core/dashboard-nav.js).
+   - Trang được inject vào .main-content và có id kết thúc bằng "Page"
+     để bộ chuyển trang (page-registry) ẩn/hiện được.
 
-   ⚠️ SỬA (ponytail dedupe): getGdYoutubeId() cục bộ đã bị xoá —
-   trùng y hệt window.getYoutubeId() trong js/shared-utils.js (dùng
-   chung với js/app.js — trang chi tiết game phía frontend). Dùng
-   thẳng window.getYoutubeId() thay vì giữ 2 bản giống nhau.
+   PHỤ THUỘC (nạp TRƯỚC file này)
+   dashboard-games.js cung cấp các biến/hàm toàn cục: `client`,
+   `currentSession`, `isGamesReadOnly`, `games` (qua window.getGameById),
+   `parseLines`, `parseImages`, `setLines`, `setImages`, `loadGames`.
+   Ngoài ra: window.AdminPermissions, window.escHtml, window.showToast,
+   window.showConfirm, window.getYoutubeId, window.gdrivePreviewUrl
+   (js/shared-utils.js).
 
-   ⚠️ ĐÃ XOÁ (không còn dùng): toàn bộ tính năng "Mã QR luật chơi"
-   (SITE_BASE_URL, gameQrUrl(), showQrLoadError()/clearQrLoadError(),
-   renderGameQR(), downloadCanvasQR(), khối sidebar canvas QR + nút
-   tải PNG trong HTML, và mọi lệnh gọi renderGameQR() ở
-   openGameDetail()/saveGameDetail()). Layout trang chi tiết giờ chỉ
-   còn 1 cột (form), không còn cột sidebar 300px bên phải. Thư viện
-   QRCode (CDN qrcode.js) cũng không còn là phụ thuộc bắt buộc của
-   file này nữa — nhớ gỡ luôn thẻ <script> CDN tương ứng khỏi
-   admin/dashboard.html.
+   KHÁC BIỆT SO VỚI POPUP TRONG dashboard-games.js
+     · Thể loại và Độ khó ở đây là ô CHỮ TỰ DO (thể loại cách nhau bằng dấu
+       phẩy), chưa dùng chip chọn / dropdown chuẩn như popup — có thể gõ giá
+       trị không nằm trong danh sách chuẩn của shared-categories.js.
+     · Emoji chỉ có ô nhập tay + xem trước, không có bảng chọn emoji.
+     · Sau khi Lưu/Xoá gọi loadGames() tải lại toàn bảng (popup thì chỉ vá
+       tại chỗ), nên danh sách Boardgames quay về trang 1.
+   Ô "Độ khó" (#gdDifficulty) dùng chung kiểu ô chọn trong
+   dashboard-shared.css (cao 44px, bo 10px, nền trắng).
 
-   ⚠️ MỚI: bổ sung trường "Link luật chơi PDF" (rules_pdf_url) —
-   trước đây trang chi tiết KHÔNG có trường này (dù popup thêm/sửa
-   game trong dashboard-games.js đã có từ trước), nên sửa game qua
-   trang chi tiết không xem/sửa được link PDF. Đã thêm field
-   #gdRulesPdf + preview trực tiếp #gdPdfPreview (nhúng iframe qua
-   window.gdrivePreviewUrl(), giống cách trang chi tiết boardgame
-   PHÍA KHÁCH nhúng PDF) + link "↗️ Mở file gốc" — đồng bộ với 3
-   preview media đã có sẵn (Hero/Ảnh hướng dẫn/YouTube).
-
-   Cần: `client`, `currentSession`, `isGamesReadOnly`, `games`, `parseLines`,
-   `parseImages`, `setLines`, `setImages` (tất cả từ dashboard-games.js —
-   load TRƯỚC file này), window.escHtml / window.showToast / window.showConfirm /
-   window.getYoutubeId / window.gdrivePreviewUrl (shared-utils.js).
+   GIÁ TRỊ MẶC ĐỊNH ĐANG GHI CỨNG
+     · Emoji "🎲" (khi ô trống): fillGameDetailForm() và saveGameDetail().
+     · Màu "#6c5ce7": form HTML, fillGameDetailForm(), saveGameDetail().
    ══════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════════
-   LIVE PREVIEW — Hero / Ảnh hướng dẫn / YouTube / PDF luật chơi
+   XEM TRƯỚC TRỰC TIẾP (Hero / Ảnh hướng dẫn / YouTube / PDF)
+   ─────────────────────────────────────────────
+   4 hàm dưới đây vẽ khung xem trước ngay dưới từng ô nhập; được gọi
+   khi mở form và khi gõ/dán link (chờ 300ms sau lần gõ cuối).
+   Kích thước & chữ đang ghi cứng (tất cả là inline style):
+     · Hero  : khung cao 140px, chữ giữ chỗ "Chưa có ảnh".
+     · Ảnh HD: lưới ô tối thiểu 120px, mỗi ô ảnh cao 80px, chú thích chữ 10px.
+     · YouTube: khung rộng 220px, cao tối thiểu 120px; ảnh thu nhỏ lấy từ
+       https://img.youtube.com/vi/<id>/hqdefault.jpg
+     · PDF   : khung cao 240px, nhúng iframe qua window.gdrivePreviewUrl().
+   Chữ báo lỗi màu var(--danger) (#e17055):
+     "⚠️ Không tải được ảnh — kiểm tra lại URL", "⚠️ Lỗi ảnh",
+     "⚠️ Link YouTube không hợp lệ", "⚠️ Không tải được thumbnail".
+   Chữ trạng thái trống màu var(--text-muted), cỡ 12px.
+   (Khung xem trước có viền nét đứt 1.5px màu var(--border), nền var(--bg).)
    ══════════════════════════════════════════════ */
 function updateGdHeroPreview() {
   const url = document.getElementById("gdHero")?.value.trim();
@@ -96,9 +108,10 @@ function updateGdYoutubePreview() {
     onerror="this.parentElement.innerHTML='<span role=&quot;alert&quot; style=&quot;font-size:12px;color:var(--danger);&quot;>⚠️ Không tải được thumbnail</span>'">`;
 }
 
-/* ⚠️ MỚI: preview PDF luật chơi — nhúng iframe qua window.gdrivePreviewUrl()
-   (cùng helper dùng bởi trang chi tiết boardgame phía khách), kèm link
-   "Mở file gốc" mở đúng URL admin đã dán (không phải link preview). */
+/* Xem trước PDF luật chơi: nhúng iframe bằng link /preview do
+   window.gdrivePreviewUrl() tạo (cùng helper trang khách dùng), kèm link
+   "↗️ Mở file gốc trên Google Drive" trỏ đúng URL admin đã dán.
+   Không có link → hiện chữ giữ chỗ và ẩn link "Mở file gốc". */
 function updateGdPdfPreview() {
   const url = document.getElementById("gdRulesPdf")?.value.trim();
   const box = document.getElementById("gdPdfPreview");
@@ -122,7 +135,12 @@ function updateGdPdfPreview() {
 }
 
 /* ══════════════════════════════════════════════
-   VALIDATE FIELD ERROR — MỚI (giống dashboard-games.js)
+   BÁO LỖI TẠI Ô NHẬP
+   ─────────────────────────────────────────────
+   Viền ô đổi sang var(--danger), dòng chữ lỗi đỏ 12px đậm ngay dưới ô
+   (id = <id ô> + "Error"), tự cuộn ô lỗi vào giữa màn hình, tự xoá khi
+   gõ lại. Tên hàm có tiền tố Gd để không đụng với hàm cùng chức năng
+   của dashboard-games.js.
    ══════════════════════════════════════════════ */
 function clearGdFieldError(id) {
   const el = document.getElementById(id);
@@ -149,7 +167,22 @@ function showGdFieldError(id, msg) {
 }
 
 /* ══════════════════════════════════════════════
-   TRANG CHI TIẾT GAME — inject vào .main-content
+   DỰNG TRANG — inject vào .main-content 1 lần lúc file chạy
+   ─────────────────────────────────────────────
+   Nội dung là chuỗi HTML bên dưới (không chèn comment vào giữa được).
+   Bảng tra "muốn đổi X thì sửa ở đâu":
+     · Tiêu đề "📄 Chi tiết Boardgame" + nút "← Quay lại Boardgames",
+       "🗑️ Xóa game", "💾 Lưu thay đổi": sửa chữ trong chuỗi.
+       Kiểu nút lấy từ .btn / .btn-primary / .btn-danger / .btn-secondary
+       trong dashboard.css.
+     · Khung form: rộng tối đa 900px, padding 28px 30px (style inline trên
+       thẻ .table-card). Lưới 2 cột: .form-grid (dashboard.css).
+     · Tên 3 nhóm: "📋 Thông tin cơ bản", "🎯 Nội dung game", "🖼️ Media".
+     · Placeholder / gợi ý: sửa trực tiếp; ô <code> dùng nền #f1f5f9,
+       padding 1px 5px, bo 4px.
+     · Ô màu: 2 ô đồng bộ nhau bằng thuộc tính oninput viết thẳng trong HTML
+       (khác quy ước dự án là addEventListener); màu mặc định #6c5ce7.
+     · Kích thước các khung xem trước: xem chú thích ở khối "XEM TRƯỚC".
    ══════════════════════════════════════════════ */
 (function injectGameDetailPage() {
   const main = document.querySelector(".main-content");
@@ -304,7 +337,13 @@ function showGdFieldError(id, msg) {
 })();
 
 /* ══════════════════════════════════════════════
-   FILL FORM TỪ DỮ LIỆU GAME
+   ĐỔ DỮ LIỆU 1 GAME VÀO FORM
+   ─────────────────────────────────────────────
+   - Danh sách thể loại (mảng) hiển thị thành chuỗi cách nhau ", ".
+   - Dòng phụ đề dưới tiêu đề: "ID: <id> · <thể loại 1, thể loại 2>".
+   - Ô emoji cập nhật ô xem trước ngay khi gõ (handler gán bằng `oninput`,
+     mỗi lần mở form được gán lại nên không bị nhân đôi).
+   - Cuối hàm vẽ lại cả 4 khung xem trước.
    ══════════════════════════════════════════════ */
 function fillGameDetailForm(game) {
   document.getElementById("gdId").value = game.id;
@@ -337,13 +376,11 @@ function fillGameDetailForm(game) {
   document.getElementById("gdSubtitle").textContent =
     `ID: ${game.id}` + (cats.length ? " · " + cats.join(", ") : "");
 
-  /* Emoji preview live-update khi gõ tay */
   const emojiInput = document.getElementById("gdEmoji");
   emojiInput.oninput = () => {
     document.getElementById("gdEmojiPreview").textContent = emojiInput.value.trim() || "🎲";
   };
 
-  /* MỚI: cập nhật preview ngay khi mở form */
   updateGdHeroPreview();
   updateGdImagesPreview();
   updateGdYoutubePreview();
@@ -351,7 +388,9 @@ function fillGameDetailForm(game) {
 }
 
 /* ══════════════════════════════════════════════
-   READ-ONLY (Bar Staff chỉ xem) — dùng chung AdminPermissions.applyReadOnlyForm
+   CHẾ ĐỘ CHỈ XEM (Bar Staff)
+   Khoá MỌI ô nhập trong trang + ẩn nút Lưu/Xoá, dùng chung logic
+   AdminPermissions.applyReadOnlyForm.
    ══════════════════════════════════════════════ */
 function setGameDetailReadOnly(readonly) {
   const page = document.getElementById("gameDetailPage");
@@ -364,6 +403,10 @@ function setGameDetailReadOnly(readonly) {
 
 /* ══════════════════════════════════════════════
    MỞ TRANG CHI TIẾT
+   Tra game theo id (window.getGameById của dashboard-games.js). Không thấy →
+   toast "⚠️ Không tìm thấy game — thử refresh lại bảng." (nền #e17055).
+   dataset.wasVisible="1" báo cho applyReadOnlyForm biết đây là trang
+   ĐANG SỬA (nút Xoá được phép hiện lại khi không ở chế độ chỉ xem).
    ══════════════════════════════════════════════ */
 window.openGameDetail = function (id) {
   const game = window.getGameById ? window.getGameById(id) : null;
@@ -377,7 +420,14 @@ window.openGameDetail = function (id) {
 };
 
 /* ══════════════════════════════════════════════
-   SAVE
+   LƯU
+   ─────────────────────────────────────────────
+   - Chỉ tên game là bắt buộc (báo lỗi tại ô, chữ "Vui lòng nhập tên game.").
+   - Thể loại: tách bởi dấu phẩy hoặc xuống dòng, bỏ mục rỗng.
+   - Mặc định khi để trống: emoji "🎲", màu "#6c5ce7". sort_order rỗng/0 → null.
+   - UPDATE không ảnh hưởng dòng nào → coi là lỗi.
+   - Thành công: toast "✅ Đã lưu thành công!" rồi loadGames() tải lại bảng.
+     Lỗi: toast nền #e17055. Nút Lưu đổi chữ "Đang lưu..." trong lúc chờ.
    ══════════════════════════════════════════════ */
 async function saveGameDetail() {
   if (typeof isGamesReadOnly !== "undefined" && isGamesReadOnly) return;
@@ -386,7 +436,6 @@ async function saveGameDetail() {
   if (!id) return;
 
   const name = document.getElementById("gdName").value.trim();
-  /* ⚠️ SỬA: lỗi hiển thị ngay tại field thay vì alert() */
   if (!name) { showGdFieldError("gdName", "Vui lòng nhập tên game."); return; }
   clearGdFieldError("gdName");
 
@@ -427,7 +476,6 @@ async function saveGameDetail() {
     window.showToast("✅ Đã lưu thành công!");
     if (typeof loadGames === "function") await loadGames();
   } catch (err) {
-    /* ⚠️ SỬA: lỗi server báo qua toast thay vì alert() */
     window.showToast("❌ Lỗi khi lưu: " + err.message, "#e17055");
   } finally {
     btn.disabled = false; btn.textContent = "💾 Lưu thay đổi";
@@ -435,7 +483,11 @@ async function saveGameDetail() {
 }
 
 /* ══════════════════════════════════════════════
-   DELETE
+   XOÁ
+   Xoá CỨNG (bảng `games` không có khoá ngoại trỏ tới). Hỏi xác nhận bằng
+   window.showConfirm ("Xóa "<tên>"?" / "Hành động này không thể hoàn
+   tác."). Xong: toast "🗑️ Đã xóa thành công!" (nền #e17055), tải lại
+   bảng và quay về trang Boardgames.
    ══════════════════════════════════════════════ */
 async function deleteGameDetail() {
   if (typeof isGamesReadOnly !== "undefined" && isGamesReadOnly) return;
@@ -444,7 +496,6 @@ async function deleteGameDetail() {
   if (!id) return;
   const name = document.getElementById("gdName").value || `ID=${id}`;
 
-  /* ⚠️ SỬA: window.confirm() → window.showConfirm() */
   const ok = await window.showConfirm({
     title: `Xóa "${name}"?`,
     message: "Hành động này không thể hoàn tác.",
@@ -471,7 +522,9 @@ async function deleteGameDetail() {
 }
 
 /* ══════════════════════════════════════════════
-   BIND EVENTS (chạy 1 lần lúc inject trang)
+   GẮN SỰ KIỆN (chạy 1 lần ngay sau khi dựng trang)
+   Xem trước trực tiếp: chờ 300ms sau lần gõ/dán cuối (mỗi ô có bộ đếm
+   giờ riêng) rồi mới vẽ lại khung xem trước tương ứng.
    ══════════════════════════════════════════════ */
 function bindGameDetailEvents() {
   document.getElementById("gdBackBtn")?.addEventListener("click", () => {
@@ -480,7 +533,6 @@ function bindGameDetailEvents() {
   document.getElementById("gdSaveBtn")?.addEventListener("click", saveGameDetail);
   document.getElementById("gdDeleteBtn")?.addEventListener("click", deleteGameDetail);
 
-  /* MỚI: live preview khi nhập/dán link — debounce 300ms */
   let _gdHeroTimer, _gdImagesTimer, _gdYoutubeTimer, _gdPdfTimer;
   document.getElementById("gdHero")?.addEventListener("input", () => {
     clearTimeout(_gdHeroTimer);
@@ -494,7 +546,6 @@ function bindGameDetailEvents() {
     clearTimeout(_gdYoutubeTimer);
     _gdYoutubeTimer = setTimeout(updateGdYoutubePreview, 300);
   });
-  /* ⚠️ MỚI: live preview cho link PDF luật chơi */
   document.getElementById("gdRulesPdf")?.addEventListener("input", () => {
     clearTimeout(_gdPdfTimer);
     _gdPdfTimer = setTimeout(updateGdPdfPreview, 300);
