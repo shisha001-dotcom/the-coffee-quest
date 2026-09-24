@@ -1,76 +1,50 @@
 /* ══════════════════════════════════════════════
    DASHBOARD CUSTOMERS — admin/modules/membership/dashboard-customers.js
    ─────────────────────────────────────────────
-   ⚠️ VIẾT LẠI THEO YÊU CẦU TÁCH TÍNH NĂNG (2026-07-23):
+   VAI TRÒ
+   Trang "🎮 Khách hàng — Coffee Quest" (#customersPage), chỉ Super Admin
+   truy cập. Gồm 3 tab: 👥 Danh sách (file này) / 🗺️ Nhiệm vụ
+   (dashboard-quests.js) / 🏆 Cấp độ (dashboard-levels.js) — 2 tab sau vẽ
+   vào #custTabQuests / #custTabLevels do file này tạo sẵn.
 
-   - Phần "Tạo đơn hàng" (chọn sản phẩm, số lượng, submit, trừ kho,
-     auto check-in) ĐÃ CHUYỂN HẲN sang tab "Đơn hàng" riêng
-     (admin/modules/orders/dashboard-orders.js). File này KHÔNG còn
-     orderDrinksCache/orderDraftRows/submitOrder/consumeStockForOrderItems/
-     maybeAutoCheckin nữa.
-   - Phần "Huỷ đơn / huỷ dòng sản phẩm" (voidOrderModal, openVoidModal,
-     confirmVoidOrder) ĐÃ CHUYỂN sang tab "Đơn hàng" — thao tác huỷ
-     chỉ làm ở bảng tra cứu theo ngày bên đó, KHÔNG còn ở đây.
-   - Modal "Chi tiết khách hàng" (customerDetailModal) ĐÃ BỎ HẲN —
-     thay bằng 1 PAGE riêng (customerDetailPage, kiểu gameDetailPage —
-     giữ sideMenu, có nút Quay lại), xử lý bởi file MỚI
-     admin/modules/membership/dashboard-customer-detail.js. File này
-     chỉ còn trách nhiệm: bảng danh sách khách hàng + thêm khách mới +
-     xoá khách hàng (soft delete) + điều hướng sang customerDetailPage.
-   - Khối "Nhiệm vụ đang diễn ra" (tick tiến độ quest thường,
-     markQuestProgress) ĐÃ BỎ HẲN theo yêu cầu — không còn ở đâu trong
-     lần cập nhật này.
+   PHẠM VI CỦA FILE NÀY (đã tách bớt sang nơi khác)
+     - Tạo đơn hàng / Huỷ đơn / Huỷ dòng: đã chuyển sang trang "🧾 Đơn hàng"
+       (dashboard-orders.js). File này KHÔNG còn liên quan.
+     - Xem chi tiết khách: mở trang riêng customerDetailPage
+       (dashboard-customer-detail.js) qua nút "🔍 Chi tiết".
+     - Cộng tiến độ nhiệm vụ thường: hiện KHÔNG có giao diện nào (xem ghi
+       chú ở dashboard-quests.js).
+   File này chỉ còn: bảng danh sách khách + lọc/tìm kiếm + xuất Excel +
+   thêm khách mới + xoá khách (xoá mềm).
 
-   ⚠️ SỬA (dedupe — validate SĐT VN): saveNewCustomer() KHÔNG còn tự
-   viết regex ^0\d{9,10}$ nữa — gọi window.isValidPhoneVN(phone) dùng
-   chung (js/shared-utils.js), cùng logic với js/membership.js (frontend)
-   và dashboard-orders.js::lookupCustomerForOrder(). Trước đây 3 nơi
-   này tự copy-paste y hệt 1 regex — sửa 1 chỗ quên 2 chỗ còn lại sẽ
-   khiến validate lệch nhau giữa các form.
+   TÍNH NĂNG XUẤT EXCEL (nút "⬇️ Xuất Excel")
+   Xuất ĐÚNG danh sách khách đang hiển thị (đã áp tìm kiếm + lọc ngày đăng
+   ký) kèm TOÀN BỘ hoặc 1 khoảng ngày lịch sử đơn hàng của các khách đó
+   (lọc RIÊNG bằng 2 ô ngày "🧾 Chỉ lấy đơn hàng trong khoảng ngày" — không
+   ảnh hưởng bảng trên màn hình). File .xlsx có 3 sheet: "Khách hàng" (tổng
+   hợp), "Đơn hàng" (mỗi dòng = 1 đơn), "Chi tiết sản phẩm" (mỗi dòng = 1
+   sản phẩm trong 1 đơn) — cấu trúc 2 sheet sau lấy theo đúng mẫu ở
+   dashboard-orders.js::exportOrdersToExcel() để nhất quán trong dự án.
+   Trang này chỉ Super Admin vào được nên KHÔNG cần ẩn giá vốn/lợi nhuận
+   như cách dashboard-orders.js phải làm cho Bar Staff.
 
-   ⚠️ MỚI (đợt 1 — xuất Excel + lọc theo ngày đăng ký):
-   - Thêm bộ lọc "📅 Lọc theo ngày đăng ký" (custDateFrom/custDateTo)
-     ngay trên bảng danh sách — lọc CỤC BỘ trên dữ liệu đã tải sẵn
-     trong M.state.customers (không gọi lại Supabase), áp dụng ĐỒNG
-     THỜI với ô tìm kiếm tên/SĐT hiện có.
-   - ⚠️ GIẢ ĐỊNH SCHEMA: dùng cột `customers.created_at` làm "ngày
-     đăng ký" (Supabase mặc định luôn tự thêm cột timestamptz này cho
-     bảng mới, và M.loadCustomers() đã SELECT * nên cột này tự có
-     trong state nếu tồn tại). Nếu bảng `customers` thực tế KHÔNG có
-     cột này, đổi lại tên cột trong getFilteredCustomers() (dòng đọc
-     c.created_at) và buildAndDownloadCustomerWorkbook() (cột "Ngày
-     đăng ký").
+   ⚠️ GIẢ ĐỊNH SCHEMA — "NGÀY ĐĂNG KÝ"
+   Bộ lọc theo ngày đăng ký (custDateFrom/custDateTo) và cột "Ngày đăng ký"
+   trong Excel đều đọc customers.created_at. Nếu bảng `customers` không có
+   cột này, sửa lại ở getFilteredCustomers() (dòng đọc c.created_at) và
+   buildAndDownloadCustomerWorkbook() (cột "Ngày đăng ký").
 
-   ⚠️ MỚI (đợt 2 — kèm chi tiết đơn hàng khi xuất Excel):
-   - Nút "⬇️ Xuất Excel" giờ là ASYNC: sau khi có danh sách khách
-     đang hiển thị (đã áp tìm kiếm + lọc ngày đăng ký), TRUY VẤN
-     THÊM `customer_orders` (kèm customer_order_items) của ĐÚNG các
-     customer_id đó — dùng `.in("customer_id", [...])` — rồi xuất
-     workbook 3 sheet: "Khách hàng" (tổng hợp), "Đơn hàng" (mỗi dòng
-     = 1 đơn), "Chi tiết sản phẩm" (mỗi dòng = 1 sản phẩm trong 1
-     đơn). Cấu trúc 2 sheet đơn hàng lấy theo đúng mẫu đã dùng ở
-     admin/modules/orders/dashboard-orders.js::exportOrdersToExcel()
-     để nhất quán trong dự án.
-   - Thêm bộ lọc ngày RIÊNG cho đơn hàng (custOrderDateFrom/
-     custOrderDateTo) — ĐỘC LẬP với bộ lọc "ngày đăng ký" ở trên, chỉ
-     ảnh hưởng tới việc ĐƠN HÀNG NÀO được đưa vào file Excel (không
-     ảnh hưởng bảng danh sách khách hàng trên màn hình). Để trống cả
-     2 ô = lấy TOÀN BỘ lịch sử đơn hàng của các khách đang được lọc.
-   - Trang này chỉ Super Admin mới truy cập được (guard ở
-     registerPage() bên dưới) nên KHÔNG cần ẩn giá vốn/lợi nhuận như
-     cách dashboard-orders.js phải làm cho barstaff.
-   - Lưu ý vận hành: `.in("customer_id", ids)` gửi toàn bộ danh sách
-     ID trong query string — nếu bộ lọc để trống (chọn TOÀN BỘ khách
-     hàng) và số lượng khách rất lớn (hàng nghìn), có thể chạm giới
-     hạn độ dài URL của PostgREST. Với quy mô 1 quán thông thường thì
-     không đáng lo.
+   ⚠️ GIỚI HẠN ĐỘ DÀI URL KHI XUẤT EXCEL
+   Truy vấn đơn hàng dùng .in("customer_id", ids) — gửi toàn bộ danh sách id
+   trong query string. Nếu không lọc gì (chọn hết khách) và số khách lên tới
+   hàng nghìn, có thể chạm giới hạn độ dài URL của PostgREST. Quy mô 1 quán
+   thông thường thì không đáng lo.
 
-   Cần: client, currentSession, window.AdminPermissions,
-   window.Membership (M) — PHẢI load trước file này,
-   window.escHtml, window.showToast, window.showReasonPrompt, window.debounce,
-   window.isValidPhoneVN, window.slugify, window.formatDateVN
-   (js/shared-utils.js), window.XLSX (CDN SheetJS — đã load sẵn trong
-   admin/dashboard.html, dùng chung với dashboard-orders.js).
+   PHỤ THUỘC
+   client, currentSession, window.AdminPermissions, window.Membership
+   (alias M), window.escHtml, showToast, showReasonPrompt, debounce,
+   isValidPhoneVN, slugify, formatDateVN (js/shared-utils.js), window.XLSX
+   (CDN SheetJS, dùng chung với dashboard-orders.js).
    ══════════════════════════════════════════════ */
 
 const M = window.Membership;
@@ -80,20 +54,21 @@ let custActiveTab = "list";
 let custSearchQ   = "";
 let _custActionBusy = false;
 
-/* ⚠️ MỚI: bộ lọc theo khoảng ngày đăng ký (customers.created_at) —
-   ảnh hưởng CẢ bảng hiển thị lẫn danh sách khách được đưa vào Excel.
-   Xem ghi chú giả định schema ở đầu file. */
-let custDateFrom = ""; // "" = không giới hạn
+/* Bộ lọc theo khoảng ngày ĐĂNG KÝ (customers.created_at) — ảnh hưởng CẢ
+   bảng hiển thị lẫn danh sách khách được đưa vào Excel. "" = không giới hạn. */
+let custDateFrom = "";
 let custDateTo   = "";
 
-/* ⚠️ MỚI: bộ lọc ngày RIÊNG cho đơn hàng — CHỈ dùng lúc xuất Excel
-   (không ảnh hưởng bảng khách hàng trên màn hình). Để trống = lấy
-   toàn bộ lịch sử đơn hàng của các khách đang được lọc ở trên. */
+/* Bộ lọc ngày RIÊNG cho ĐƠN HÀNG — chỉ dùng lúc xuất Excel, không đụng tới
+   bảng khách hàng trên màn hình. Để trống = lấy toàn bộ lịch sử đơn hàng
+   của các khách đang được lọc ở trên. */
 let custOrderDateFrom = "";
 let custOrderDateTo   = "";
 
 /* ══════════════════════════════════════════════
-   ĐĂNG KÝ MENU + PAGE
+   ĐĂNG KÝ TRANG
+   onShow: tải cấp độ + nhiệm vụ (chỉ vẽ lại nếu đúng tab đang mở) rồi tải
+   danh sách khách hàng.
    ══════════════════════════════════════════════ */
 window.AdminDashboard.registerPage({
   pageId: "customersPage",
@@ -112,7 +87,20 @@ function renderIfLevelsTabActive() { if (custActiveTab === "levels" && window.re
 function renderIfQuestsTabActive() { if (custActiveTab === "quests" && window.renderQuestsTab) window.renderQuestsTab(); }
 
 /* ══════════════════════════════════════════════
-   INJECT PAGE HTML
+   DỰNG TRANG — inject 1 lần lúc file chạy (chỉ khi Super Admin)
+   ─────────────────────────────────────────────
+   Bảng tra "sửa ở đâu" (HTML trong chuỗi bên dưới):
+     · Tiêu đề "🎮 Khách hàng — Coffee Quest" + phụ đề.
+     · 3 nút tab: "👥 Danh sách" / "🗺️ Nhiệm vụ" / "🏆 Cấp độ".
+     · Placeholder ô tìm kiếm: "🔍 Tìm theo tên hoặc số điện thoại...".
+     · 2 cụm lọc ngày: "📅 Lọc khách hàng theo ngày đăng ký" và
+       "🧾 Chỉ lấy đơn hàng trong khoảng ngày (áp dụng khi xuất Excel)"
+       (cụm sau có nền var(--bg), bo 10px, để phân biệt trực quan với bảng
+       chính — không ảnh hưởng gì tới bảng hiển thị).
+     · Cột bảng: Khách hàng / Cấp độ / XP / Đã chi tiêu / Lợi nhuận gộp /
+       Check-in gần nhất / Hành động.
+     · Popup thêm khách: rộng tối đa 480px, các ô Tên *, Số điện thoại *,
+       Ngày sinh, Giới tính (Không rõ / Nam / Nữ / Khác).
    ══════════════════════════════════════════════ */
 (function injectCustomersPage() {
   if (!isSuperAdminCust) return;
@@ -146,7 +134,7 @@ function renderIfQuestsTabActive() { if (custActiveTab === "quests" && window.re
         <input type="text" id="custSearchInput" class="search-input" placeholder="🔍 Tìm theo tên hoặc số điện thoại...">
       </div>
 
-      <!-- ⚠️ MỚI: lọc theo khoảng ngày đăng ký — ảnh hưởng cả bảng lẫn Excel -->
+      <!-- Lọc theo khoảng ngày đăng ký — ảnh hưởng cả bảng lẫn Excel -->
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
         <span style="font-size:12px;font-weight:700;color:var(--text-muted);">📅 Lọc khách hàng theo ngày đăng ký:</span>
         <label for="custDateFrom" class="visually-hidden">Từ ngày đăng ký</label>
@@ -157,7 +145,7 @@ function renderIfQuestsTabActive() { if (custActiveTab === "quests" && window.re
         <button class="btn btn-secondary" id="custDateClearBtn" style="font-size:13px;">↺ Xoá lọc ngày</button>
       </div>
 
-      <!-- ⚠️ MỚI: lọc ngày RIÊNG cho đơn hàng — chỉ dùng khi xuất Excel -->
+      <!-- Lọc ngày RIÊNG cho đơn hàng — chỉ dùng khi xuất Excel -->
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;padding:12px 16px;background:var(--bg);border-radius:10px;">
         <span style="font-size:12px;font-weight:700;color:var(--text-muted);">🧾 Chỉ lấy đơn hàng trong khoảng ngày (áp dụng khi xuất Excel):</span>
         <label for="custOrderDateFrom" class="visually-hidden">Từ ngày (đơn hàng)</label>
@@ -244,12 +232,10 @@ function bindTopLevelEvents() {
     document.getElementById("addCustomerModal").classList.add("hidden"));
   document.getElementById("saveNewCustomerBtn")?.addEventListener("click", saveNewCustomer);
 
-  /* ⚠️ MỚI: lọc khách theo ngày đăng ký (ảnh hưởng bảng + Excel) */
   document.getElementById("custDateFrom")?.addEventListener("change", handleCustDateRangeChange);
   document.getElementById("custDateTo")?.addEventListener("change", handleCustDateRangeChange);
   document.getElementById("custDateClearBtn")?.addEventListener("click", clearCustDateFilter);
 
-  /* ⚠️ MỚI: lọc đơn hàng theo ngày (chỉ ảnh hưởng Excel) */
   document.getElementById("custOrderDateFrom")?.addEventListener("change", handleCustOrderDateRangeChange);
   document.getElementById("custOrderDateTo")?.addEventListener("change", handleCustOrderDateRangeChange);
   document.getElementById("custOrderDateClearBtn")?.addEventListener("click", clearCustOrderDateFilter);
@@ -258,7 +244,8 @@ function bindTopLevelEvents() {
 }
 
 /* ══════════════════════════════════════════════
-   TABS
+   CHUYỂN TAB (Danh sách / Nhiệm vụ / Cấp độ)
+   Nút đang chọn dùng btn-primary, còn lại btn-secondary.
    ══════════════════════════════════════════════ */
 function switchCustTab(tab) {
   if (!isSuperAdminCust) return;
@@ -277,7 +264,9 @@ function switchCustTab(tab) {
 }
 
 /* ══════════════════════════════════════════════
-   LOAD + RENDER BẢNG KHÁCH HÀNG
+   TẢI + VẼ BẢNG KHÁCH HÀNG
+   Lỗi tải: hiện hộp #custErrorMsg với chữ "❌ Lỗi khi tải danh sách khách
+   hàng: …" và bảng báo "Không tải được dữ liệu." (chữ var(--danger)).
    ══════════════════════════════════════════════ */
 async function loadCustomers() {
   if (!isSuperAdminCust) return;
@@ -294,10 +283,18 @@ async function loadCustomers() {
 }
 window.loadCustomers = loadCustomers;
 
-/* ⚠️ MỚI: điểm lọc DUY NHẤT cho danh sách khách — dùng chung bởi
-   renderCustomerTable() VÀ exportCustomersToExcel(), để bảng hiển
-   thị và file Excel xuất ra LUÔN khớp nhau (đúng nguyên tắc đã áp
-   dụng ở dashboard-orders.js::getFilteredOrdersOfDay()). */
+/* ══════════════════════════════════════════════
+   ĐIỂM LỌC DUY NHẤT CHO DANH SÁCH KHÁCH
+   ─────────────────────────────────────────────
+   Dùng chung bởi renderCustomerTable() VÀ exportCustomersToExcel(), để
+   bảng hiển thị và file Excel LUÔN khớp nhau (đúng nguyên tắc đã áp dụng ở
+   dashboard-orders.js::getFilteredOrdersOfDay()). Điều kiện (AND):
+     · tên hoặc SĐT chứa từ khoá tìm kiếm
+     · nếu có lọc ngày đăng ký: created_at (cắt lấy "YYYY-MM-DD") nằm trong
+       khoảng đã chọn — khách KHÔNG XÁC ĐỊNH được ngày đăng ký sẽ bị loại
+       khỏi kết quả khi đang lọc theo ngày (xem ghi chú giả định schema ở
+       đầu file).
+   ══════════════════════════════════════════════ */
 function getFilteredCustomers() {
   return M.state.customers.filter(c => {
     if (custSearchQ) {
@@ -307,10 +304,8 @@ function getFilteredCustomers() {
     }
 
     if (custDateFrom || custDateTo) {
-      /* ⚠️ Giả định cột customers.created_at tồn tại — xem ghi chú
-         đầu file nếu schema thật dùng tên cột khác. */
       const created = (c.created_at || "").slice(0, 10); // "YYYY-MM-DD"
-      if (!created) return false; // không xác định được ngày đăng ký → loại khỏi kết quả khi đang lọc theo ngày
+      if (!created) return false;
       if (custDateFrom && created < custDateFrom) return false;
       if (custDateTo   && created > custDateTo)   return false;
     }
@@ -319,6 +314,16 @@ function getFilteredCustomers() {
   });
 }
 
+/* ══════════════════════════════════════════════
+   VẼ BẢNG
+   ─────────────────────────────────────────────
+   Mỗi dòng: tên (+ SĐT chữ nhỏ), cấp độ (nhãn .badge "<icon> <tên rank>"),
+   XP (đậm màu var(--primary)), tổng chi tiêu, lợi nhuận gộp (màu
+   var(--easy,#00b894) khi ≥ 0, var(--danger) khi âm), check-in gần nhất
+   kèm "🔥<số>" nếu có streak, và 2 nút: "🔍 Chi tiết" / "🗑️" (xoá).
+   Rỗng: "Không tìm thấy khách hàng phù hợp với bộ lọc hiện tại." (khi đã có
+   dữ liệu nhưng lọc hết) hoặc "Chưa có khách hàng nào." (khi thật sự trống).
+   ══════════════════════════════════════════════ */
 function renderCustomerTable() {
   const tbody = document.getElementById("custTableBody");
   if (!tbody) return;
@@ -363,8 +368,10 @@ function renderCustomerTable() {
   });
 }
 
-/* ⚠️ MỚI: thay đổi khoảng ngày đăng ký — tự hoán đổi nếu nhập ngược,
-   giống hệt handleOrderDateRangeChange() ở dashboard-orders.js. */
+/* ══════════════════════════════════════════════
+   BỘ LỌC NGÀY ĐĂNG KÝ — tự hoán đổi nếu nhập ngược (giống
+   handleOrderDateRangeChange() trong dashboard-orders.js).
+   ══════════════════════════════════════════════ */
 function handleCustDateRangeChange() {
   custDateFrom = document.getElementById("custDateFrom").value || "";
   custDateTo   = document.getElementById("custDateTo").value   || "";
@@ -384,8 +391,7 @@ function clearCustDateFilter() {
   renderCustomerTable();
 }
 
-/* ⚠️ MỚI: thay đổi khoảng ngày ĐƠN HÀNG — KHÔNG re-render bảng
-   khách hàng (bộ lọc này chỉ có tác dụng lúc xuất Excel). */
+/* Bộ lọc ngày ĐƠN HÀNG (chỉ dùng khi xuất Excel) — KHÔNG vẽ lại bảng khách. */
 function handleCustOrderDateRangeChange() {
   custOrderDateFrom = document.getElementById("custOrderDateFrom").value || "";
   custOrderDateTo   = document.getElementById("custOrderDateTo").value   || "";
@@ -405,6 +411,13 @@ function clearCustOrderDateFilter() {
 
 /* ══════════════════════════════════════════════
    THÊM KHÁCH HÀNG MỚI
+   ─────────────────────────────────────────────
+   Kiểm tra: tên bắt buộc, SĐT hợp lệ theo window.isValidPhoneVN (lỗi tại
+   ô "Vui lòng nhập tên." / "Số điện thoại không hợp lệ (VD: 0912345678)."),
+   và SĐT chưa tồn tại trong hệ thống ("Số điện thoại này đã tồn tại trong
+   hệ thống."). Tạo xong: thêm vào ĐẦU danh sách trong bộ nhớ, đóng popup,
+   toast "✅ Đã tạo khách hàng mới!", rồi MỞ LUÔN trang chi tiết của khách
+   vừa tạo.
    ══════════════════════════════════════════════ */
 function openAddCustomer() {
   if (!isSuperAdminCust) return;
@@ -430,8 +443,6 @@ async function saveNewCustomer() {
   M.clearFieldError("newCustPhone");
 
   if (!name) { M.showFieldError("newCustName", "Vui lòng nhập tên."); return; }
-  /* ⚠️ SỬA (dedupe): dùng window.isValidPhoneVN() dùng chung thay vì
-     regex ^0\d{9,10}$ viết tay riêng ở đây (js/shared-utils.js). */
   if (!phone || !window.isValidPhoneVN(phone)) {
     M.showFieldError("newCustPhone", "Số điện thoại không hợp lệ (VD: 0912345678).");
     return;
@@ -470,8 +481,10 @@ async function saveNewCustomer() {
 }
 
 /* ══════════════════════════════════════════════
-   XOÁ KHÁCH HÀNG — SOFT DELETE (customer_orders.customer_id là
-   ON DELETE RESTRICT, xoá cứng sẽ lỗi nếu khách đã từng có đơn hàng)
+   XOÁ KHÁCH HÀNG — XOÁ MỀM
+   customer_orders.customer_id là khoá ngoại ON DELETE RESTRICT: xoá cứng sẽ
+   lỗi nếu khách đã từng có đơn hàng. Bắt buộc nhập lý do (hộp thoại
+   window.showReasonPrompt). Xong: toast "🗑️ Đã xoá khách hàng" (nền #e17055).
    ══════════════════════════════════════════════ */
 async function deleteCustomer(id) {
   if (!isSuperAdminCust) return;
@@ -506,15 +519,16 @@ async function deleteCustomer(id) {
 }
 
 /* ══════════════════════════════════════════════
-   ⚠️ MỚI — XUẤT EXCEL (KÈM CHI TIẾT ĐƠN HÀNG)
+   XUẤT EXCEL (KÈM CHI TIẾT ĐƠN HÀNG)
    ─────────────────────────────────────────────
-   1. Lấy danh sách khách ĐANG hiển thị (getFilteredCustomers() —
-      đã áp tìm kiếm + lọc ngày đăng ký).
-   2. Truy vấn customer_orders (kèm customer_order_items) của ĐÚNG
-      các customer_id đó, lọc thêm theo custOrderDateFrom/To nếu có.
-   3. Xuất workbook 3 sheet: "Khách hàng" / "Đơn hàng" / "Chi tiết
-      sản phẩm" — 2 sheet sau lấy mẫu theo đúng cấu trúc đã dùng ở
-      dashboard-orders.js::exportOrdersToExcel().
+   Trình tự:
+     1. Lấy danh sách khách ĐANG hiển thị (getFilteredCustomers()).
+     2. Truy vấn customer_orders (kèm customer_order_items) của ĐÚNG các
+        customer_id đó, lọc thêm theo custOrderDateFrom/To nếu có.
+     3. Dựng workbook 3 sheet rồi tải xuống.
+   Không có khách nào theo bộ lọc → toast "⚠️ Không có khách hàng nào để
+   xuất theo bộ lọc hiện tại." Trong lúc tải dữ liệu, nút đổi chữ
+   "⏳ Đang tải dữ liệu đơn hàng...".
    ══════════════════════════════════════════════ */
 async function exportCustomersToExcel() {
   if (typeof window.XLSX === "undefined") {
@@ -555,9 +569,25 @@ async function exportCustomersToExcel() {
   }
 }
 
-/* Dựng workbook 3 sheet + trigger tải file — tách riêng khỏi
-   exportCustomersToExcel() để phần fetch (async/await) và phần
-   dựng file (đồng bộ) rõ ràng, dễ đọc hơn. */
+/* ══════════════════════════════════════════════
+   DỰNG WORKBOOK 3 SHEET + TẢI XUỐNG
+   ─────────────────────────────────────────────
+   Sheet 1 "Khách hàng": STT, Tên, SĐT, Ngày sinh, Giới tính (Nam/Nữ/Khác/—),
+     Ngày đăng ký, Cấp độ, Hạng, XP, Tổng chi tiêu, Lợi nhuận gộp, Streak,
+     Check-in gần nhất.
+   Sheet 2 "Đơn hàng": tổng hợp theo đơn — Mã đơn, Khách hàng, SĐT, Thời
+     gian, Số món còn hiệu lực, Tổng khách trả, Tổng lợi nhuận gộp, Trạng
+     thái (Hoàn tất/Đã huỷ), Lý do huỷ, Nhân viên tạo đơn.
+   Sheet 3 "Chi tiết sản phẩm": mỗi dòng = 1 sản phẩm trong 1 đơn, gồm cả
+     giá vốn nguyên liệu và lợi nhuận từng dòng; đơn không có sản phẩm vẫn
+     ra 1 dòng ghi "(Không có sản phẩm)".
+   Tên file: "khach-hang-chi-tiet_<khoảng ngày đăng ký>[_don-<khoảng ngày
+   đơn hàng>][_loc-<từ khoá>].xlsx" — ví dụ khoảng ngày trống thì dùng chữ
+   "tat-ca" / "truoc" / "nay".
+   Toast kết quả: có đơn hàng → "✅ Đã xuất file "<tên file>" (X khách, Y
+   đơn hàng)!"; không có đơn nào trong khoảng đã chọn → câu báo khác nhưng
+   vẫn coi là thành công (không phải lỗi).
+   ══════════════════════════════════════════════ */
 function buildAndDownloadCustomerWorkbook(customerList, orders) {
   const genderLabel = g => g === "nam" ? "Nam" : g === "nu" ? "Nữ" : g === "khac" ? "Khác" : "—";
   const fmtDate = iso => {
@@ -583,7 +613,7 @@ function buildAndDownloadCustomerWorkbook(customerList, orders) {
       c.phone || "",
       fmtDate(c.date_of_birth),
       genderLabel(c.gender),
-      fmtDateTime(c.created_at), // ⚠️ xem ghi chú giả định schema đầu file
+      fmtDateTime(c.created_at), // xem ghi chú giả định schema đầu file
       c.level,
       `${info.rank_icon || ""} ${info.rank_name || ""}`.trim(),
       c.xp || 0,
