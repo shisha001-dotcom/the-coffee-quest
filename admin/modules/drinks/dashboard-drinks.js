@@ -1,67 +1,90 @@
 /* ══════════════════════════════════════════════
    DASHBOARD DRINKS MODULE — admin/modules/drinks/dashboard-drinks.js
    ─────────────────────────────────────────────
-   ⚠️ VIẾT LẠI THEO SCHEMA SQL V1 (2026-07-16):
-   - `category` (text tự do) → `category_id` (FK → drink_categories).
-   - Thêm `price` (giá bán) — bắt buộc, dùng snapshot khi tạo đơn hàng.
-   - Thêm `is_active`.
-   - `ingredients` (textarea tự do) → `drink_ingredients` (recipe builder
-     thật) — chọn nguyên liệu có sẵn trong kho + số lượng/ly, preview
-     giá thành 1 ly trực tiếp trong modal (INV.computeRecipeCost).
-   - Xoá đồ uống = SOFT DELETE (`deleted_at` + `is_active=false`).
+   VAI TRÒ
+   Toàn bộ trang "☕ Đồ uống" (công thức bán hàng): lưới thẻ đồ uống, tab
+   lọc theo loại, và popup Thêm/Sửa/Xem công thức có "recipe builder"
+   (chọn nguyên liệu + số lượng cho 1 ly, xem trước giá thành và lợi nhuận).
 
-   ⚠️ MỚI (2026-09 — liên kết "thành phẩm" từ ⚙️ Settings → 📦 Sản
-   phẩm, thay cho việc gõ tay tên đồ uống tự do):
-   - `drinks` giờ có thêm cột `product_ingredient_id` (FK →
-     ingredients.id). Khi TẠO MỚI 1 công thức, người dùng BẮT BUỘC
-     chọn 1 "thành phẩm" (ingredients.is_finished_product = true) từ
-     dropdown thay vì gõ tay tên — tên đồ uống tự động lấy đúng theo
-     mã đã khai báo ở Settings, tránh gõ trùng/lệch tên giữa 2 nơi
-     khi tính giá thành sau này (link theo ID thay vì so khớp text).
-   - Dropdown chọn NGUYÊN LIỆU CON trong recipe builder
-     (ingredientOptionsHtml) giờ LOẠI TRỪ các item đã tick thành
-     phẩm — tránh chọn nhầm 1 thành phẩm làm nguyên liệu của món
-     khác.
-   - Dữ liệu `drinks` cũ (tạo trước tính năng này, chưa có
-     product_ingredient_id) vẫn hoạt động bình thường — mở sửa sẽ
-     thấy ghi chú nhắc liên kết, không bị ép buộc ngay.
+   TRANG TĨNH & POPUP
+   - Trang #drinksPage (#drinkTabsWrap, #drinkGrid, nút #addDrinkBtn…)
+     nằm sẵn trong admin/dashboard.html; mở/đóng do core/dashboard-nav.js.
+   - Popup #drinkModal được file này tự inject vào <body> khi chạy.
 
-   ⚠️ SQL CẦN CHẠY TRƯỚC (Supabase SQL Editor, 1 lần):
+   DỮ LIỆU LIÊN QUAN
+     drinks               : đồ uống (giá bán, loại, trạng thái, hướng dẫn…)
+     drink_categories     : loại đồ uống (nạp qua window.Inventory)
+     drink_ingredients    : công thức — mỗi dòng = 1 nguyên liệu của 1 đồ uống
+     ingredients          : nguyên liệu VÀ thành phẩm (nạp qua window.Inventory)
+
+   LIÊN KẾT "THÀNH PHẨM"
+   - Mỗi đồ uống có cột `product_ingredient_id` trỏ tới 1 dòng `ingredients`
+     có is_finished_product = true (khai báo ở ⚙️ Settings → 📦 Sản phẩm).
+   - Khi TẠO MỚI: bắt buộc chọn 1 thành phẩm; tên đồ uống tự lấy theo tên
+     thành phẩm (ô tên bị ẩn, không gõ tay) để tránh lệch tên giữa 2 nơi.
+   - Đồ uống cũ chưa có liên kết vẫn sửa được bình thường; popup hiện
+     ghi chú nhắc liên kết chứ không ép buộc.
+   - Dropdown nguyên liệu trong recipe builder LOẠI TRỪ các thành phẩm, và
+     chỉ hiện nguyên liệu ĐÃ CÓ Mã sản phẩm.
+
+   CẦN CHẠY TRƯỚC 1 LẦN (Supabase SQL Editor)
      alter table ingredients
        add column if not exists is_finished_product boolean not null default false;
      alter table drinks
        add column if not exists product_ingredient_id bigint references ingredients(id);
 
-   ⚠️ DEDUPE: clearDrinkFieldError/showDrinkFieldError cục bộ đã bị
-   xoá — dùng thẳng window.clearFieldError/window.showFieldError
-   (js/shared-utils.js) với opts.fullWidth vì #drinkModal cũng dùng
-   .form-grid 2 cột giống #gameModal.
+   XOÁ = XOÁ MỀM
+   Nút "🗑️ Ngừng bán" đặt deleted_at + is_active=false và lưu lý do
+   (bắt buộc) — không xoá dòng, để giữ lịch sử đơn hàng đã bán.
 
-   ⚠️ Đồng bộ với Settings → 📦 Sản phẩm: computeRecipeCost() = qty_
-   per_serving × conversion_rate × unit_cost — KHÔNG đổi công thức —
-   chỉ cải thiện addRecipeRow(): khi chọn nguyên liệu có khai báo
-   quy đổi đóng gói, tự điền sẵn "Đơn vị" + "Hệ số" theo đúng tỷ lệ
-   đóng gói; vẫn sửa tay lại được bình thường.
+   ⚠️ LƯU CÔNG THỨC KHÔNG NẰM TRONG 1 GIAO DỊCH
+   saveDrink() xoá TOÀN BỘ dòng cũ của drink_ingredients rồi mới chèn lại
+   các dòng mới. Nếu bước chèn lỗi (mất mạng…) thì công thức cũ đã bị xoá.
 
-   Cần: `client`, `currentSession`, window.AdminPermissions,
-   window.Inventory (inventory-shared.js — PHẢI load TRƯỚC file này),
-   window.showConfirm/showToast (shared-utils.js).
+   PHỤ THUỘC (nạp TRƯỚC)
+   client, currentSession, window.AdminPermissions, window.Inventory
+   (inventory-shared.js), window.escHtml, showToast, showReasonPrompt,
+   clearFieldError, showFieldError (js/shared-utils.js).
+
+   XUẤT RA WINDOW (cho module khác dùng)
+   loadDrinks, renderDrinkGrid, openAddDrink, editDrink, saveDrink, deleteDrink,
+   filterDrinks. Trang Settings → tab Công thức gọi window.editDrink() để mở
+   đúng popup này.
    ══════════════════════════════════════════════ */
 
+/* Tên loại đang lọc ('all' hoặc drink_categories.name). Dùng chung với
+   core/dashboard-nav.js nên để trên window. */
 window.activeDrinkFilter = 'all';
 let allDrinks = [];
-let recipeRowSeq = 0; // id tạm cho mỗi dòng recipe trong modal (chưa lưu DB)
+let recipeRowSeq = 0; // bộ đếm để đặt id tạm cho từng dòng công thức trong popup
 
+/* true nếu role chỉ được xem: ẩn nút "+ Thêm công thức", khoá popup. */
 const isDrinksReadOnly = window.AdminPermissions.isReadOnly(currentSession.role);
 const INVD = window.Inventory;
 
-/* ⚠️ MỚI: làm tròn 6 chữ số cho hệ số quy đổi tự điền (1/500=0.002,
-   1/300=0.003333...) — tránh số thập phân dài vô ích, vẫn sửa tay
-   được bình thường nếu cần chính xác hơn. */
+/* Làm tròn 6 chữ số thập phân — chỉ dùng cho hệ số quy đổi tự điền
+   (vd 1/500 = 0.002, 1/300 = 0.003333…), tránh số quá dài. */
 function round6(n) { return Math.round(n * 1e6) / 1e6; }
 
 /* ══════════════════════════════════════════════
-   INJECT MODAL HTML — 1 lần duy nhất lúc file load
+   POPUP THÊM/SỬA CÔNG THỨC — inject 1 lần lúc file chạy
+   ─────────────────────────────────────────────
+   Nội dung là chuỗi HTML bên dưới. Bảng tra "sửa ở đâu":
+     · Chữ nhãn / placeholder / gợi ý (.hint): sửa trực tiếp trong chuỗi.
+     · Tiêu đề: mặc định "Thêm công thức"; khi mở được đặt lại thành
+       "Thêm công thức" / "✏️ Chỉnh sửa công thức" / "👁️ Xem chi tiết công thức".
+     · 5 nhóm: "📋 Thông tin cơ bản", "🧪 Công thức pha chế (tính giá thành)",
+       "📝 Hướng dẫn pha chế", "🖼️ Media".
+     · Khung giá thành: nền var(--bg), padding 12px 16px, bo 10px; số tiền cỡ
+       16px, đậm, màu var(--primary) (tím).
+     · Ô giá bán: bước nhảy 1000 (step), placeholder 35000; ô emoji tối đa 4
+       ký tự, placeholder "☕".
+     · Ô chọn (select) trong popup lấy kiểu từ dashboard-shared.css
+       (#drinkModal .form-group select: cao 44px, bo 10px).
+     · Khung popup: rộng/padding/bo góc từ .modal-box trong dashboard.css.
+   Popup đóng bằng nút ✕, phím Escape hoặc bấm ra ngoài lớp nền.
+   Có 2 ô ẩn: #drinkName (tên đồ uống) và #drinkProductIngredientId (id thành
+   phẩm) — cả 2 được tự điền khi chọn ở ô #drinkProductSelect.
    ══════════════════════════════════════════════ */
 (function injectDrinkModal() {
   if (document.getElementById("drinkModal")) return;
@@ -175,8 +198,8 @@ function round6(n) { return Math.round(n * 1e6) / 1e6; }
   document.getElementById("drinkDeleteBtn").addEventListener("click", deleteDrink);
   document.getElementById("addRecipeRowBtn").addEventListener("click", () => addRecipeRow());
 
-  /* ⚠️ MỚI: chọn thành phẩm → tự điền tên đồ uống (drinkName ẩn) theo
-     đúng dữ liệu đã khai báo ở Settings, không cho gõ tay lệch tên. */
+  /* Chọn thành phẩm → điền id vào ô ẩn + tự lấy TÊN đồ uống từ tên thành
+     phẩm (thuộc tính data-name của <option>), rồi xoá lỗi/ghi chú cũ. */
   document.getElementById("drinkProductSelect").addEventListener("change", function () {
     const opt = this.selectedOptions[0];
     document.getElementById("drinkProductIngredientId").value = this.value || "";
@@ -188,7 +211,7 @@ function round6(n) { return Math.round(n * 1e6) / 1e6; }
   });
 })();
 
-/* ── Ẩn nút "+ Thêm công thức" nếu chỉ được xem ── */
+/* Nút "+ Thêm công thức" (#addDrinkBtn, trong dashboard.html): ẩn nếu role chỉ xem. */
 (function bindAddDrinkBtn() {
   const btn = document.getElementById('addDrinkBtn');
   if (!btn) return;
@@ -197,7 +220,13 @@ function round6(n) { return Math.round(n * 1e6) / 1e6; }
 })();
 
 /* ══════════════════════════════════════════════
-   LOAD — đồ uống + (đảm bảo) danh mục/nguyên liệu đã có sẵn
+   TẢI DỮ LIỆU
+   ─────────────────────────────────────────────
+   Trình tự: hiện "⏳ Đang tải..." → nạp loại + nguyên liệu (qua
+   window.Inventory) → vẽ tab lọc + đổ dropdown Loại → tải đồ uống chưa xoá
+   mềm (sắp theo sort_order) → vẽ lưới và cập nhật số "Công thức đồ uống"
+   (#totalDrinks) trên Dashboard. Lỗi tải đồ uống hiện chữ đỏ
+   "❌ Lỗi: …" trong lưới.
    ══════════════════════════════════════════════ */
 async function loadDrinks() {
   const grid = document.getElementById('drinkGrid');
@@ -230,7 +259,12 @@ async function loadDrinks() {
 }
 
 /* ══════════════════════════════════════════════
-   TAB LỌC — render động từ drink_categories (thay hard-code cũ)
+   TAB LỌC THEO LOẠI
+   ─────────────────────────────────────────────
+   Không ghi cứng trong HTML: vẽ động từ bảng drink_categories, nên thêm
+   loại mới chỉ cần thêm dòng trong DB. Tab "🍹 Tất cả" luôn có sẵn. Nút đang
+   chọn dùng btn-primary, còn lại btn-secondary (màu ở dashboard.css). Mỗi
+   nút hiển thị "<icon> <tên loại>" (icon lấy từ cột `icon` của loại).
    ══════════════════════════════════════════════ */
 function renderDrinkTabs() {
   const wrap = document.getElementById('drinkTabsWrap');
@@ -248,7 +282,10 @@ function renderDrinkTabs() {
   });
 }
 
-/* Tương thích: dashboard-nav.js gọi showDrinks(cat) → filterDrinks giữ API cũ */
+/* Đổi loại đang lọc + đổi màu nút + vẽ lại lưới.
+   ⚠️ core/dashboard-nav.js cũng khai báo hàm filterDrinks cùng tên và được
+   nạp SAU file này, nên bản đó ghi đè bản dưới đây. Bản dưới đây hiện
+   không chạy; muốn sửa cách lọc hãy sửa ở nav (hoặc gộp về 1 nơi). */
 window.filterDrinks = function (cat, btnEl) {
   window.activeDrinkFilter = cat;
   document.querySelectorAll('.drink-tab').forEach(b => {
@@ -259,6 +296,7 @@ window.filterDrinks = function (cat, btnEl) {
   renderDrinkGrid();
 };
 
+/* Đổ danh sách loại vào dropdown "Loại" của popup (giữ lại lựa chọn hiện tại). */
 function populateDrinkCategorySelect() {
   const sel = document.getElementById('drinkCategory');
   if (!sel) return;
@@ -269,7 +307,21 @@ function populateDrinkCategorySelect() {
 }
 
 /* ══════════════════════════════════════════════
-   RENDER GRID
+   VẼ LƯỚI THẺ ĐỒ UỐNG
+   ─────────────────────────────────────────────
+   Bố cục lưới (cột tối thiểu 280px, khoảng cách 18px) đặt trong
+   admin/dashboard.html (#drinkGrid). Mỗi thẻ (style inline, sửa tại đây):
+     · Nền var(--card), viền var(--border), bo theo var(--radius), đổ bóng.
+     · Dải màu trên cùng cao 5px = màu của LOẠI đồ uống (cột `color` của
+       drink_categories; thiếu thì xám "#888").
+     · Ảnh minh hoạ (nếu có) cao 160px; ảnh lỗi thì tự ẩn.
+     · Emoji cỡ 24px (mặc định "☕"); tên 15px đậm; tên loại 11px đậm, tô
+       màu của loại; mô tả 13px màu var(--text-muted); giá 14px đậm màu
+       var(--primary), định dạng kiểu Việt "35.000 đ".
+     · Đồ uống ngừng bán: cả thẻ mờ 60% + nhãn "Ngừng bán" (nền #f1f5f9,
+       chữ #888).
+     · Nút: "✏️ Sửa <tên>" / "👁️ Xem <tên>" (role chỉ xem), chữ 12px.
+   Lưới rỗng hiện chữ "Chưa có công thức nào.".
    ══════════════════════════════════════════════ */
 function renderDrinkGrid() {
   const grid = document.getElementById('drinkGrid');
@@ -315,7 +367,10 @@ function renderDrinkGrid() {
 }
 
 /* ══════════════════════════════════════════════
-   READ-ONLY MODE cho modal
+   CHẾ ĐỘ CHỈ XEM CHO POPUP
+   Khoá mọi ô nhập + ẩn nút Lưu/Xoá (logic chung ở
+   AdminPermissions.applyReadOnlyForm); khoá thêm nút "+ Thêm nguyên liệu",
+   dropdown thành phẩm và các nút ✕ xoá dòng công thức.
    ══════════════════════════════════════════════ */
 function setDrinkModalReadOnly(readonly) {
   const modal     = document.getElementById('drinkModal');
@@ -329,11 +384,13 @@ function setDrinkModalReadOnly(readonly) {
 }
 
 /* ══════════════════════════════════════════════
-   ⚠️ MỚI: DROPDOWN CHỌN THÀNH PHẨM (sản phẩm bán ra)
+   DROPDOWN "THÀNH PHẨM" (sản phẩm bán ra)
    ─────────────────────────────────────────────
-   Chỉ liệt kê ingredients.is_finished_product = true. Ngoại lệ
-   giữ dữ liệu cũ: item đang được chọn sẵn (selectedId) vẫn hiện dù
-   is_active=false hoặc thiếu mã, để không làm mất lựa chọn đã lưu.
+   Chỉ liệt kê ingredients có is_finished_product = true, còn dùng
+   (is_active) và đã có Mã sản phẩm. Ngoại lệ để không mất dữ liệu cũ: mục
+   ĐANG được chọn (selectedId) vẫn hiện dù ngừng dùng hoặc thiếu mã.
+   Mỗi tuỳ chọn hiển thị "<Mã> — <Tên>"; thiếu mã thêm chữ
+   "— ⚠️ CHƯA CÓ MÃ SẢN PHẨM".
    ══════════════════════════════════════════════ */
 function finishedProductOptionsHtml(selectedId) {
   const list = INVD.state.ingredients.filter(i =>
@@ -346,13 +403,17 @@ function finishedProductOptionsHtml(selectedId) {
 }
 
 /* ══════════════════════════════════════════════
-   RECIPE BUILDER — dòng công thức (drink_ingredients)
+   RECIPE BUILDER — các dòng công thức (drink_ingredients)
+   ─────────────────────────────────────────────
+   Mỗi dòng gồm: [nguyên liệu] [số lượng/ly] [đơn vị] [hệ số quy đổi] [✕].
+   Giá thành 1 ly = Σ (số lượng × hệ số × giá đơn vị của nguyên liệu) —
+   công thức nằm ở Inventory.computeRecipeCost().
+
+   Dropdown nguyên liệu: chỉ hiện nguyên liệu còn dùng, KHÔNG phải thành
+   phẩm, và đã có Mã (mục đang chọn sẵn vẫn hiện dù thiếu mã). Mỗi tuỳ chọn
+   hiển thị "Tên (đơn vị — giá đ[ · 1 đơn vị = N đơn-vị-đóng-gói])".
    ══════════════════════════════════════════════ */
 function ingredientOptionsHtml(selectedId) {
-  /* ⚠️ Chỉ liệt kê nguyên liệu ĐÃ có Mã sản phẩm VÀ KHÔNG phải là
-     thành phẩm (is_finished_product=false) — tránh chọn nhầm 1
-     thành phẩm khác làm nguyên liệu con của món này. Ngoại lệ giữ
-     dữ liệu cũ: item đang chọn sẵn ở dòng này vẫn hiện dù thiếu mã. */
   const active = INVD.state.ingredients.filter(i =>
     i.is_active && !i.is_finished_product && (i.code || i.id === selectedId)
   );
@@ -365,6 +426,20 @@ function ingredientOptionsHtml(selectedId) {
   }).join('');
 }
 
+/* Thêm 1 dòng công thức vào popup. Bố cục ghi cứng:
+     · Lưới 5 cột `2fr 1fr 1fr 0.8fr auto`, khoảng cách 8px.
+     · Ô chọn/ô nhập cao 40px, bo 8px, chữ 13px, viền var(--border).
+     · Nút ✕ xoá dòng 36×36px.
+     · Placeholder: "Số lượng/ly", "Đơn vị", "Hệ số"; hệ số mặc định 1.
+   Trên điện thoại (≤640px) lưới này được sắp lại thành nhiều hàng bởi
+   dashboard-mobile.css (class `.recipe-row`).
+
+   TỰ ĐIỀN khi đổi nguyên liệu (vẫn sửa tay được):
+     · Đơn vị (nếu đang trống): lấy đơn vị đóng gói (package_unit) hoặc đơn vị tính.
+     · Hệ số (nếu đang trống hoặc bằng 1) và nguyên liệu có quy đổi đóng gói:
+       hệ số = 1 / package_qty (vd 1 Hộp = 500 g → 0.002 cho công thức tính theo g).
+   Thông tin quy đổi khai báo ở ⚙️ Settings → 📦 Sản phẩm. Công thức tính giá
+   thành KHÔNG đổi — chỉ điền sẵn giá trị đúng. */
 function addRecipeRow(row = {}) {
   const wrap = document.getElementById('drinkRecipeRows');
   const rowId = 'rr' + (++recipeRowSeq);
@@ -389,10 +464,6 @@ function addRecipeRow(row = {}) {
   ingSelect.addEventListener('change', () => {
     const ing = INVD.getIngredientById(Number(ingSelect.value));
     if (ing) {
-      /* ⚠️ Nếu sản phẩm có khai báo quy đổi đóng gói (Settings →
-         📦 Sản phẩm, VD "1 Hộp = 500 g") → tự điền đơn vị công thức +
-         hệ số quy đổi theo đúng tỷ lệ đó. KHÔNG đổi công thức tính
-         giá thành — chỉ tự điền sẵn giá trị đúng. Vẫn sửa tay được. */
       if (!unitInput.value) {
         unitInput.value = ing.package_unit || ing.unit;
       }
@@ -408,6 +479,8 @@ function addRecipeRow(row = {}) {
   updateDrinkCostPreview();
 }
 
+/* Đọc các dòng công thức đang có trên popup. Bỏ dòng chưa chọn nguyên liệu
+   hoặc số lượng ≤ 0; hệ số rỗng/0 được coi là 1. */
 function readRecipeRows() {
   return [...document.querySelectorAll('#drinkRecipeRows .recipe-row')].map(div => ({
     ingredient_id: Number(div.querySelector('.recipe-ingredient').value) || null,
@@ -417,6 +490,9 @@ function readRecipeRows() {
   })).filter(r => r.ingredient_id && r.qty_per_serving > 0);
 }
 
+/* Cập nhật khung "💰 Giá thành ước tính / ly" và dòng lợi nhuận bên dưới:
+   "Lợi nhuận gộp ước tính: X đ / ly (~Y%)". Chữ chuyển sang màu
+   var(--danger) khi lợi nhuận âm. Chỉ hiện dòng lợi nhuận khi đã nhập giá bán. */
 function updateDrinkCostPreview() {
   const rows = readRecipeRows();
   const cost = INVD.computeRecipeCost(rows);
@@ -440,7 +516,10 @@ function clearRecipeRows() {
 }
 
 /* ══════════════════════════════════════════════
-   OPEN ADD / EDIT
+   MỞ POPUP THÊM MỚI
+   Đặt lại mọi ô, thêm sẵn 1 dòng công thức trống, dropdown thành phẩm
+   đổ lại danh sách, ẩn nút Xoá (dataset.wasVisible="0"), rồi focus vào
+   ô chọn thành phẩm.
    ══════════════════════════════════════════════ */
 function openAddDrink() {
   if (isDrinksReadOnly) return;
@@ -473,6 +552,14 @@ function openAddDrink() {
   document.getElementById('drinkProductSelect').focus();
 }
 
+/* ══════════════════════════════════════════════
+   MỞ POPUP ĐỂ SỬA / XEM
+   Nạp thông tin đồ uống, rồi tải các dòng công thức từ drink_ingredients
+   (không có dòng nào hoặc lỗi → thêm 1 dòng trống). Đồ uống cũ chưa liên
+   kết thành phẩm: hiện ghi chú đỏ (#drinkLegacyNote) nhắc chọn thành phẩm
+   để liên kết chính thức (sẽ đổi tên theo mã đã khai báo), hoặc bỏ qua để
+   giữ nguyên như cũ.
+   ══════════════════════════════════════════════ */
 async function editDrink(id) {
   const d = allDrinks.find(x => x.id === id);
   if (!d) return;
@@ -526,12 +613,26 @@ async function editDrink(id) {
   document.getElementById('drinkModal').classList.remove('hidden');
 }
 
+/* Tách textarea nhiều dòng thành mảng (mỗi dòng 1 phần tử, bỏ dòng trống). */
 function parseDrinkLines(id) {
   return (document.getElementById(id)?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
 }
 
 /* ══════════════════════════════════════════════
-   SAVE — upsert `drinks` rồi đồng bộ lại toàn bộ `drink_ingredients`
+   LƯU CÔNG THỨC
+   ─────────────────────────────────────────────
+   Bước kiểm tra (báo lỗi tại ô, chữ đỏ):
+     - Tạo mới mà chưa chọn thành phẩm → "Vui lòng chọn thành phẩm trước khi tạo công thức."
+     - Không xác định được tên      → "Không xác định được tên — chọn lại thành phẩm."
+     - Chưa chọn loại               → "Vui lòng chọn loại đồ uống."
+     - Giá bán ≤ 0 / trống          → "Vui lòng nhập giá bán hợp lệ."
+   Giá trị mặc định khi để trống: emoji "☕"; sort_order rỗng → null.
+   Trình tự lưu: cập nhật/chèn `drinks` → xoá hết dòng cũ của
+   drink_ingredients theo drink_id → chèn lại các dòng công thức mới.
+   (Xem cảnh báo "không nằm trong 1 giao dịch" ở đầu file.)
+   Ghi nhận người thao tác: updated_by (luôn), created_by (khi tạo mới) =
+   tên hiển thị của tài khoản đăng nhập.
+   Thông báo: "✅ Đã lưu công thức!" (xanh mặc định); lỗi nền #e17055.
    ══════════════════════════════════════════════ */
 async function saveDrink() {
   if (isDrinksReadOnly) return;
@@ -543,10 +644,6 @@ async function saveDrink() {
   const productIngredientId = Number(document.getElementById('drinkProductIngredientId').value) || null;
   const isNewDrink = !id;
 
-  /* ⚠️ MỚI: bắt buộc chọn thành phẩm khi TẠO MỚI. Khi sửa 1 đồ uống
-     cũ chưa liên kết (product_ingredient_id null), vẫn cho lưu các
-     thay đổi khác mà không ép liên kết ngay — nhưng nếu tên trống
-     hẳn (trường hợp bất thường) thì vẫn chặn để không lưu rác. */
   if (isNewDrink && !productIngredientId) {
     window.showFieldError('drinkProductSelect', 'Vui lòng chọn thành phẩm trước khi tạo công thức.', { fullWidth: true });
     return;
@@ -569,7 +666,7 @@ async function saveDrink() {
 
   const payload = {
     name,
-    product_ingredient_id: productIngredientId,   // ⚠️ MỚI
+    product_ingredient_id: productIngredientId,
     category_id: categoryId,
     emoji:       document.getElementById('drinkEmoji').value.trim() || '☕',
     price,
@@ -628,7 +725,11 @@ async function saveDrink() {
 }
 
 /* ══════════════════════════════════════════════
-   DELETE — SOFT DELETE
+   NGỪNG BÁN (XOÁ MỀM)
+   Bắt buộc nhập lý do (hộp thoại window.showReasonPrompt). Ghi
+   deleted_at, is_active=false, deleted_reason, deleted_by; bỏ đồ uống
+   khỏi mảng `allDrinks` rồi vẽ lại lưới. Toast "🗑️ Đã ngừng bán công thức"
+   nền #e17055 (đỏ cam).
    ══════════════════════════════════════════════ */
 async function deleteDrink() {
   if (isDrinksReadOnly) return;
@@ -668,8 +769,8 @@ async function deleteDrink() {
   }
 }
 
-/* Expose cho nav.js / dashboard-customers.js (chọn đồ uống khi tạo đơn)
-   / dashboard-settings.js (tab 🧪 Công thức — mở đúng modal này) */
+/* Xuất ra window cho module khác gọi:
+   nav (loadDrinks/renderDrinkGrid), Settings → tab Công thức (editDrink). */
 window.loadDrinks      = loadDrinks;
 window.renderDrinkGrid = renderDrinkGrid;
 window.openAddDrink    = openAddDrink;
