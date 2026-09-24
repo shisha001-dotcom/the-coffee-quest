@@ -1,16 +1,45 @@
 /* ══════════════════════════════════════════════
    ADMIN MOBILE MENU — admin/dashboard-mobile-menu.js
    ─────────────────────────────────────────────
-   Đóng/mở sidebar dạng off-canvas trên mobile/tablet (≤900px),
-   giống hành vi #side-menu của frontend (index.html + js/app.js).
+   VAI TRÒ
+   Đóng/mở sidebar dạng drawer (trượt từ trái) trên tablet/điện thoại.
+   File này CHỈ bật/tắt class — toàn bộ hình dạng, màu sắc, hiệu ứng
+   trượt nằm trong CSS.
 
-   Yêu cầu HTML có sẵn (đặt trong dashboard.html):
-     <button id="adminMenuToggle" aria-label="Menu">☰</button>
-     <div id="adminMenuOverlay"></div>
-     <div class="dashboard-layout"> ... <aside class="sidebar">...</aside> ... </div>
+   PHỤ THUỘC HTML (có sẵn trong admin/dashboard.html)
+     #adminMenuToggle   nút hamburger góc trên trái
+     #adminMenuOverlay  lớp nền tối phía sau drawer
+     .sidebar           thanh menu bên trái
+   Thiếu 1 trong 3 phần tử → file tự thoát, không báo lỗi.
 
-   Đặt <script> này SAU khi .sidebar đã tồn tại trong DOM
-   (cuối body, sau các script khác).
+   CÁCH HOẠT ĐỘNG
+     - Mở  : thêm class `open` cho .sidebar + class `show` cho overlay.
+     - Đóng: gỡ 2 class đó.
+     - Bấm nút hamburger → đảo trạng thái; bấm overlay → đóng.
+     - Bấm 1 mục menu (.menu-item / .menu-sub-item) khi màn hình hẹp → đóng.
+       Mục `.menu-item-parent` (mục cha có submenu) thì KHÔNG đóng, để còn
+       xem được submenu. Sidebar hiện tại không còn submenu nên nhánh này
+       chỉ là phần dự phòng.
+     - Khi cửa sổ giãn rộng qua ngưỡng desktop → tự đóng.
+
+   ⚠️ HARDCODE — NGƯỠNG 900px
+   Con số 900 (2 chỗ bên dưới) phải KHỚP với `@media (max-width: 900px)`
+   trong admin/dashboard.css (phần "ADMIN MOBILE MENU") và
+   admin/dashboard-mobile.css. Đổi ngưỡng ở 1 nơi thì phải đổi cả các nơi còn lại.
+
+   ĐỔI GIAO DIỆN Ở ĐÂU (admin/dashboard.css, mục "ADMIN MOBILE MENU")
+     - Nút hamburger #adminMenuToggle: kích thước 44×44px, vị trí
+       top/left 14px, nền var(--sidebar-bg), chữ trắng, icon 20px.
+       (Icon là SVG 3 gạch trong dashboard.html.)
+     - Lớp nền #adminMenuOverlay: rgba(0,0,0,.5), mờ dần .25s.
+     - Drawer .sidebar (≤900px): trượt .3s, rộng tối đa 85vw, đổ bóng.
+
+   ⚠️ Nút hamburger có aria-expanded="false" ghi cứng trong HTML nhưng
+   script này KHÔNG cập nhật thuộc tính đó khi mở/đóng.
+
+   THỨ TỰ NẠP
+   Là FINAL_SCRIPT trong core/dashboard-auth.js — nạp sau cùng, khi
+   .sidebar và các mục menu do registerPage() tạo đã có trong DOM.
    ══════════════════════════════════════════════ */
 (function () {
   const toggle  = document.getElementById("adminMenuToggle");
@@ -35,15 +64,14 @@
 
   overlay.addEventListener("click", closeMenu);
 
-  /* Đóng menu khi chọn 1 mục lá (không đóng khi bấm mục cha
-     có submenu — Boardgames / Đồ uống — để còn xem được submenu) */
+  /* Chọn 1 mục lá → đóng drawer (chỉ khi màn hình ≤ 900px). */
   sidebar.addEventListener("click", e => {
     if (e.target.closest(".menu-item-parent")) return;
     const item = e.target.closest(".menu-item, .menu-sub-item");
     if (item && window.innerWidth <= 900) closeMenu();
   });
 
-  /* Đóng menu nếu xoay ngang / resize sang desktop */
+  /* Xoay ngang / kéo rộng cửa sổ sang desktop → đóng drawer. */
   window.addEventListener("resize", () => {
     if (window.innerWidth > 900) closeMenu();
   });
